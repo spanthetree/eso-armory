@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.2] - 2026-05-19
+
+### Changed
+- **uv** replaces pip for dependency management — `pyproject.toml` + `uv.lock` added, `requirements.txt` removed; use `uv sync` (or `uv sync --active` if a virtualenv is already active)
+
+### Fixed
+- **Blank inventory locator column** for items stacked across multiple bag slots — `_add_slot` now merges same-character/same-bag location entries instead of appending duplicates, eliminating the Alpine.js `x-for` key collision that suppressed all location badges
+
 ## [0.1.0-beta.1] - 2026-05-19
 
 ### Added

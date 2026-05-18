@@ -7,7 +7,7 @@ Local web app that reads ESO SavedVariables and presents inventory, equipment, a
 - **Backend**: Python / FastAPI + Uvicorn (`server.py`)
 - **Frontend**: Single-file `static/index.html` — Alpine.js 3.x, Tailwind CDN, no build step
 - **Lua parser**: Custom recursive-descent in `lua_parser.py` (stdlib only, no lupa/lark)
-- **Start**: `python3 server.py` → http://localhost:5000
+- **Start**: `uv run server.py` → http://localhost:5000 (or `python server.py` if a virtualenv is active via `uv sync --active`)
 
 ## Key Files
 | File | Purpose |

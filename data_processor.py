@@ -149,15 +149,21 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
             }
 
         item_map[link]["total_quantity"] += qty
-        item_map[link]["locations"].append({
-            "location_key":   loc_key,
-            "location_type":  loc_type,
-            "location_label": loc_label,
-            "bag_id":         bag_id,
-            "bag_label":      bag_label,
-            "quantity":       qty,
-            "bag_slots":      {str(slot): qty},
-        })
+        existing = next((l for l in item_map[link]["locations"]
+                         if l["location_key"] == loc_key and l["bag_id"] == bag_id), None)
+        if existing:
+            existing["quantity"] += qty
+            existing["bag_slots"][str(slot)] = qty
+        else:
+            item_map[link]["locations"].append({
+                "location_key":   loc_key,
+                "location_type":  loc_type,
+                "location_label": loc_label,
+                "bag_id":         bag_id,
+                "bag_label":      bag_label,
+                "quantity":       qty,
+                "bag_slots":      {str(slot): qty},
+            })
 
     # Character bags (bag 0 = equipped, bag 1 = backpack)
     # location_key must be char_id so the frontend's charMaps lookup works.

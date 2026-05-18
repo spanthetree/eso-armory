@@ -1,6 +1,6 @@
 # ESO Armory
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.1-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.2-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -18,7 +18,7 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.12+ and [uv](https://docs.astral.sh/uv/)
 - Elder Scrolls Online with the following addons installed:
   - [Inventory Insight from Scratch (IIfA)](https://www.esoui.com/downloads/info2486-InventoryInsightfromScratch.html)
   - [WizardsWardrobe](https://www.esoui.com/downloads/info3432-WizardsWardrobe.html)
