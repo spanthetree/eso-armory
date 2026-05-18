@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESO Armory</title>
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            eso: {
+              bg: '#1a1612', card: '#252119', border: '#3d3424',
+              gold: '#c9a84c', 'gold-dark': '#8b6914',
+              text: '#d4c8a8', muted: '#9a8f76', hover: '#2e2820',
+            },
+          },
+          fontFamily: { cinzel: ['Cinzel','serif'], body: ['Inter','sans-serif'] },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { background:#1a1612; color:#d4c8a8; font-family:'Inter',sans-serif; }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:#1a1612; }
+    ::-webkit-scrollbar-thumb { background:#3d3424; border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:#8b6914; }
+    [x-cloak] { display:none !important; }
+    .tab-active { border-bottom:2px solid #c9a84c; color:#c9a84c; }
+
+    /* Item icon badge */
+    .item-badge { width:32px; height:32px; border-radius:5px; display:flex;
+      align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+
+    /* Equipment slot */
+    .eq-slot { width:40px; height:40px; border-radius:5px; display:flex;
+      align-items:center; justify-content:center; font-size:16px;
+      border:1px solid #3d3424; position:relative; cursor:default; transition:border-color .15s; }
+    .eq-slot:hover { border-color:#c9a84c88; }
+    .eq-slot span { color: #c9a84c; }
+    .eq-slot.eq-empty { opacity:0.2; pointer-events:none; }
+    .eq-section-label { font-size:9px; letter-spacing:.1em; text-transform:uppercase;
+      color:#6b5c3e; font-family:'Cinzel',serif; margin-bottom:4px; }
+
+    /* Tooltip */
+    #eso-tip {
+      position:fixed; z-index:9999; pointer-events:none;
+      width:290px; max-height:80vh; overflow:hidden;
+      background:linear-gradient(160deg,#1c1810 0%,#13100c 100%);
+      border:1px solid #5a4520; border-radius:6px;
+      box-shadow:0 8px 32px rgba(0,0,0,.8), inset 0 0 0 1px #c9a84c18;
+    }
+    #eso-tip .tip-name {
+      font-family:'Cinzel',serif; font-weight:700; font-size:15px; line-height:1.3;
+    }
+    #eso-tip .tip-divider { height:1px; background:linear-gradient(90deg,transparent,#5a4520,transparent); margin:8px 0; }
+    #eso-tip .tip-section-header { font-family:'Cinzel',serif; font-size:10px; letter-spacing:.06em; color:#8b6914; text-transform:uppercase; }
+
+    /* Toast */
+    .toast { position:fixed; bottom:24px; right:24px; background:#252119;
+      border:1px solid #c9a84c; color:#c9a84c; padding:10px 18px;
+      border-radius:6px; font-size:14px; z-index:100; font-family:'Cinzel',serif;
+      opacity:0; transition:opacity .3s; }
+    .toast.show { opacity:1; }
+    .cur-icon { width:16px; height:16px; display:inline; vertical-align:middle; image-rendering:auto; }
+    .skill-icon { width:24px; height:24px; display:inline-block; vertical-align:middle; }
+  </style>
+</head>
+<body x-data="armory()" x-init="init()"
+  @mousemove.window="tipMove($event)"
+  x-cloak>
+
+  <!-- Global ESO-style tooltip -->
+  <div id="eso-tip" x-show="tip.visible" x-cloak
+    :style="`left:${tip.x}px;top:${tip.y}px`">
+    <template x-if="tip.item">
+      <div>
+        <!-- Quality color bar -->
+        <div style="height:3px;border-radius:3px 3px 0 0" :style="`background:${tip.item.quality_color}`"></div>
+
+        <div class="p-3">
+          <!-- Category row -->
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-eso-muted" x-text="tip.item.filter_type_name"></span>
+            <span class="text-xs font-medium" :style="`color:${tip.item.quality_color}`"
+              x-text="tip.item.quality_name"></span>
+          </div>
+
+          <!-- Item name -->
+          <div class="tip-name mb-2" :style="`color:${tip.item.quality_color}`"
+            x-text="tip.item.name"></div>
+
+          <!-- Set name -->
+          <template x-if="tip.item.set_name">
+            <div class="text-xs text-eso-gold/80 mb-1" x-text="tip.item.set_name"></div>
+          </template>
+
+          <!-- Level badge -->
+          <template x-if="tip.item.level > 0">
+            <div class="flex items-center gap-3 mb-2 text-xs">
+              <span class="text-eso-muted">Level <span class="text-eso-text font-semibold" x-text="tip.item.level"></span></span>
+            </div>
+          </template>
+
+          <!-- Equipment slot (if equipped somewhere) -->
+          <template x-if="tip.slotLabel">
+            <div class="text-xs text-eso-muted mb-2">
+              Slot: <span class="text-eso-text" x-text="tip.slotLabel"></span>
+            </div>
+          </template>
+
+          <!-- Decoded item properties -->
+          <div class="flex flex-wrap gap-1 mb-2">
+            <!-- Trait -->
+            <template x-if="tip.item.trait_name">
+              <span class="text-xs px-1.5 py-0.5 rounded"
+                :style="`background:${tip.item.quality_color}22;color:${tip.item.quality_color};border:1px solid ${tip.item.quality_color}44`">
+                <img x-show="tip.item.is_transmuted" src="/assets/services/transmutation_station.png" class="w-3.5 h-3.5 inline-block opacity-70 mr-0.5 align-middle" alt=""><span x-text="tip.item.trait_name"></span>
+              </span>
+            </template>
+            <!-- Style -->
+            <template x-if="tip.item.style_name">
+              <span class="text-xs px-1.5 py-0.5 rounded text-eso-muted"
+                style="background:#3d342430;border:1px solid #3d3424">
+                <span x-text="tip.item.style_name"></span>
+              </span>
+            </template>
+            <!-- Weapon subtype -->
+            <template x-if="tip.item.weapon_type">
+              <span class="text-xs px-1.5 py-0.5 rounded text-eso-muted"
+                style="background:#3d342430;border:1px solid #3d3424"
+                x-text="tip.item.weapon_type"></span>
+            </template>
+            <!-- Enchant name (falls back to generic badge) -->
+            <template x-if="tip.item.is_enchanted">
+              <span class="text-xs px-1.5 py-0.5 rounded"
+                style="background:#5199ff18;color:#5199ff;border:1px solid #5199ff44"
+                x-text="tip.item.enchant_name || 'Enchanted'"></span>
+            </template>
+            <template x-if="tip.item.is_crafted">
+              <span class="text-xs px-1.5 py-0.5 rounded"
+                style="background:#2dc50e18;color:#2dc50e;border:1px solid #2dc50e44">Crafted</span>
+            </template>
+            <template x-if="tip.item.is_stolen">
+              <span class="text-xs px-1.5 py-0.5 rounded"
+                style="background:#ef444418;color:#ef4444;border:1px solid #ef444444">Stolen</span>
+            </template>
+          </div>
+
+          <div class="tip-divider"></div>
+
+          <!-- Locations -->
+          <div class="tip-section-header mb-1.5">Locations</div>
+          <div class="space-y-1">
+            <template x-for="loc in tip.item.locations" :key="loc.location_key + loc.bag_id">
+              <div class="flex items-start justify-between gap-2 text-xs">
+                <div class="min-w-0">
+                  <span class="text-eso-text truncate block" x-text="loc.location_type==='character' ? loc.location_label : loc.bag_label"></span>
+                  <span class="text-eso-muted" x-show="loc.location_type==='character'" x-text="loc.bag_label"></span>
+                </div>
+                <span class="text-eso-muted flex-shrink-0 mt-0.5">×<span x-text="loc.quantity"></span></span>
+              </div>
+            </template>
+          </div>
+
+          <!-- Total if multiple locations -->
+          <template x-if="tip.item.locations.length > 1">
+            <div class="tip-divider"></div>
+            <div class="flex justify-between text-xs">
+              <span class="text-eso-muted">Total</span>
+              <span class="text-eso-text font-semibold">×<span x-text="tip.item.total_quantity"></span></span>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Toast notification -->
+  <div class="toast" :class="{ show: toastVisible }" x-text="toastMsg"></div>
+
+  <!-- Header -->
+  <header class="border-b border-eso-border sticky top-0 z-40"
+    style="background:#1a1612ee;backdrop-filter:blur(6px)">
+    <div class="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">⚔️</span>
+        <div>
+          <h1 class="font-cinzel font-bold text-eso-gold text-xl leading-none">ESO Armory</h1>
+          <p class="text-eso-muted text-xs mt-0.5" x-show="data"
+            x-text="data ? `${data.meta.account} · ${data.meta.server} · ${data.meta.item_count.toLocaleString()} items` : ''"></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <span x-show="loading" class="text-eso-muted text-sm animate-pulse">Loading…</span>
+        <span x-show="error && !loading" class="text-red-400 text-sm" x-text="error"></span>
+        <span x-show="data && !loading" class="flex items-center gap-4 text-xs text-eso-muted">
+          <span><span x-text="data ? data.meta.character_count : 0"></span> characters</span>
+          <span class="flex items-center gap-1"><img src="/assets/currencies/gold.png" class="cur-icon"> <span x-text="fmtGold(totalGold)"></span></span>
+          <span x-show="totalAP > 0" class="flex items-center gap-1"><img src="/assets/currencies/ap.png" class="cur-icon"> <span x-text="fmtNum(totalAP)"></span> AP</span>
+          <span x-show="totalTV > 0" class="flex items-center gap-1"><img src="/assets/currencies/tv.png" class="cur-icon"> <span x-text="fmtNum(totalTV)"></span> TV</span>
+          <span x-show="totalWV > 0" class="flex items-center gap-1"><img src="/assets/currencies/wv.png" class="cur-icon"> <span x-text="fmtNum(totalWV)"></span> WV</span>
+        </span>
+      </div>
+    </div>
+    <!-- Tabs -->
+    <div class="max-w-screen-xl mx-auto px-4 flex gap-6" x-show="data">
+      <button @click="tab='characters'; selectedChar=null; tipHide()"
+        class="py-2 text-sm font-medium transition-colors"
+        :class="tab==='characters' ? 'tab-active' : 'text-eso-muted hover:text-eso-text'">
+        Characters
+      </button>
+      <button @click="tab='inventory'; tipHide()"
+        class="py-2 text-sm font-medium transition-colors"
+        :class="tab==='inventory' ? 'tab-active' : 'text-eso-muted hover:text-eso-text'">
+        Inventory
+      </button>
+      <button @click="tab='locations'; tipHide()"
+        class="py-2 text-sm font-medium transition-colors"
+        :class="tab==='locations' ? 'tab-active' : 'text-eso-muted hover:text-eso-text'">
+        Locations
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-screen-xl mx-auto px-4 py-6">
+
+    <!-- Loading -->
+    <div x-show="loading" class="flex items-center justify-center h-64">
+      <div class="text-center">
+        <div class="text-4xl mb-3">⚔️</div>
+        <p class="font-cinzel text-eso-gold animate-pulse">Loading Armory…</p>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div x-show="error && !loading && !data"
+      class="bg-red-900/20 border border-red-700 rounded-lg p-6 text-center">
+      <p class="text-red-400 font-cinzel text-lg mb-2">Failed to load data</p>
+      <p class="text-eso-muted text-sm" x-text="error"></p>
+    </div>
+
+    <!-- ===== CHARACTERS TAB ===== -->
+    <div x-show="tab === 'characters' && data">
+
+      <!-- Character grid -->
+      <div x-show="!selectedChar" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <template x-for="char in sortedCharacters" :key="char.id">
+          <div class="bg-eso-card border border-eso-border rounded-lg p-4 cursor-pointer hover:border-eso-gold/40 transition-colors"
+            @click="selectChar(char)"
+            :class="charBuilds(char.id).length ? 'ring-1 ring-eso-gold/20' : ''">
+            <!-- Character header -->
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <h2 class="font-cinzel font-semibold text-eso-gold text-base" x-text="char.name"></h2>
+                <div class="flex gap-3 mt-1 text-xs text-eso-muted">
+                  <span class="flex items-center gap-0.5"><img src="/assets/currencies/gold.png" class="cur-icon"> <span x-text="fmtGold(char.gold)"></span></span>
+                  <span x-show="char.ap > 0" class="flex items-center gap-0.5"><img src="/assets/currencies/ap.png" class="cur-icon"> <span x-text="fmtNum(char.ap)"></span> AP</span>
+                  <span x-show="char.tv > 0" class="flex items-center gap-0.5"><img src="/assets/currencies/tv.png" class="cur-icon"> <span x-text="fmtNum(char.tv)"></span> TV</span>
+                </div>
+              </div>
+              <div class="text-xs text-eso-muted text-right">
+                <div class="flex items-center justify-end gap-1 mb-1.5">
+                  <img x-show="char.class" :src="classIcon(char.class)" :title="char.class" class="cur-icon opacity-70">
+                  <img x-show="char.race" :src="raceIcon(char.race)" :title="char.race" class="cur-icon opacity-70">
+                  <img x-show="char.alliance" :src="allianceIcon(char.alliance)" :title="char.alliance" class="cur-icon opacity-70">
+                </div>
+                <div x-text="`${char.space_used} / ${char.space_max} slots`"></div>
+                <div class="mt-1 w-24 h-1.5 bg-eso-bg rounded-full overflow-hidden">
+                  <div class="h-full rounded-full transition-all"
+                    :style="`width:${char.space_max ? Math.round(char.space_used/char.space_max*100) : 0}%;background:${spaceColor(char)}`"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Skeleton: visible between data load and ready -->
+            <div x-show="!ready" class="border-t border-eso-border pt-3 pb-1 space-y-2 animate-pulse">
+              <div class="flex gap-2">
+                <div class="h-2.5 rounded bg-eso-border/70 w-1/2"></div>
+                <div class="h-2.5 rounded bg-eso-border/70 w-1/4"></div>
+              </div>
+              <div class="flex gap-1">
+                <div class="h-9 w-10 rounded bg-eso-border/40"></div>
+                <div class="h-9 w-10 rounded bg-eso-border/40"></div>
+                <div class="h-9 w-10 rounded bg-eso-border/40"></div>
+                <div class="h-9 w-10 rounded bg-eso-border/40"></div>
+                <div class="h-9 w-10 rounded bg-eso-border/40"></div>
+              </div>
+            </div>
+
+            <!-- Card body: shown when all data is ready -->
+            <div x-show="ready">
+
+            <!-- Build summary -->
+            <template x-if="charBuilds(char.id)[0]">
+              <div class="border-t border-eso-border pt-2 pb-2 space-y-1.5 text-xs"
+                x-data="{ get b() { return charBuilds(char.id)[0]; } }">
+
+                <!-- Mundus + attributes row -->
+                <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-eso-muted">
+                  <template x-if="b.mundus && b.mundus.length">
+                    <span class="flex items-center gap-1">
+                      <img :src="mundusIcon(b.mundus[0])" class="cur-icon" :title="b.mundus[0]">
+                      <span x-text="b.mundus.join(', ')"></span>
+                    </span>
+                  </template>
+                  <span class="flex items-center gap-1" style="color:#5199ff99"><img src="/assets/interface/magicka.png" class="cur-icon"><span x-text="b.attributes?.magicka ?? 0"></span></span>
+                  <span class="flex items-center gap-1 text-red-400/80"><img src="/assets/interface/health.png" class="cur-icon"><span x-text="b.attributes?.health ?? 0"></span></span>
+                  <span class="flex items-center gap-1" style="color:#2dc50e99"><img src="/assets/interface/stamina.png" class="cur-icon"><span x-text="b.attributes?.stamina ?? 0"></span></span>
+                </div>
+
+                <!-- Skills -->
+                <template x-if="buildHasSkills(b)">
+                  <div class="space-y-0.5">
+                    <template x-for="bar in ['primary','backup']" :key="bar">
+                      <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
+                        <span class="text-eso-muted/50 capitalize shrink-0 w-14" x-text="bar + ':'"></span>
+                        <span class="inline-flex flex-wrap gap-0.5">
+                          <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
+                            <span x-show="b.skills?.[bar]?.[slot]"
+                              class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text"
+                              :class="slot===8?'border-eso-gold/40 text-eso-gold':''"
+                              x-html="abilitySlotHtml(b.skills?.[bar]?.[slot], slot===8)"></span>
+                          </template>
+                        </span>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+
+                <!-- Champion Points -->
+                <template x-if="buildHasCP(b)">
+                  <div class="grid grid-cols-3 gap-x-2 gap-y-0.5">
+                    <template x-for="group in cpGroups(b)" :key="group.label">
+                      <div>
+                        <span class="flex items-center gap-1 font-medium" :style="`color:${group.color}`">
+                          <img :src="group.icon" class="cur-icon"><span x-text="group.label"></span>
+                        </span>
+                        <template x-for="slot in group.slots" :key="slot">
+                          <div x-show="b.cp?.[slot]" class="text-eso-muted truncate"
+                            x-text="cpName(b.cp?.[slot])"></div>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+
+              </div>
+            </template>
+
+            <!-- Equipment grid — ESO paper-doll layout -->
+            <div class="border-t border-eso-border pt-3"
+                 x-data="{ get sl() { return charMaps[char.id] || {}; } }">
+
+              <!-- APPAREL: left(Head·Shoulders·Gloves) | silhouette | right(Chest·Waist·Legs·Feet) -->
+              <p class="eq-section-label">Apparel</p>
+              <div style="display:grid;grid-template-columns:40px 28px 40px;grid-template-rows:repeat(4,40px);gap:4px;margin-bottom:8px;">
+
+                <!-- Left col -->
+                <div class="eq-slot" style="grid-column:1;grid-row:1"
+                  :class="!sl[0]&&'eq-empty'" :style="sl[0]?`background:${sl[0].item.quality_color}18;border-color:${sl[0].item.quality_color}55`:''"
+                  @mouseenter="sl[0]&&tipShowSlot(sl[0].item,slotLabel(0),$event)" @mouseleave="tipHide()">
+                  <span x-show="!!sl[0]" x-html="sl[0]?slotEquipIcon(0,sl[0].item):''"></span></div>
+                <div class="eq-slot" style="grid-column:1;grid-row:2"
+                  :class="!sl[3]&&'eq-empty'" :style="sl[3]?`background:${sl[3].item.quality_color}18;border-color:${sl[3].item.quality_color}55`:''"
+                  @mouseenter="sl[3]&&tipShowSlot(sl[3].item,slotLabel(3),$event)" @mouseleave="tipHide()">
+                  <span x-show="!!sl[3]" x-html="sl[3]?slotEquipIcon(3,sl[3].item):''"></span></div>
+                <div class="eq-slot" style="grid-column:1;grid-row:3"
+                  :class="!sl[16]&&'eq-empty'" :style="sl[16]?`background:${sl[16].item.quality_color}18;border-color:${sl[16].item.quality_color}55`:''"
+                  @mouseenter="sl[16]&&tipShowSlot(sl[16].item,slotLabel(16),$event)" @mouseleave="tipHide()">
+                  <span x-show="!!sl[16]" x-html="sl[16]?slotEquipIcon(16,sl[16].item):''"></span></div>
+
+                <!-- Center silhouette spans all 4 rows -->
+                <div style="grid-column:2;grid-row:1/span 4;display:flex;align-items:center;justify-content:center;">
+                  <div style="width:1px;height:88%;background:#3d342470;border-radius:1px;"></div>
+                </div>
+
+                <!-- Right col -->
+                <div class="eq-slot" style="grid-column:3;grid-row:1"
+                  :class="!sl[2]&&'eq-empty'" :style="sl[2]?`background:${sl[2].item.quality_color}18;border-color:${sl[2].item.quality_color}55`:''"
+                  @mouseenter="sl[2]&&tipShowSlot(sl[2].item,slotLabel(2),$event)" @mouseleave="tipHide()">
+                  <span x-show="!!sl[2]" x-html="sl[2]?slotEquipIcon(2,sl[2].item):''"></span></div>
+                <div class="eq-slot" style="grid-column:3;grid-row:2"
+                  :class="!sl[6]&&'eq-empty'" :style="sl[6]?`background:${sl[6].item.quality_color}18;border-color:${sl[6].item.quality_color}55`:''"
+                  @mouseenter="sl[6]&&tipShowSlot(sl[6].item,slotLabel(6),$event)" @mouseleave="tipHide()">
+                  <span x-show="!!sl[6]" x-html="sl[6]?slotEquipIcon(6,sl[6].item):''"></span></div>
+                <div class="eq-slot" style="grid-column:3;grid-row:3"
+                  :class="!sl[8]&&'eq-empty'" :style="sl[8]?`background:${sl[8].item.quality_color}18;border-color:${sl[8].item.quality_color}55`:''"
+                  @mouseenter="sl[8]&&tipShowSlot(sl[8].item,slotLabel(8),$event)" @mouseleave="tipHide()">
+                  <span x-show="!!sl[8]" x-html="sl[8]?slotEquipIcon(8,sl[8].item):''"></span></div>
+                <div class="eq-slot" style="grid-column:3;grid-row:4"
+                  :class="!sl[9]&&'eq-empty'" :style="sl[9]?`background:${sl[9].item.quality_color}18;border-color:${sl[9].item.quality_color}55`:''"
+                  @mouseenter="sl[9]&&tipShowSlot(sl[9].item,slotLabel(9),$event)" @mouseleave="tipHide()">
+                  <span x-show="!!sl[9]" x-html="sl[9]?slotEquipIcon(9,sl[9].item):''"></span></div>
+              </div>
+
+              <!-- ACCESSORIES: Neck(1) · Ring 1(11) · Ring 2(12) -->
+              <p class="eq-section-label">Accessories</p>
+              <div class="flex gap-1 mb-2">
+                <template x-for="s in [1,11,12]" :key="'ac'+s">
+                  <div class="eq-slot" :class="!sl[s]&&'eq-empty'"
+                    :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''"
+                    @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()">
+                    <span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span>
+                  </div>
+                </template>
+              </div>
+
+              <!-- WEAPONS: bar 1 (Main·Off) | bar 2 (Backup Main·Backup Off) -->
+              <p class="eq-section-label">Weapons</p>
+              <div class="flex gap-1 items-center">
+                <template x-for="s in [4,5]" :key="'w1'+s">
+                  <div class="eq-slot" :class="!sl[s]&&'eq-empty'"
+                    :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''"
+                    @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()">
+                    <span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span>
+                  </div>
+                </template>
+                <div class="w-px bg-eso-border self-stretch mx-0.5"></div>
+                <template x-for="s in [20,21]" :key="'w2'+s">
+                  <div class="eq-slot" :class="!sl[s]&&'eq-empty'"
+                    :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''"
+                    @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()">
+                    <span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span>
+                  </div>
+                </template>
+              </div>
+
+            </div>
+            </div><!-- end ready body -->
+          </div>
+        </template>
+      </div><!-- end grid -->
+
+      <!-- Character detail view -->
+      <div x-show="selectedChar" x-cloak>
+        <!-- Back nav -->
+        <div class="flex items-center gap-3 mb-5">
+          <button @click="selectedChar = null; tipHide()"
+            class="flex items-center gap-1.5 text-sm text-eso-muted hover:text-eso-gold transition-colors">
+            ← Characters
+          </button>
+          <span class="text-eso-border">·</span>
+          <span class="font-cinzel text-eso-gold font-semibold" x-text="selectedChar?.name"></span>
+        </div>
+
+        <div class="flex flex-col xl:flex-row gap-6 items-start" x-show="selectedChar">
+          <!-- Left column -->
+          <div class="w-full xl:w-[580px] xl:shrink-0">
+            <div class="flex items-center mb-2">
+              <span class="font-cinzel text-xs text-eso-muted uppercase tracking-wider">Current Build</span>
+            </div>
+            <div class="bg-eso-card border border-eso-border rounded-lg p-4"
+               x-data="{ get sl() { return selectedChar ? (charMaps[selectedChar.id] || {}) : {}; } }">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <h2 class="font-cinzel font-semibold text-eso-gold text-base" x-text="selectedChar?.name"></h2>
+                <div class="flex gap-3 mt-1 text-xs text-eso-muted">
+                  <span class="flex items-center gap-0.5"><img src="/assets/currencies/gold.png" class="cur-icon"> <span x-text="selectedChar ? fmtGold(selectedChar.gold) : ''"></span></span>
+                  <span x-show="selectedChar?.ap > 0" class="flex items-center gap-0.5"><img src="/assets/currencies/ap.png" class="cur-icon"> <span x-text="selectedChar ? fmtNum(selectedChar.ap) : ''"></span> AP</span>
+                  <span x-show="selectedChar?.tv > 0" class="flex items-center gap-0.5"><img src="/assets/currencies/tv.png" class="cur-icon"> <span x-text="selectedChar ? fmtNum(selectedChar.tv) : ''"></span> TV</span>
+                </div>
+              </div>
+              <div class="text-xs text-eso-muted text-right">
+                <div class="flex items-center justify-end gap-1 mb-1.5">
+                  <img x-show="selectedChar?.class" :src="selectedChar ? classIcon(selectedChar.class) : ''" :title="selectedChar?.class" class="cur-icon opacity-70">
+                  <img x-show="selectedChar?.race" :src="selectedChar ? raceIcon(selectedChar.race) : ''" :title="selectedChar?.race" class="cur-icon opacity-70">
+                  <img x-show="selectedChar?.alliance" :src="selectedChar ? allianceIcon(selectedChar.alliance) : ''" :title="selectedChar?.alliance" class="cur-icon opacity-70">
+                </div>
+                <div x-text="selectedChar ? `${selectedChar.space_used} / ${selectedChar.space_max} slots` : ''"></div>
+                <div class="mt-1 w-24 h-1.5 bg-eso-bg rounded-full overflow-hidden">
+                  <div class="h-full rounded-full transition-all"
+                    :style="selectedChar ? `width:${selectedChar.space_max ? Math.round(selectedChar.space_used/selectedChar.space_max*100) : 0}%;background:${spaceColor(selectedChar)}` : ''"></div>
+                </div>
+              </div>
+            </div>
+            <div class="border-t border-eso-border pt-3">
+              <p class="eq-section-label">Apparel</p>
+              <div style="display:grid;grid-template-columns:40px 28px 40px;grid-template-rows:repeat(4,40px);gap:4px;margin-bottom:8px;">
+                <div class="eq-slot" style="grid-column:1;grid-row:1" :class="!sl[0]&&'eq-empty'" :style="sl[0]?`background:${sl[0].item.quality_color}18;border-color:${sl[0].item.quality_color}55`:''" @mouseenter="sl[0]&&tipShowSlot(sl[0].item,slotLabel(0),$event)" @mouseleave="tipHide()"><span x-show="!!sl[0]" x-html="sl[0]?slotEquipIcon(0,sl[0].item):''"></span></div>
+                <div class="eq-slot" style="grid-column:1;grid-row:2" :class="!sl[3]&&'eq-empty'" :style="sl[3]?`background:${sl[3].item.quality_color}18;border-color:${sl[3].item.quality_color}55`:''" @mouseenter="sl[3]&&tipShowSlot(sl[3].item,slotLabel(3),$event)" @mouseleave="tipHide()"><span x-show="!!sl[3]" x-html="sl[3]?slotEquipIcon(3,sl[3].item):''"></span></div>
+                <div class="eq-slot" style="grid-column:1;grid-row:3" :class="!sl[16]&&'eq-empty'" :style="sl[16]?`background:${sl[16].item.quality_color}18;border-color:${sl[16].item.quality_color}55`:''" @mouseenter="sl[16]&&tipShowSlot(sl[16].item,slotLabel(16),$event)" @mouseleave="tipHide()"><span x-show="!!sl[16]" x-html="sl[16]?slotEquipIcon(16,sl[16].item):''"></span></div>
+                <div style="grid-column:2;grid-row:1/span 4;display:flex;align-items:center;justify-content:center;"><div style="width:1px;height:88%;background:#3d342470;border-radius:1px;"></div></div>
+                <div class="eq-slot" style="grid-column:3;grid-row:1" :class="!sl[2]&&'eq-empty'" :style="sl[2]?`background:${sl[2].item.quality_color}18;border-color:${sl[2].item.quality_color}55`:''" @mouseenter="sl[2]&&tipShowSlot(sl[2].item,slotLabel(2),$event)" @mouseleave="tipHide()"><span x-show="!!sl[2]" x-html="sl[2]?slotEquipIcon(2,sl[2].item):''"></span></div>
+                <div class="eq-slot" style="grid-column:3;grid-row:2" :class="!sl[6]&&'eq-empty'" :style="sl[6]?`background:${sl[6].item.quality_color}18;border-color:${sl[6].item.quality_color}55`:''" @mouseenter="sl[6]&&tipShowSlot(sl[6].item,slotLabel(6),$event)" @mouseleave="tipHide()"><span x-show="!!sl[6]" x-html="sl[6]?slotEquipIcon(6,sl[6].item):''"></span></div>
+                <div class="eq-slot" style="grid-column:3;grid-row:3" :class="!sl[8]&&'eq-empty'" :style="sl[8]?`background:${sl[8].item.quality_color}18;border-color:${sl[8].item.quality_color}55`:''" @mouseenter="sl[8]&&tipShowSlot(sl[8].item,slotLabel(8),$event)" @mouseleave="tipHide()"><span x-show="!!sl[8]" x-html="sl[8]?slotEquipIcon(8,sl[8].item):''"></span></div>
+                <div class="eq-slot" style="grid-column:3;grid-row:4" :class="!sl[9]&&'eq-empty'" :style="sl[9]?`background:${sl[9].item.quality_color}18;border-color:${sl[9].item.quality_color}55`:''" @mouseenter="sl[9]&&tipShowSlot(sl[9].item,slotLabel(9),$event)" @mouseleave="tipHide()"><span x-show="!!sl[9]" x-html="sl[9]?slotEquipIcon(9,sl[9].item):''"></span></div>
+              </div>
+              <p class="eq-section-label">Accessories</p>
+              <div class="flex gap-1 mb-2">
+                <template x-for="s in [1,11,12]" :key="'da'+s">
+                  <div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div>
+                </template>
+              </div>
+              <p class="eq-section-label">Weapons</p>
+              <div class="flex gap-1 items-center">
+                <template x-for="s in [4,5]" :key="'dw1'+s">
+                  <div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div>
+                </template>
+                <div class="w-px bg-eso-border self-stretch mx-0.5"></div>
+                <template x-for="s in [20,21]" :key="'dw2'+s">
+                  <div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div>
+                </template>
+              </div>
+            </div>
+
+            <!-- Build summary: mundus, attributes, skills, CP -->
+            <template x-if="charBuilds(selectedChar?.id)[0]">
+              <div class="border-t border-eso-border mt-3 pt-3 space-y-2 text-xs"
+                x-data="{ get b() { return charBuilds(selectedChar.id)[0]; } }">
+                <p class="eq-section-label">Build</p>
+
+                <!-- Mundus + attributes -->
+                <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-eso-muted">
+                  <template x-if="b.mundus && b.mundus.length">
+                    <span class="flex items-center gap-1">
+                      <img :src="mundusIcon(b.mundus[0])" class="cur-icon" :title="b.mundus[0]">
+                      <span x-text="b.mundus.join(', ')"></span>
+                    </span>
+                  </template>
+                  <span class="flex items-center gap-1" style="color:#5199ff99"><img src="/assets/interface/magicka.png" class="cur-icon"><span x-text="b.attributes?.magicka ?? 0"></span></span>
+                  <span class="flex items-center gap-1 text-red-400/80"><img src="/assets/interface/health.png" class="cur-icon"><span x-text="b.attributes?.health ?? 0"></span></span>
+                  <span class="flex items-center gap-1" style="color:#2dc50e99"><img src="/assets/interface/stamina.png" class="cur-icon"><span x-text="b.attributes?.stamina ?? 0"></span></span>
+                </div>
+
+                <!-- Skills -->
+                <template x-if="buildHasSkills(b)">
+                  <div class="space-y-0.5">
+                    <template x-for="bar in ['primary','backup']" :key="bar">
+                      <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
+                        <span class="text-eso-muted/50 capitalize shrink-0 w-14" x-text="bar + ':'"></span>
+                        <span class="inline-flex flex-wrap gap-0.5">
+                          <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
+                            <span x-show="b.skills?.[bar]?.[slot]"
+                              class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text"
+                              :class="slot===8?'border-eso-gold/40 text-eso-gold':''"
+                              x-html="abilitySlotHtml(b.skills?.[bar]?.[slot], slot===8)"></span>
+                          </template>
+                        </span>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+
+                <!-- Champion Points -->
+                <template x-if="buildHasCP(b)">
+                  <div class="grid grid-cols-3 gap-x-4 gap-y-0.5">
+                    <template x-for="group in cpGroups(b)" :key="group.label">
+                      <div>
+                        <span class="flex items-center gap-1 font-medium" :style="`color:${group.color}`">
+                          <img :src="group.icon" class="cur-icon"><span x-text="group.label"></span>
+                        </span>
+                        <template x-for="slot in group.slots" :key="slot">
+                          <div x-show="b.cp?.[slot]" class="text-eso-muted whitespace-nowrap"
+                            x-text="cpName(b.cp?.[slot])"></div>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+
+                <!-- CP total -->
+                <template x-if="b.cp_earned > 0">
+                  <div class="flex items-center gap-1 text-eso-muted">
+                    <img src="/assets/interface/system.png" class="cur-icon">
+                    <span x-text="b.cp_earned.toLocaleString()"></span>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+          </div><!-- end left column -->
+
+          <!-- Right: WizardsWardrobe saved builds -->
+          <div class="flex-1 min-w-0" x-data="{ allCollapsed: true }" x-effect="selectedChar && (allCollapsed = true)">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-cinzel text-xs text-eso-muted uppercase tracking-wider">WW Saved Builds</span>
+              <button @click="allCollapsed = !allCollapsed; $dispatch(allCollapsed ? 'ww-collapse-all' : 'ww-expand-all')"
+                class="text-xs text-eso-muted hover:text-eso-gold transition-colors flex items-center gap-1">
+                <span x-text="allCollapsed ? '▶ Expand All' : '▼ Collapse All'"></span>
+              </button>
+            </div>
+            <template x-if="!wwBuilds">
+              <div class="text-eso-muted text-sm py-4">Loading saved builds…</div>
+            </template>
+            <template x-if="wwBuilds && charWWBuilds(selectedChar?.id).length === 0">
+              <div class="bg-eso-card border border-eso-border rounded-lg p-6 text-center text-eso-muted text-sm">
+                No WizardsWardrobe builds saved for this character.
+              </div>
+            </template>
+            <div class="space-y-4">
+              <template x-for="build in (wwBuilds ? charWWBuilds(selectedChar?.id) : [])"
+                :key="build.zone + '-' + build.page + '-' + build.setup">
+                <div class="bg-eso-card border border-eso-border rounded-lg p-4"
+                  x-data="{ open: false }"
+                  @ww-collapse-all.window="open = false"
+                  @ww-expand-all.window="open = true">
+
+                  <!-- Build header: name + zone/page (click to toggle) -->
+                  <div class="flex items-center justify-between cursor-pointer select-none"
+                    @click="open = !open">
+                    <h3 class="font-cinzel font-semibold text-eso-gold text-sm" x-text="build.name"></h3>
+                    <div class="flex items-center gap-2 text-xs text-eso-muted">
+                      <span x-text="build.zone + ' · ' + build.page_name"></span>
+                      <span class="w-3 text-center" x-text="open ? '▼' : '▶'"></span>
+                    </div>
+                  </div>
+
+                  <!-- Collapsible body -->
+                  <div x-show="open" class="mt-3">
+
+                  <!-- Gear -->
+                  <div class="space-y-0.5 text-xs">
+                    <template x-for="g in build.gear" :key="g.slot">
+                      <div class="flex items-center gap-2 py-0.5"
+                        @mouseenter="buildTipShow(g, $event)" @mouseleave="tipHide()">
+                        <span class="text-eso-muted shrink-0 w-24" x-text="g.slot_name"></span>
+                        <span :style="`color:${wwGearColor(g)}`" class="truncate" x-text="wwGearName(g)"></span>
+                      </div>
+                    </template>
+                  </div>
+
+                  <!-- Skills -->
+                  <template x-if="buildHasSkills(build)">
+                    <div class="mt-3 pt-2 border-t border-eso-border/40">
+                      <p class="text-xs text-eso-muted uppercase tracking-wider mb-1.5">Skills</p>
+                      <template x-for="bar in ['primary','backup']" :key="bar">
+                        <div x-show="build.skills && build.skills[bar] && Object.keys(build.skills[bar]).length"
+                          class="mb-1.5">
+                          <p class="text-xs text-eso-muted/60 mb-0.5 capitalize" x-text="bar + ' bar'"></p>
+                          <div class="flex gap-1 flex-wrap">
+                            <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
+                              <div x-show="build.skills[bar] && build.skills[bar][slot]"
+                                class="text-xs bg-eso-bg border border-eso-border rounded px-1.5 py-0.5 text-eso-text"
+                                :class="slot === 8 ? 'border-eso-gold/40 text-eso-gold' : ''"
+                                x-html="build.skills[bar] ? abilitySlotHtml(build.skills[bar][slot], slot===8) : ''">
+                              </div>
+                            </template>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+
+                  <!-- Champion Points -->
+                  <template x-if="buildHasCP(build)">
+                    <div class="mt-3 pt-2 border-t border-eso-border/40">
+                      <p class="text-xs text-eso-muted uppercase tracking-wider mb-1.5">Champion Points</p>
+                      <div class="grid grid-cols-3 gap-x-3 gap-y-0.5 text-xs">
+                        <template x-for="group in cpGroups(build)" :key="group.label">
+                          <div>
+                            <p class="flex items-center gap-1 font-medium mb-0.5" :style="`color:${group.color}`">
+                              <img :src="group.icon" class="cur-icon"><span x-text="group.label"></span>
+                            </p>
+                            <template x-for="slot in group.slots" :key="slot">
+                              <div x-show="build.cp && build.cp[slot] && build.cp[slot] > 0"
+                                class="text-eso-muted truncate"
+                                x-text="build.cp ? cpName(build.cp[slot]) : ''">
+                              </div>
+                            </template>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- Food -->
+                  <template x-if="build.food">
+                    <div class="mt-3 pt-2 border-t border-eso-border/40 text-xs text-eso-muted">
+                      🍖 <span x-text="build.food.link_name || itemIdMap[build.food.item_id]?.name || (build.food.item_id ? 'Item #' + build.food.item_id : '—')"></span>
+                    </div>
+                  </template>
+
+                  </div><!-- end collapsible body -->
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div><!-- end detail view -->
+
+    </div>
+
+    <!-- ===== INVENTORY TAB ===== -->
+    <div x-show="tab === 'inventory' && data">
+      <!-- Filters bar -->
+      <div class="bg-eso-card border border-eso-border rounded-lg p-3 mb-4 flex flex-wrap gap-3 items-center">
+        <div class="flex-1 min-w-44">
+          <input type="text" x-model.debounce.150ms="search"
+            placeholder="Search items…"
+            class="w-full bg-eso-bg border border-eso-border rounded px-3 py-1.5 text-sm text-eso-text placeholder-eso-muted focus:outline-none focus:border-eso-gold" />
+        </div>
+
+        <!-- Quality pills -->
+        <div class="flex gap-1 flex-wrap">
+          <template x-for="q in qualityOptions" :key="q.value">
+            <button @click="filterQuality = filterQuality === q.value ? '' : q.value"
+              class="px-2 py-1 rounded text-xs font-medium border transition-all"
+              :style="`border-color:${filterQuality===q.value ? q.color : '#3d3424'};color:${q.color};background:${filterQuality===q.value ? q.color+'22' : 'transparent'}`"
+              x-text="q.label">
+            </button>
+          </template>
+        </div>
+
+        <!-- Type dropdown -->
+        <select x-model="filterType"
+          class="bg-eso-bg border border-eso-border rounded px-2 py-1.5 text-sm text-eso-text focus:outline-none focus:border-eso-gold">
+          <option value="">All Types</option>
+          <option value="1">Weapons</option>
+          <option value="2">Armor</option>
+          <option value="25">Jewelry</option>
+          <option value="3">Consumables</option>
+          <option value="4">Materials</option>
+          <option value="6">Glyphs</option>
+          <option value="21">Furnishings</option>
+          <option value="5">Miscellaneous</option>
+        </select>
+
+        <!-- Location dropdown -->
+        <select x-model="filterLocType"
+          class="bg-eso-bg border border-eso-border rounded px-2 py-1.5 text-sm text-eso-text focus:outline-none focus:border-eso-gold">
+          <option value="">All Locations</option>
+          <option value="character">Characters</option>
+          <option value="bank">Bank</option>
+          <option value="craftbag">Craft Bag</option>
+          <option value="house_chest">House Chests</option>
+        </select>
+
+        <!-- Character dropdown -->
+        <select x-model="filterChar"
+          class="bg-eso-bg border border-eso-border rounded px-2 py-1.5 text-sm text-eso-text focus:outline-none focus:border-eso-gold">
+          <option value="">All Characters</option>
+          <template x-for="char in sortedCharacters" :key="char.id">
+            <option :value="char.id" x-text="char.name"></option>
+          </template>
+        </select>
+
+        <!-- Trait dropdown -->
+        <select x-model="filterTrait"
+          class="bg-eso-bg border border-eso-border rounded px-2 py-1.5 text-sm text-eso-text focus:outline-none focus:border-eso-gold">
+          <option value="">All Traits</option>
+          <option value="any">Has Trait</option>
+          <optgroup label="Armor">
+            <option value="18">Divines</option><option value="16">Infused</option>
+            <option value="25">Nirnhoned</option><option value="13">Reinforced</option>
+            <option value="11">Sturdy</option><option value="14">Well-Fitted</option>
+            <option value="12">Impenetrable</option><option value="15">Training</option>
+          </optgroup>
+          <optgroup label="Weapon">
+            <option value="4">Infused</option><option value="26">Nirnhoned</option>
+            <option value="5">Defending</option><option value="2">Charged</option>
+            <option value="7">Sharpened</option><option value="1">Powered</option>
+            <option value="3">Precise</option><option value="8">Decisive</option>
+            <option value="6">Training (W)</option>
+          </optgroup>
+          <optgroup label="Jewelry">
+            <option value="32">Protective</option><option value="29">Harmony</option>
+            <option value="31">Bloodthirsty</option><option value="30">Triune</option>
+            <option value="33">Infused (J)</option><option value="28">Swift</option>
+            <option value="22">Arcane</option><option value="21">Healthy</option>
+            <option value="23">Robust</option>
+          </optgroup>
+          <option value="transmuted">Transmuted</option>
+        </select>
+
+        <button x-show="search||filterQuality||filterType||filterLocType||filterChar||filterTrait"
+          @click="search='';filterQuality='';filterType='';filterLocType='';filterChar='';filterTrait=''"
+          class="text-eso-muted text-xs hover:text-eso-text px-2 py-1 border border-eso-border rounded transition-colors">
+          Clear
+        </button>
+
+        <span class="text-eso-muted text-xs ml-auto">
+          <span x-text="filteredItems.length.toLocaleString()"></span> items
+        </span>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-eso-card border border-eso-border rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-eso-border text-eso-muted text-xs font-cinzel tracking-wide">
+                <th class="text-left px-3 py-2 w-10"></th>
+                <th class="text-left px-3 py-2 cursor-pointer hover:text-eso-gold select-none"
+                  @click="setSort('name')">
+                  Item <span x-text="sortIndicator('name')"></span>
+                </th>
+                <th class="text-left px-3 py-2 cursor-pointer hover:text-eso-gold select-none hidden md:table-cell"
+                  @click="setSort('filter_type_name')">
+                  Type <span x-text="sortIndicator('filter_type_name')"></span>
+                </th>
+                <th class="text-left px-3 py-2 cursor-pointer hover:text-eso-gold select-none hidden sm:table-cell"
+                  @click="setSort('quality')">
+                  Quality <span x-text="sortIndicator('quality')"></span>
+                </th>
+                <th class="text-right px-3 py-2 cursor-pointer hover:text-eso-gold select-none w-16"
+                  @click="setSort('total_quantity')">
+                  Qty <span x-text="sortIndicator('total_quantity')"></span>
+                </th>
+                <th class="text-left px-3 py-2 hidden lg:table-cell">Where</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="item in filteredItems" :key="item.key">
+                <tr class="border-b border-eso-border/40 hover:bg-eso-hover transition-colors"
+                  @mouseenter="tipShow(item, $event)" @mouseleave="tipHide()">
+                  <!-- Category badge -->
+                  <td class="px-3 py-2">
+                    <div class="item-badge"
+                      :style="`background:${item.quality_color}1a;border:1px solid ${item.quality_color}44`">
+                      <span x-html="itemIconHtml(item)"></span>
+                    </div>
+                  </td>
+                  <!-- Name -->
+                  <td class="px-3 py-2">
+                    <span class="font-medium" :style="`color:${item.quality_color}`"
+                      x-text="item.name"></span>
+                    <span x-show="item.level > 0"
+                      class="ml-2 text-xs text-eso-muted" x-text="`Lv.${item.level}`"></span>
+                  </td>
+                  <!-- Type -->
+                  <td class="px-3 py-2 text-eso-muted hidden md:table-cell" x-text="item.filter_type_name"></td>
+                  <!-- Quality -->
+                  <td class="px-3 py-2 hidden sm:table-cell">
+                    <span class="text-xs" :style="`color:${item.quality_color}`"
+                      x-text="item.quality_name"></span>
+                  </td>
+                  <!-- Qty -->
+                  <td class="px-3 py-2 text-right text-eso-muted font-mono"
+                    x-text="item.total_quantity.toLocaleString()"></td>
+                  <!-- Locations summary -->
+                  <td class="px-3 py-2 hidden lg:table-cell">
+                    <div class="flex flex-wrap gap-1">
+                      <template x-for="loc in item.locations.slice(0,2)" :key="loc.location_key+loc.bag_id">
+                        <span class="text-[11px] text-eso-muted border border-eso-border rounded px-1.5 py-0.5"
+                          x-text="(loc.location_type==='character' ? loc.location_label+' · '+loc.bag_label : loc.bag_label) + (item.locations.length > 1 ? ' ×'+loc.quantity : '')"></span>
+                      </template>
+                      <span x-show="item.locations.length > 2"
+                        class="text-[11px] text-eso-muted"
+                        x-text="`+${item.locations.length-2} more`"></span>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <div x-show="filteredItems.length === 0" class="text-center py-12 text-eso-muted">
+          No items match your filters
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== LOCATIONS TAB ===== -->
+    <div x-show="tab === 'locations' && data" class="space-y-3">
+      <template x-for="section in locationSections" :key="section.key">
+        <div class="bg-eso-card border border-eso-border rounded-lg overflow-hidden">
+          <button class="w-full px-4 py-3 flex items-center justify-between hover:bg-eso-hover transition-colors"
+            @click="section.open = !section.open">
+            <div class="flex items-center gap-3">
+              <span class="text-lg" x-html="section.icon"></span>
+              <div class="text-left">
+                <span class="font-cinzel text-eso-gold font-medium" x-text="section.label"></span>
+                <span class="text-eso-muted text-xs ml-2" x-text="section.subtitle"></span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-eso-muted border border-eso-border rounded px-2 py-0.5"
+                x-text="section.items.length + ' items'"></span>
+              <span class="text-eso-muted text-xs transition-transform duration-200"
+                :class="section.open ? 'rotate-180' : ''">▼</span>
+            </div>
+          </button>
+          <div x-show="section.open" class="border-t border-eso-border">
+            <div class="px-4 py-2 border-b border-eso-border/50" x-show="section.items.length > 10">
+              <input type="text" x-model="section.search"
+                :placeholder="`Search in ${section.label}…`"
+                class="w-full bg-eso-bg border border-eso-border rounded px-3 py-1 text-sm text-eso-text placeholder-eso-muted focus:outline-none focus:border-eso-gold" />
+            </div>
+            <div class="overflow-y-auto max-h-96">
+              <table class="w-full text-sm">
+                <tbody>
+                  <template x-for="entry in sectionItems(section)" :key="entry.item.key+entry.loc.bag_id">
+                    <tr class="border-b border-eso-border/30 hover:bg-eso-hover/50 transition-colors"
+                      @mouseenter="tipShow(entry.item, $event)" @mouseleave="tipHide()">
+                      <td class="px-4 py-1.5 w-10">
+                        <div class="item-badge w-7 h-7 text-xs"
+                          :style="`background:${entry.item.quality_color}1a;border:1px solid ${entry.item.quality_color}44`">
+                          <span x-html="itemIconHtml(entry.item)"></span>
+                        </div>
+                      </td>
+                      <td class="px-2 py-1.5">
+                        <span :style="`color:${entry.item.quality_color}`"
+                          x-text="entry.item.name"></span>
+                        <span x-show="entry.item.level > 0"
+                          class="ml-1 text-xs text-eso-muted" x-text="`Lv.${entry.item.level}`"></span>
+                      </td>
+                      <td class="px-2 py-1.5 text-eso-muted text-xs hidden md:table-cell"
+                        x-text="entry.item.filter_type_name"></td>
+                      <td class="px-2 py-1.5 text-right text-eso-muted pr-4 font-mono text-xs">
+                        ×<span x-text="entry.loc.quantity.toLocaleString()"></span>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <div x-show="sectionItems(section).length === 0"
+                class="py-6 text-center text-eso-muted text-sm">No items</div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+  </main>
+
+<script>
+function armory() {
+  return {
+    data: null,
+    charMaps: {},
+    itemIdMap: {},
+    builds: null,
+    buildsError: null,
+    wwBuilds: null,
+    abilityIcons: {},
+    selectedChar: null,
+    loading: true,
+    ready: false,
+    error: null,
+    tab: 'characters',
+    toastVisible: false,
+    toastMsg: '',
+
+    // Inventory filters
+    search: '',
+    filterQuality: '',
+    filterType: '',
+    filterLocType: '',
+    filterChar: '',
+    filterTrait: '',
+    sortKey: 'name',
+    sortDir: 'asc',
+
+    // Tooltip state
+    tip: { visible: false, item: null, slotLabel: null, x: 0, y: 0 },
+
+    qualityOptions: [
+      { value:'0', label:'Trash',     color:'#8b8b8b' },
+      { value:'1', label:'Normal',    color:'#cccccc' },
+      { value:'2', label:'Fine',      color:'#2dc50e' },
+      { value:'3', label:'Superior',  color:'#5199ff' },
+      { value:'4', label:'Epic',      color:'#a02ee4' },
+      { value:'5', label:'Legendary', color:'#c29300' },
+      { value:'6', label:'Mythic',    color:'#e87800' },
+    ],
+
+    slotLabels: {
+      0:'Head', 1:'Neck', 2:'Chest', 3:'Shoulders',
+      4:'Main Hand', 5:'Off Hand', 6:'Waist',
+      8:'Legs', 9:'Feet', 10:'Costume',
+      11:'Ring 1', 12:'Ring 2', 13:'Poison',
+      14:'Backup Poison', 16:'Gloves', 20:'Backup Main', 21:'Backup Off',
+    },
+
+    async init() {
+      await Promise.all([
+        this.fetchData(),
+        this.fetchBuilds(),
+        this.fetchWWBuilds(),
+        this.fetchAbilityIcons(),
+      ]);
+      this.ready = true;
+      this.connectSSE();
+    },
+
+    async fetchData() {
+      this.loading = true;
+      this.error = null;
+      try {
+        const r = await fetch('/api/data');
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        this.data = await r.json();
+        if (this.data.error) throw new Error(this.data.error);
+        this.buildCharMaps();
+        this.buildItemIdMap();
+      } catch(e) {
+        this.error = e.message;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchBuilds() {
+      try {
+        const r = await fetch('/api/builds');
+        if (!r.ok) { this.buildsError = `HTTP ${r.status}`; return; }
+        const d = await r.json();
+        if (d.error) { this.buildsError = d.error; return; }
+        this.builds = d;
+      } catch(e) {
+        this.buildsError = e.message;
+      }
+    },
+
+    async fetchWWBuilds() {
+      try {
+        const r = await fetch('/api/ww_builds');
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.error) return;
+        this.wwBuilds = d;
+      } catch(e) {}
+    },
+
+    async fetchAbilityIcons() {
+      try {
+        const r = await fetch('/api/ability_icons');
+        if (!r.ok) return;
+        this.abilityIcons = await r.json();
+      } catch(e) {}
+    },
+
+    charWWBuilds(charId) {
+      if (!this.wwBuilds || !charId) return [];
+      return (this.wwBuilds.builds[String(charId)] || []).filter(b => this.wwBuildHasData(b));
+    },
+
+    wwBuildHasData(build) {
+      if (build.gear && Object.keys(build.gear).length > 0) return true;
+      if (this.buildHasSkills(build)) return true;
+      if (this.buildHasCP(build)) return true;
+      if (build.food) return true;
+      return false;
+    },
+
+    mundusIcon(name) {
+      if (!name) return '';
+      const key = name.toLowerCase().replace(/^the\s+/, '');
+      return `/assets/constellations/${key}.png`;
+    },
+
+    classIcon(cls) {
+      if (!cls) return '';
+      return `/assets/class/${cls.toLowerCase().replace(/\s+/g, '')}.png`;
+    },
+
+    raceIcon(race) {
+      if (!race) return '';
+      const map = {
+        'Dark Elf': 'dunmer', 'High Elf': 'altmer', 'Wood Elf': 'bosmer',
+        'Nord': 'nord', 'Khajiit': 'khajiit', 'Orc': 'orc',
+        'Argonian': 'argonian', 'Breton': 'breton', 'Imperial': 'imperial',
+        'Redguard': 'redguard',
+      };
+      const key = map[race] || race.toLowerCase().replace(/\s+/g, '_');
+      return `/assets/races/${key}.png`;
+    },
+
+    allianceIcon(alliance) {
+      if (!alliance) return '';
+      const key = alliance.split(' ')[0].toLowerCase();
+      return `/assets/alliance/${key}.png`;
+    },
+
+    wwGearName(g) {
+      if (!g?.item_id) return g?.link_name || '—';
+      return this.itemIdMap[g.item_id]?.name ?? g.link_name ?? `Item #${g.item_id}`;
+    },
+
+    wwGearColor(g) {
+      if (!g?.item_id) return '#a02ee4';
+      return this.itemIdMap[g.item_id]?.quality_color ?? '#a02ee4';
+    },
+
+    connectSSE() {
+      const es = new EventSource('/events');
+      es.onmessage = e => {
+        if (e.data === 'reload') this.fetchData().then(() => this.showToast('Inventory updated ✓'));
+      };
+      es.onerror = () => setTimeout(() => this.connectSSE(), 5000);
+    },
+
+    showToast(msg) {
+      this.toastMsg = msg;
+      this.toastVisible = true;
+      setTimeout(() => { this.toastVisible = false; }, 3000);
+    },
+
+    // ── Tooltip ──────────────────────────────────────────
+    tipShow(item, evt) {
+      this.tip.item = item;
+      this.tip.slotLabel = null;
+      this.tip.visible = true;
+      this._tipPos(evt);
+    },
+    tipShowSlot(item, slotLbl, evt) {
+      this.tip.item = item;
+      this.tip.slotLabel = slotLbl;
+      this.tip.visible = true;
+      this._tipPos(evt);
+    },
+    tipHide() {
+      this.tip.visible = false;
+    },
+    tipMove(evt) {
+      if (this.tip.visible) this._tipPos(evt);
+    },
+    _tipPos(evt) {
+      const W = 290, GAP = 14;
+      let x = evt.clientX + GAP;
+      let y = evt.clientY + GAP;
+      if (x + W > window.innerWidth - 8)  x = evt.clientX - W - GAP;
+      if (y + 300 > window.innerHeight - 8) y = evt.clientY - 300 - GAP;
+      this.tip.x = Math.max(4, x);
+      this.tip.y = Math.max(4, y);
+    },
+
+    // ── Characters ───────────────────────────────────────
+    selectChar(char) {
+      this.selectedChar = char;
+      this.tipHide();
+    },
+
+    charBuilds(charId) {
+      if (!this.builds || !charId) return [];
+      return this.builds.builds.filter(b => b.char_id === charId && b.gear.length > 0);
+    },
+
+    get sortedCharacters() {
+      if (!this.data) return [];
+      return Object.values(this.data.characters).sort((a, b) => a.name.localeCompare(b.name));
+    },
+
+    _charSum(field) {
+      if (!this.data) return 0;
+      return Object.values(this.data.characters).reduce((s, c) => s + (c[field] || 0), 0);
+    },
+
+    get totalGold() { return this._charSum('gold') + (this.data?.bank?.gold || 0); },
+    get totalAP()   { return this._charSum('ap')   + (this.data?.bank?.ap   || 0); },
+    get totalTV()   { return this._charSum('tv')   + (this.data?.bank?.tv   || 0); },
+    get totalWV()   { return this._charSum('wv')   + (this.data?.bank?.wv   || 0); },
+
+    buildItemIdMap() {
+      const m = {};
+      for (const item of this.data.items) {
+        if (item.item_id) m[item.item_id] = item;
+      }
+      this.itemIdMap = m;
+    },
+
+    buildTipShow(gear, evt) {
+      const base = gear.item_id ? this.itemIdMap[gear.item_id] : null;
+      // Always show tooltip: use iasync item for name/quality/filter metadata,
+      // always override trait/style from the gear's own link/scan data.
+      // Fall back to link-extracted name if the item isn't in the inventory.
+      const item = {
+        name:             base?.name            ?? gear.link_name ?? `Item #${gear.item_id}`,
+        quality:          base?.quality         ?? 4,
+        quality_name:     base?.quality_name    ?? 'Epic',
+        quality_color:    base?.quality_color   ?? '#a02ee4',
+        filter_type:      base?.filter_type     ?? 1,
+        filter_type_name: base?.filter_type_name ?? 'Weapons',
+        filter_type_icon: base?.filter_type_icon ?? '⚔',
+        level:            base?.level           ?? 50,
+        locations:        base?.locations       ?? [],
+        total_quantity:   base?.total_quantity  ?? 0,
+        weapon_type:      base?.weapon_type     ?? null,
+        is_stolen:        false,
+        sell_value:       gear.sell_value       ?? 0,
+        trait_id:         gear.trait_id,
+        trait_name:       gear.trait_name,
+        is_transmuted:    gear.is_transmuted,
+        style_id:         gear.style_id,
+        style_name:       gear.style_name,
+        is_crafted:       gear.is_crafted,
+        is_bound:         gear.is_bound,
+        is_enchanted:     gear.is_enchanted,
+        enchant_name:     gear.enchant_name     ?? base?.enchant_name ?? '',
+        set_name:         gear.set_name         ?? base?.set_name     ?? '',
+      };
+      this.tipShowSlot(item, gear.slot_name, evt);
+    },
+
+    abilityName(id) {
+      if (!id) return '';
+      const n = this.builds?.abilityNames?.[String(id)];
+      return n || '';
+    },
+
+    abilityIcon(id) {
+      if (!id) return null;
+      const name = this.abilityName(id);
+      if (!name || name.startsWith('#')) return null;
+      const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+      return this.abilityIcons[key] || null;
+    },
+
+    abilitySlotHtml(id, isUlt) {
+      const name = this.abilityName(id);
+      const icon = this.abilityIcon(id);
+      if (icon) {
+        return `<img src="${icon}" class="skill-icon" alt="${name}" title="${name}">`;
+      }
+      const cls = isUlt ? ' text-eso-gold' : '';
+      return `<span class="px-1 py-0.5 text-xs${cls}">${name || ''}</span>`;
+    },
+
+    cpName(id) {
+      if (!id) return '';
+      const n = this.builds?.cpNames?.[String(id)];
+      return n || '';
+    },
+
+    buildHasSkills(build) {
+      if (!build.skills) return false;
+      for (const bar of ['primary', 'backup'])
+        if (build.skills[bar] && Object.keys(build.skills[bar]).length) return true;
+      return false;
+    },
+
+    buildHasCP(build) {
+      if (!build.cp) return false;
+      return Object.values(build.cp).some(v => v > 0);
+    },
+
+    cpGroups(build) {
+      return [
+        { label: 'Craft',   color: '#A5DB52', icon: '/assets/interface/stamina.png', slots: ['1','2','3','4'] },
+        { label: 'Warfare', color: '#5ABAE7', icon: '/assets/interface/magicka.png', slots: ['5','6','7','8'] },
+        { label: 'Fitness', color: '#E76931', icon: '/assets/interface/health.png',  slots: ['9','10','11','12'] },
+      ];
+    },
+
+    buildCharMaps() {
+      const maps = {};
+      for (const item of this.data.items) {
+        for (const loc of item.locations) {
+          if (loc.bag_id !== 0) continue;
+          const cid = loc.location_key;
+          if (!maps[cid]) maps[cid] = {};
+          for (const slot of Object.keys(loc.bag_slots || {})) {
+            maps[cid][parseInt(slot)] = { slot: parseInt(slot), item };
+          }
+        }
+      }
+      this.charMaps = maps;
+    },
+
+    slotLabel(slot) {
+      return this.slotLabels[slot] || `Slot ${slot}`;
+    },
+
+    // HTML img tag for an item in a specific equipment SLOT (character sheet).
+    // Off-hand slots (5, 21) are ambiguous (weapon or shield) so fall back to item type.
+    slotEquipIcon(slot, item) {
+      const i = (name) => `<img src="/assets/interface/${name}.png" class="w-6 h-6 opacity-75" alt="">`;
+      const SLOT_IMGS = {
+        0: i('inventory_armor'), 2: i('inventory_armor'), 3: i('inventory_armor'),
+        6: i('inventory_armor'), 8: i('inventory_armor'), 9: i('inventory_armor'), 16: i('inventory_armor'),
+        1: i('jewelry_crafting_sketches'), 11: i('jewelry_crafting_sketches'), 12: i('jewelry_crafting_sketches'),
+        4: i('inventory_weapons'), 20: i('inventory_weapons'),
+        10: i('character_creation_body'),
+        13: i('inventory_consumables'), 14: i('inventory_consumables'),
+      };
+      if (slot in SLOT_IMGS) return SLOT_IMGS[slot];
+      // Off-hand slots (5, 21): resolve by item type
+      if (item.filter_type === 1) return i('inventory_weapons');
+      if (item.filter_type === 2) return i('inventory_armor');
+      if (item.filter_type === 25) return i('jewelry_crafting_sketches');
+      return i('inventory_miscellaneous');
+    },
+
+    // Icon for an item anywhere in inventory / location lists.
+    itemIconHtml(item) {
+      const FT_PNG = {
+        1: 'inventory_weapons',
+        2: 'inventory_armor',
+        3: 'inventory_consumables',
+        4: 'inventory_materials',
+        5: 'inventory_miscellaneous',
+        6: 'enchanting_potency',
+      };
+      const key = FT_PNG[item.filter_type];
+      if (key) return `<img src="/assets/interface/${key}.png" class="w-5 h-5 opacity-80" alt="">`;
+      if (item.filter_type === 25) return '◎';
+      return item.filter_type_icon;
+    },
+
+    fmtGold(n) {
+      if (n >= 1e6) return (n/1e6).toFixed(1)+'M';
+      if (n >= 1e3) return (n/1e3).toFixed(1)+'k';
+      return n.toString();
+    },
+    fmtNum(n) { return n.toLocaleString(); },
+
+    spaceColor(char) {
+      const p = char.space_max ? char.space_used / char.space_max : 0;
+      return p > 0.9 ? '#ef4444' : p > 0.75 ? '#f59e0b' : '#2dc50e';
+    },
+
+    // ── Inventory ────────────────────────────────────────
+    setSort(key) {
+      if (this.sortKey === key) this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+      else { this.sortKey = key; this.sortDir = 'asc'; }
+    },
+    sortIndicator(key) {
+      return this.sortKey === key ? (this.sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+    },
+
+    get filteredItems() {
+      if (!this.data) return [];
+      let items = this.data.items;
+      const q = this.search.toLowerCase().trim();
+      if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
+      if (this.filterQuality !== '') items = items.filter(i => i.quality === parseInt(this.filterQuality));
+      if (this.filterType)   items = items.filter(i => i.filter_type === parseInt(this.filterType));
+      if (this.filterLocType || this.filterChar) {
+        items = items.filter(item =>
+          item.locations.some(loc => {
+            if (this.filterLocType && loc.location_type !== this.filterLocType) return false;
+            if (this.filterChar && loc.location_key !== this.filterChar) return false;
+            return true;
+          })
+        );
+      }
+      if (this.filterTrait === 'any')        items = items.filter(i => i.trait_id > 0);
+      else if (this.filterTrait === 'transmuted') items = items.filter(i => i.is_transmuted);
+      else if (this.filterTrait)             items = items.filter(i => i.trait_id === parseInt(this.filterTrait));
+      const k = this.sortKey, dir = this.sortDir === 'asc' ? 1 : -1;
+      return [...items].sort((a, b) => {
+        const av = a[k], bv = b[k];
+        return typeof av === 'string' ? dir * av.localeCompare(bv) : dir * (av - bv);
+      });
+    },
+
+    // ── Locations ────────────────────────────────────────
+    get locationSections() {
+      if (!this.data) return [];
+      const items = this.data.items;
+      const sections = [];
+
+      sections.push({
+        key:'bank', icon:'<img src="/assets/services/bank.png" class="cur-icon">', label:'Bank', open:false, search:'', subtitle:'',
+        items: this._flatLoc(items.filter(i => i.locations.some(l => l.location_type==='bank')),
+          l => l.location_type==='bank'),
+      });
+      sections.push({
+        key:'craft', icon:'<img src="/assets/containers/backpack.png" class="cur-icon">', label:'Craft Bag', open:false, search:'', subtitle:'',
+        items: this._flatLoc(items.filter(i => i.locations.some(l => l.location_type==='craftbag')),
+          l => l.location_type==='craftbag'),
+      });
+
+      for (const [bagId, chest] of Object.entries(this.data.house_chests).sort()) {
+        const chestItems = items.filter(i =>
+          i.locations.some(l => l.location_type==='house_chest' && l.bag_id===chest.bag_id));
+        if (!chestItems.length) continue;
+        sections.push({
+          key:'chest_'+bagId, icon:'<img src="/assets/containers/strongbox.png" class="cur-icon">', label:chest.label, open:false, search:'',
+          subtitle:`${chest.capacity} slots`,
+          items: this._flatLoc(chestItems,
+            l => l.location_type==='house_chest' && l.bag_id===chest.bag_id),
+        });
+      }
+
+      for (const char of this.sortedCharacters) {
+        const inv = items.filter(i => i.locations.some(l => l.location_key===char.id && l.bag_id!==0));
+        sections.push({
+          key:'char_'+char.id, icon:'🧙', label:char.name, open:false, search:'',
+          subtitle:`${char.space_used}/${char.space_max} slots · ${this.fmtGold(char.gold)} gold`,
+          items: this._flatLoc(inv, l => l.location_key===char.id && l.bag_id!==0),
+        });
+      }
+      return sections;
+    },
+
+    _flatLoc(items, pred) {
+      const out = [];
+      for (const item of items)
+        for (const loc of item.locations)
+          if (pred(loc)) out.push({ item, loc });
+      return out.sort((a, b) => a.item.name.localeCompare(b.item.name));
+    },
+
+    sectionItems(section) {
+      if (!section.search) return section.items;
+      const q = section.search.toLowerCase();
+      return section.items.filter(e => e.item.name.toLowerCase().includes(q));
+    },
+  };
+}
+</script>
+</body>
+</html>

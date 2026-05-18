@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Config (contains local paths)
+config.json
+
+# Claude Code
+.claude/
+
+# ESO addon symlink (points to local game install)
+IASYNC
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,7 @@
+{
+  "iasync_lua_path": "/path/to/SavedVariables/iasync.lua",
+  "ww_lua_path": "/path/to/SavedVariables/WizardsWardrobe.lua",
+  "port": 5000,
+  "server": "NA",
+  "poll_interval_seconds": 5
+}
