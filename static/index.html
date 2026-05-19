@@ -180,6 +180,45 @@
         </div>
       </div>
     </template>
+    <template x-if="tip.achiev">
+      <div>
+        <div style="height:3px;border-radius:3px 3px 0 0;background:#8b6914"></div>
+        <div class="p-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-eso-muted" x-text="tip.achiev.cat + (tip.achiev.subcat ? ' › ' + tip.achiev.subcat : '')"></span>
+            <span class="text-xs" :style="tip.achiev.complete ? 'color:#c9a84c' : 'color:#9a8f76'"
+              x-text="tip.achiev.complete ? '✓ Completed' : 'Incomplete'"></span>
+          </div>
+          <div class="tip-name mb-2" style="color:#c9a84c" x-text="tip.achiev.name"></div>
+          <p class="text-xs text-eso-muted leading-snug mb-2" x-text="tip.achiev.desc"></p>
+          <div class="tip-divider"></div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-eso-muted" x-text="tip.achiev.points + ' Achievement Points'"></span>
+            <span x-show="tip.achiev.complete" class="text-eso-muted/70" x-text="tip.achiev.completionDate"></span>
+          </div>
+          <template x-if="!tip.achiev.complete && tip.achiev.criteria.length">
+            <div class="mt-2 space-y-1.5">
+              <template x-for="c in tip.achiev.criteria" :key="c.desc">
+                <div>
+                  <div class="flex justify-between text-[10px] text-eso-muted mb-0.5">
+                    <span class="truncate flex-1" x-text="c.desc"></span>
+                    <span class="shrink-0 ml-2"
+                      :class="c.cur >= c.req ? 'text-eso-gold/70' : ''"
+                      x-text="`${c.cur}/${c.req}`"></span>
+                  </div>
+                  <template x-if="c.req > 1">
+                    <div class="w-full h-1 rounded-full overflow-hidden" style="background:#1a1612">
+                      <div class="h-full rounded-full"
+                        :style="`background:#8b6914;width:${Math.min(100,Math.round(c.cur/c.req*100))}%`"></div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
   </div>
 
   <!-- Toast notification -->
@@ -221,10 +260,10 @@
         :class="tab==='inventory' ? 'tab-active' : 'text-eso-muted hover:text-eso-text'">
         Inventory
       </button>
-      <button @click="tab='locations'; tipHide()"
+      <button @click="tab='achievements'; tipHide()"
         class="py-2 text-sm font-medium transition-colors"
-        :class="tab==='locations' ? 'tab-active' : 'text-eso-muted hover:text-eso-text'">
-        Locations
+        :class="tab==='achievements' ? 'tab-active' : 'text-eso-muted hover:text-eso-text'">
+        Achievements
       </button>
     </div>
   </header>
@@ -857,63 +896,239 @@
       </div>
     </div>
 
-    <!-- ===== LOCATIONS TAB ===== -->
-    <div x-show="tab === 'locations' && data" class="space-y-3">
-      <template x-for="section in locationSections" :key="section.key">
-        <div class="bg-eso-card border border-eso-border rounded-lg overflow-hidden">
-          <button class="w-full px-4 py-3 flex items-center justify-between hover:bg-eso-hover transition-colors"
-            @click="section.open = !section.open">
-            <div class="flex items-center gap-3">
-              <span class="text-lg" x-html="section.icon"></span>
-              <div class="text-left">
-                <span class="font-cinzel text-eso-gold font-medium" x-text="section.label"></span>
-                <span class="text-eso-muted text-xs ml-2" x-text="section.subtitle"></span>
+
+    <!-- ===== ACHIEVEMENTS TAB ===== -->
+    <div x-show="tab === 'achievements' && data" x-cloak>
+      <template x-if="!achievData">
+        <div class="flex items-center justify-center h-64 text-eso-muted text-sm animate-pulse">Loading achievements…</div>
+      </template>
+      <template x-if="achievData">
+        <div class="flex h-[calc(100vh-9.5rem)] border border-eso-border rounded-lg overflow-hidden">
+
+          <!-- Left nav: SUMMARY + category list -->
+          <div class="w-52 shrink-0 border-r border-eso-border bg-eso-card overflow-y-auto">
+
+            <!-- Summary button -->
+            <button @click="achievView='summary'; achievCat=null"
+              class="w-full text-left px-4 py-3 border-b border-eso-border transition-colors font-cinzel text-xs tracking-widest font-semibold"
+              :class="achievView==='summary' ? 'text-eso-gold bg-eso-hover' : 'text-eso-text hover:bg-eso-hover/50'">
+              SUMMARY
+            </button>
+
+            <!-- Category entries -->
+            <template x-for="cat in achievData.categories" :key="cat.name">
+              <button @click="achievView='category'; achievCat=cat; $dispatch('sub-collapse')"
+                class="w-full text-left px-4 py-2.5 border-b border-eso-border/30 transition-colors"
+                :class="achievCat?.name===cat.name ? 'bg-eso-hover text-eso-gold' : 'text-eso-muted hover:bg-eso-hover/50 hover:text-eso-text'">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[11px] font-cinzel tracking-wide leading-tight" x-text="cat.name"></span>
+                  <span class="text-[10px] shrink-0 ml-1"
+                    x-text="cat.totalPts ? Math.round(cat.earnedPts/cat.totalPts*100)+'%' : '0%'"></span>
+                </div>
+                <div class="w-full h-1 bg-eso-bg rounded-full overflow-hidden">
+                  <div class="h-full rounded-full"
+                    :style="`background:#8b6914;width:${cat.totalPts ? Math.round(cat.earnedPts/cat.totalPts*100) : 0}%`"></div>
+                </div>
+              </button>
+            </template>
+          </div>
+
+          <!-- Right content pane -->
+          <div class="flex-1 overflow-y-auto bg-eso-bg" x-data>
+
+            <!-- Character selector -->
+            <div x-show="achievData.chars.length >= 1"
+              class="flex items-center gap-3 px-5 py-3 border-b border-eso-border bg-eso-card/50">
+              <span class="text-xs text-eso-muted font-cinzel tracking-wide shrink-0">CHARACTER</span>
+              <select x-model="achievCharId"
+                class="bg-eso-bg border border-eso-border rounded px-2 py-1 text-sm text-eso-text focus:outline-none focus:border-eso-gold">
+                <template x-for="c in achievData.chars" :key="c.id">
+                  <option :value="c.id" x-text="c.name"></option>
+                </template>
+              </select>
+            </div>
+
+            <!-- ── Summary view ─────────────────────────────── -->
+            <div x-show="achievView==='summary'" class="p-5">
+
+              <!-- Header row -->
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="font-cinzel font-bold text-eso-gold text-xl tracking-widest">SUMMARY</h2>
+                <span class="font-cinzel text-sm text-eso-gold">
+                  Achievement Points: <strong x-text="achievData.earnedPts.toLocaleString() + ' / ' + achievData.totalPts.toLocaleString()"></strong>
+                </span>
+              </div>
+
+              <!-- Recent achievements -->
+              <template x-if="achievData.recent.length">
+                <div class="mb-6">
+                  <h3 class="font-cinzel font-bold text-eso-text tracking-widest mb-3">RECENT ACHIEVEMENTS</h3>
+                  <div class="flex flex-wrap gap-3">
+                    <template x-for="a in achievData.recent" :key="a.id">
+                      <div class="flex flex-col items-center gap-1 group cursor-default" style="width:72px"
+                        @mouseenter="tipShowAchiev(a, $event)" @mouseleave="tipHide()">
+                        <div class="w-14 h-14 rounded border flex items-center justify-center relative overflow-hidden"
+                          style="background:#1e130a;border-color:#c9a84c55">
+                          <img :src="achievIconUrl(a.icon)" class="absolute inset-0 w-full h-full object-cover"
+                            @error="$el.style.visibility='hidden'" alt="">
+                          <span class="text-2xl" style="color:#c9a84c80;pointer-events:none">★</span>
+                        </div>
+                        <span class="text-[9px] text-eso-muted text-center leading-tight group-hover:text-eso-text transition-colors"
+                          style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"
+                          x-text="a.name"></span>
+                        <span class="text-[9px] text-eso-muted/60" x-text="a.completionDate"></span>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Total points bar -->
+              <div class="mb-6">
+                <div class="flex justify-between text-xs text-eso-muted mb-1">
+                  <span class="font-cinzel tracking-wide">ACHIEVEMENT POINTS EARNED</span>
+                  <span x-text="`${achievData.earnedPts.toLocaleString()} / ${achievData.totalPts.toLocaleString()}`"></span>
+                </div>
+                <div class="w-full h-4 bg-eso-card border border-eso-border rounded-sm overflow-hidden">
+                  <div class="h-full transition-all"
+                    :style="`background:#8b6914;width:${achievData.totalPts ? Math.round(achievData.earnedPts/achievData.totalPts*100) : 0}%`"></div>
+                </div>
+              </div>
+
+              <!-- Category grid (2 columns) -->
+              <div class="grid grid-cols-2 gap-x-8 gap-y-3">
+                <template x-for="cat in achievData.categories" :key="cat.name">
+                  <div class="cursor-pointer group" @click="achievView='category'; achievCat=cat; $dispatch('sub-collapse')">
+                    <div class="flex justify-between items-baseline mb-1">
+                      <span class="text-xs font-cinzel tracking-wide text-eso-text group-hover:text-eso-gold transition-colors"
+                        x-text="cat.name"></span>
+                    </div>
+                    <div class="w-full h-3 bg-eso-card border border-eso-border rounded-sm overflow-hidden">
+                      <div class="h-full"
+                        :style="`background:#8b6914;width:${cat.totalPts ? Math.round(cat.earnedPts/cat.totalPts*100) : 0}%`"></div>
+                    </div>
+                    <div class="text-[10px] text-eso-muted mt-0.5"
+                      x-text="`${cat.earnedPts.toLocaleString()} / ${cat.totalPts.toLocaleString()}`"></div>
+                  </div>
+                </template>
               </div>
             </div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-eso-muted border border-eso-border rounded px-2 py-0.5"
-                x-text="section.items.length + ' items'"></span>
-              <span class="text-eso-muted text-xs transition-transform duration-200"
-                :class="section.open ? 'rotate-180' : ''">▼</span>
-            </div>
-          </button>
-          <div x-show="section.open" class="border-t border-eso-border">
-            <div class="px-4 py-2 border-b border-eso-border/50" x-show="section.items.length > 10">
-              <input type="text" x-model="section.search"
-                :placeholder="`Search in ${section.label}…`"
-                class="w-full bg-eso-bg border border-eso-border rounded px-3 py-1 text-sm text-eso-text placeholder-eso-muted focus:outline-none focus:border-eso-gold" />
-            </div>
-            <div class="overflow-y-auto max-h-96">
-              <table class="w-full text-sm">
-                <tbody>
-                  <template x-for="entry in sectionItems(section)" :key="entry.item.key+entry.loc.bag_id">
-                    <tr class="border-b border-eso-border/30 hover:bg-eso-hover/50 transition-colors"
-                      @mouseenter="tipShow(entry.item, $event)" @mouseleave="tipHide()">
-                      <td class="px-4 py-1.5 w-10">
-                        <div class="item-badge w-7 h-7 text-xs"
-                          :style="`background:${entry.item.quality_color}1a;border:1px solid ${entry.item.quality_color}44`">
-                          <span x-html="itemIconHtml(entry.item)"></span>
+
+            <!-- ── Category drill-down view ─────────────────── -->
+            <div x-show="achievView==='category' && achievCat" class="p-5"
+              x-data="{ subcatAllOpen: false }"
+              x-effect="achievCat && (subcatAllOpen = false)">
+
+              <!-- Breadcrumb -->
+              <div class="flex items-center gap-2 mb-4 text-sm">
+                <button @click="achievView='summary'; achievCat=null"
+                  class="text-eso-muted hover:text-eso-gold transition-colors">Summary</button>
+                <span class="text-eso-border">›</span>
+                <span class="font-cinzel text-eso-gold font-semibold" x-text="achievCat?.name"></span>
+              </div>
+
+              <!-- Category header + bar -->
+              <div class="mb-5">
+                <div class="flex items-baseline justify-between mb-1.5">
+                  <h2 class="font-cinzel font-bold text-eso-gold text-xl tracking-widest"
+                    x-text="achievCat?.name?.toUpperCase()"></h2>
+                  <div class="flex items-center gap-4">
+                    <button @click="subcatAllOpen = !subcatAllOpen; $dispatch(subcatAllOpen ? 'sub-expand' : 'sub-collapse')"
+                      class="text-xs text-eso-muted hover:text-eso-gold transition-colors flex items-center gap-1">
+                      <span x-text="subcatAllOpen ? '▼ Collapse All' : '▶ Expand All'"></span>
+                    </button>
+                    <span class="text-eso-muted text-sm"
+                      x-text="achievCat ? `${achievCat.earnedPts.toLocaleString()} / ${achievCat.totalPts.toLocaleString()} pts` : ''"></span>
+                  </div>
+                </div>
+                <div class="w-full h-3 bg-eso-card border border-eso-border rounded-sm overflow-hidden">
+                  <div class="h-full"
+                    :style="`background:#8b6914;width:${achievCat?.totalPts ? Math.round(achievCat.earnedPts/achievCat.totalPts*100) : 0}%`"></div>
+                </div>
+              </div>
+
+              <!-- Subcategories -->
+              <template x-for="sub in (achievCat?.subcats || [])" :key="achievCat.name + '-' + sub.name">
+                <div class="mb-6" x-data="{ open: false }"
+                  @sub-expand.window="open = true"
+                  @sub-collapse.window="open = false">
+
+                  <!-- Subcat header -->
+                  <div class="flex items-center justify-between cursor-pointer mb-1 group" @click="open=!open">
+                    <h3 class="font-cinzel text-sm font-semibold text-eso-text group-hover:text-eso-gold transition-colors"
+                      x-text="sub.name"></h3>
+                    <div class="flex items-center gap-3 text-xs text-eso-muted shrink-0 ml-3">
+                      <span x-text="`${sub.earnedPts.toLocaleString()} / ${sub.totalPts.toLocaleString()} pts · ${sub.complete}/${sub.total}`"></span>
+                      <span class="w-3 text-center" x-text="open ? '▼' : '▶'"></span>
+                    </div>
+                  </div>
+                  <div class="w-full h-2 bg-eso-card border border-eso-border rounded-sm overflow-hidden mb-2">
+                    <div class="h-full"
+                      :style="`background:#8b6914;width:${sub.totalPts ? Math.round(sub.earnedPts/sub.totalPts*100) : 0}%`"></div>
+                  </div>
+
+                  <!-- Individual achievements -->
+                  <div x-show="open" class="space-y-0.5">
+                    <template x-for="a in achievItemsByCatSubcat(achievCat?.name, sub.name)" :key="a.id">
+                      <div class="flex items-start gap-3 px-2 py-2 rounded transition-colors"
+                        :class="a.complete ? 'bg-eso-card/70 hover:bg-eso-card' : 'hover:bg-eso-hover/30'">
+
+                        <!-- Icon / completion badge -->
+                        <div class="w-9 h-9 rounded shrink-0 relative overflow-hidden flex items-center justify-center border"
+                          :style="a.complete ? 'border-color:#c9a84c55;background:#1e130a' : 'border-color:#3d342460;background:#1a1612'">
+                          <img :src="achievIconUrl(a.icon)" class="absolute inset-0 w-full h-full object-cover"
+                            @error="$el.style.visibility='hidden'" alt="">
+                          <span class="text-lg" style="pointer-events:none"
+                            :style="a.complete ? 'color:#c9a84c80' : 'color:#3d342490'">★</span>
                         </div>
-                      </td>
-                      <td class="px-2 py-1.5">
-                        <span :style="`color:${entry.item.quality_color}`"
-                          x-text="entry.item.name"></span>
-                        <span x-show="entry.item.level > 0"
-                          class="ml-1 text-xs text-eso-muted" x-text="`Lv.${entry.item.level}`"></span>
-                      </td>
-                      <td class="px-2 py-1.5 text-eso-muted text-xs hidden md:table-cell"
-                        x-text="entry.item.filter_type_name"></td>
-                      <td class="px-2 py-1.5 text-right text-eso-muted pr-4 font-mono text-xs">
-                        ×<span x-text="entry.loc.quantity.toLocaleString()"></span>
-                      </td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-              <div x-show="sectionItems(section).length === 0"
-                class="py-6 text-center text-eso-muted text-sm">No items</div>
+
+                        <!-- Text content -->
+                        <div class="flex-1 min-w-0">
+                          <div class="flex items-start justify-between gap-2">
+                            <span class="text-xs font-medium leading-tight"
+                              :class="a.complete ? 'text-eso-gold' : 'text-eso-muted'"
+                              x-text="a.name"></span>
+                            <span class="text-[10px] shrink-0 pt-0.5"
+                              :class="a.complete ? 'text-eso-gold/60' : 'text-eso-muted/50'"
+                              x-text="a.complete ? `${a.points}pt · ${a.completionDate}` : `${a.points}pt`"></span>
+                          </div>
+                          <p class="text-[10px] text-eso-muted/70 mt-0.5 leading-snug"
+                            style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"
+                            x-text="a.desc"></p>
+                          <!-- Criteria progress bars for incomplete -->
+                          <template x-if="!a.complete && a.criteria.length">
+                            <div class="mt-1.5 space-y-1">
+                              <template x-for="c in a.criteria" :key="c.desc">
+                                <div>
+                                  <div class="flex items-center gap-1.5 mb-0.5">
+                                    <span class="text-[9px] text-eso-muted/60 truncate flex-1" x-text="c.desc"></span>
+                                    <span class="text-[9px] shrink-0"
+                                      :class="c.cur >= c.req ? 'text-eso-gold/70' : 'text-eso-muted'"
+                                      x-text="`${c.cur}/${c.req}`"></span>
+                                  </div>
+                                  <template x-if="c.req > 1">
+                                    <div class="w-full h-1 bg-eso-bg rounded-full overflow-hidden">
+                                      <div class="h-full rounded-full"
+                                        :style="`background:#8b6914;width:${Math.min(100,Math.round(c.cur/c.req*100))}%`"></div>
+                                    </div>
+                                  </template>
+                                </div>
+                              </template>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </template>
+                    <div x-show="achievItemsByCatSubcat(achievCat?.name, sub.name).length === 0"
+                      class="text-xs text-eso-muted/50 py-2 px-2 italic">
+                      No individual achievement data for this subcategory.
+                    </div>
+                  </div>
+                </div>
+              </template>
             </div>
-          </div>
+
+          </div><!-- end right pane -->
         </div>
       </template>
     </div>
@@ -929,6 +1144,11 @@ function armory() {
     builds: null,
     buildsError: null,
     wwBuilds: null,
+    achievData: null,
+    achievView: 'summary',
+    achievCat: null,
+    achievCharId: null,
+    _achievIndexByChar: {},
     abilityIcons: {},
     selectedChar: null,
     loading: true,
@@ -949,7 +1169,7 @@ function armory() {
     sortDir: 'asc',
 
     // Tooltip state
-    tip: { visible: false, item: null, slotLabel: null, x: 0, y: 0 },
+    tip: { visible: false, item: null, achiev: null, slotLabel: null, x: 0, y: 0 },
 
     qualityOptions: [
       { value:'0', label:'Trash',     color:'#8b8b8b' },
@@ -975,13 +1195,14 @@ function armory() {
         this.fetchBuilds(),
         this.fetchWWBuilds(),
         this.fetchAbilityIcons(),
+        this.fetchAchievements(),
       ]);
       this.ready = true;
       this.connectSSE();
     },
 
-    async fetchData() {
-      this.loading = true;
+    async fetchData(silent = false) {
+      if (!silent) this.loading = true;
       this.error = null;
       try {
         const r = await fetch('/api/data');
@@ -993,7 +1214,7 @@ function armory() {
       } catch(e) {
         this.error = e.message;
       } finally {
-        this.loading = false;
+        if (!silent) this.loading = false;
       }
     },
 
@@ -1017,6 +1238,39 @@ function armory() {
         if (d.error) return;
         this.wwBuilds = d;
       } catch(e) {}
+    },
+
+    async fetchAchievements() {
+      try {
+        const r = await fetch('/api/achievements');
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.error) return;
+        this.achievData = d;
+        const byChar = {};
+        for (const [charId, items] of Object.entries(d.items_by_char || {})) {
+          const idx = {};
+          for (const a of items) {
+            const key = a.cat + '||' + a.subcat;
+            if (!idx[key]) idx[key] = [];
+            idx[key].push(a);
+          }
+          byChar[charId] = idx;
+        }
+        this._achievIndexByChar = byChar;
+        if (!this.achievCharId && d.chars.length) this.achievCharId = d.chars[0].id;
+      } catch(e) {}
+    },
+
+    achievItemsByCatSubcat(catName, subcatName) {
+      const key = (catName || '') + '||' + (subcatName || '');
+      const idx = this._achievIndexByChar[this.achievCharId];
+      return idx ? (idx[key] || []) : [];
+    },
+
+    achievIconUrl(icon) {
+      if (!icon) return '';
+      return icon.replace('.dds', '.png');
     },
 
     async fetchAbilityIcons() {
@@ -1082,7 +1336,10 @@ function armory() {
     connectSSE() {
       const es = new EventSource('/events');
       es.onmessage = e => {
-        if (e.data === 'reload') this.fetchData().then(() => this.showToast('Inventory updated ✓'));
+        if (e.data === 'reload') {
+          Promise.all([this.fetchData(true), this.fetchAchievements()])
+            .then(() => this.showToast('Data updated ✓'));
+        }
       };
       es.onerror = () => setTimeout(() => this.connectSSE(), 5000);
     },
@@ -1106,8 +1363,16 @@ function armory() {
       this.tip.visible = true;
       this._tipPos(evt);
     },
+    tipShowAchiev(a, evt) {
+      this.tip.item = null;
+      this.tip.achiev = a;
+      this.tip.slotLabel = null;
+      this.tip.visible = true;
+      this._tipPos(evt);
+    },
     tipHide() {
       this.tip.visible = false;
+      this.tip.achiev = null;
     },
     tipMove(evt) {
       if (this.tip.visible) this._tipPos(evt);
@@ -1341,59 +1606,6 @@ function armory() {
       });
     },
 
-    // ── Locations ────────────────────────────────────────
-    get locationSections() {
-      if (!this.data) return [];
-      const items = this.data.items;
-      const sections = [];
-
-      sections.push({
-        key:'bank', icon:'<img src="/assets/services/bank.png" class="cur-icon">', label:'Bank', open:false, search:'', subtitle:'',
-        items: this._flatLoc(items.filter(i => i.locations.some(l => l.location_type==='bank')),
-          l => l.location_type==='bank'),
-      });
-      sections.push({
-        key:'craft', icon:'<img src="/assets/containers/backpack.png" class="cur-icon">', label:'Craft Bag', open:false, search:'', subtitle:'',
-        items: this._flatLoc(items.filter(i => i.locations.some(l => l.location_type==='craftbag')),
-          l => l.location_type==='craftbag'),
-      });
-
-      for (const [bagId, chest] of Object.entries(this.data.house_chests).sort()) {
-        const chestItems = items.filter(i =>
-          i.locations.some(l => l.location_type==='house_chest' && l.bag_id===chest.bag_id));
-        if (!chestItems.length) continue;
-        sections.push({
-          key:'chest_'+bagId, icon:'<img src="/assets/containers/strongbox.png" class="cur-icon">', label:chest.label, open:false, search:'',
-          subtitle:`${chest.capacity} slots`,
-          items: this._flatLoc(chestItems,
-            l => l.location_type==='house_chest' && l.bag_id===chest.bag_id),
-        });
-      }
-
-      for (const char of this.sortedCharacters) {
-        const inv = items.filter(i => i.locations.some(l => l.location_key===char.id && l.bag_id!==0));
-        sections.push({
-          key:'char_'+char.id, icon:'🧙', label:char.name, open:false, search:'',
-          subtitle:`${char.space_used}/${char.space_max} slots · ${this.fmtGold(char.gold)} gold`,
-          items: this._flatLoc(inv, l => l.location_key===char.id && l.bag_id!==0),
-        });
-      }
-      return sections;
-    },
-
-    _flatLoc(items, pred) {
-      const out = [];
-      for (const item of items)
-        for (const loc of item.locations)
-          if (pred(loc)) out.push({ item, loc });
-      return out.sort((a, b) => a.item.name.localeCompare(b.item.name));
-    },
-
-    sectionItems(section) {
-      if (!section.search) return section.items;
-      const q = section.search.toLowerCase();
-      return section.items.filter(e => e.item.name.toLowerCase().includes(q));
-    },
   };
 }
 </script>

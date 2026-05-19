@@ -29,12 +29,27 @@ class LuaParser:
 
     def _parse_string(self) -> str:
         self.pos += 1  # skip opening "
-        end = self.text.find('"', self.pos)
-        if end == -1:
-            raise SyntaxError("Unterminated string")
-        s = self.text[self.pos:end]
-        self.pos = end + 1
-        return s
+        parts = []
+        while self.pos < self.n:
+            ch = self.text[self.pos]
+            if ch == '\\':
+                self.pos += 1
+                if self.pos < self.n:
+                    esc = self.text[self.pos]
+                    if esc == '"':   parts.append('"')
+                    elif esc == 'n': parts.append('\n')
+                    elif esc == 't': parts.append('\t')
+                    elif esc == 'r': parts.append('\r')
+                    elif esc == '\\': parts.append('\\')
+                    else:            parts.append('\\' + esc)
+                    self.pos += 1
+            elif ch == '"':
+                self.pos += 1
+                return ''.join(parts)
+            else:
+                parts.append(ch)
+                self.pos += 1
+        raise SyntaxError("Unterminated string")
 
     def _parse_number(self) -> int | float:
         start = self.pos

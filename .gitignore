@@ -7,6 +7,9 @@ venv/
 dist/
 build/
 
+# Logs
+logs/
+
 # Config (contains local paths)
 config.json
 

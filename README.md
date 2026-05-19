@@ -1,6 +1,6 @@
 # ESO Armory
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.2-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.3-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -12,7 +12,7 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 - **Characters tab** — all characters at a glance with equipped gear paper-doll; click any character to see their WizardsWardrobe builds
 - **Builds** — gear, skills (primary + backup bars), Champion Points, and food for each WW setup
 - **Inventory tab** — full cross-character inventory with search, quality/type/trait/location filters, and sortable columns
-- **Locations tab** — browse by bank, craft bag, house chests, and per-character inventory
+- **Achievements tab** — account-wide achievement summary with category/subcategory drill-down, per-character filtering, progress bars, and recent completions
 - **Currency totals** — gold, AP, Telvar Stones, and Writ Vouchers across all characters + bank in the header
 - **Live reload** — watches SavedVariables files and updates the browser automatically via SSE
 

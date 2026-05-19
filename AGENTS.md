@@ -217,6 +217,14 @@ fuser -k 5000/tcp && sleep 0.5 && python server.py
 ```
 Use `fuser -k 5000/tcp` (not `pkill`) — it targets the port directly and works reliably in WSL2.
 
+## Git Workflow
+The user handles all git actions (staging, committing, pushing) themselves. When asked to do pre-commit checks or a pre-commit workflow:
+1. Update `README.md` if anything user-facing has changed
+2. Update `CHANGELOG.md` with a summary of changes
+3. Bump the version in `pyproject.toml`
+4. Draft a commit message and list the files to stage
+5. **Do not run any git commands** (`git add`, `git commit`, `git push`, etc.)
+
 ## Known Quirks / Gotchas
 - **WW mythic key**: `gear` dict has a `"mythic"` string key alongside integer slot keys — `process_ww_builds` skips non-integer keys with `int(slot_raw)` in a try/except.
 - **WW pages index 0**: `pages[zone][0]` is a char→pageNum mapping dict, not a page with a name — `page_info.get("name", f"Page {page_num}")` handles this.

@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.3] - 2026-05-19
+
+### Added
+- **Achievements tab** — replaces Locations tab; account-wide achievement summary with category/subcategory drill-down, per-character filtering, progress bars for incomplete criteria, and a recent completions panel
+- **`/api/achievements` endpoint** — parses `iasync_data.achievements` into category summaries, per-character item lists, and a top-10 recent completions list
+- **Achievement tooltips** — hover over recent achievement icons to see name, description, points, completion date, and criteria progress
+- **Loguru logging** — replaces `print()` throughout `server.py`; two sinks: colored console (INFO+) and rotating file `logs/armory.log` (DEBUG+, 10 MB max, 5 files, gzip compression)
+- **HTTP request middleware** — logs method, path, status code, and elapsed ms for every non-static request
+- **SSE connection logging** — logs client IP on connect and disconnect
+
+### Fixed
+- **Lua string escape sequences** — `lua_parser.py` `_parse_string` now correctly handles `\"`, `\n`, `\t`, `\r`, and `\\` escape sequences instead of stopping at the first backslash
+- **Account name detection** — `process_iasync()` now checks `raw["accountName"]` key first before scanning for `@`-prefixed keys
+- **File watcher silent errors** — bare `except: pass` blocks in `_file_watcher` now log a `WARNING` instead of swallowing exceptions
+
+### Changed
+- SSE reload event now also refreshes achievements data alongside inventory
+
 ## [0.1.0-beta.2] - 2026-05-19
 
 ### Changed

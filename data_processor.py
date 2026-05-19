@@ -62,7 +62,7 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
     """Build the /api/data response from iasync_data."""
     t0 = time.monotonic()
 
-    account_name = next((k for k in raw if isinstance(k, str) and k.startswith("@")), "@unknown")
+    account_name = raw.get("accountName") or next((k for k in raw if isinstance(k, str) and k.startswith("@")), "@unknown")
     chars_raw  = raw.get("chars", {})
     bank_raw   = raw.get("bank", {})
     houses_raw = raw.get("houses", {})
@@ -338,6 +338,108 @@ def process_ww_builds(raw: dict) -> dict:
             builds_by_char[char_id] = char_builds
 
     return {"builds": builds_by_char}
+
+
+def process_iasync_achievements(raw: dict) -> dict:
+    """Parse account-level category summaries and per-character individual achievements."""
+    achiev_raw = raw.get("achievements", {})
+
+    # ── Category summaries (account-level) ──────────────────────────────────────
+    cats_raw = achiev_raw.get("categories", {})
+    categories = []
+    for idx in sorted(cats_raw.keys(), key=lambda x: (int(x) if isinstance(x, int) else x)):
+        cat = cats_raw[idx]
+        subcats_raw = cat.get("subcats", {})
+        subcats = []
+        for sidx in sorted(subcats_raw.keys(), key=lambda x: (int(x) if isinstance(x, int) else x)):
+            s = subcats_raw[sidx]
+            subcats.append({
+                "name":      s.get("name", ""),
+                "total":     int(s.get("total", 0)),
+                "complete":  int(s.get("complete", 0)),
+                "totalPts":  int(s.get("totalPts", 0)),
+                "earnedPts": int(s.get("earnedPts", 0)),
+            })
+        categories.append({
+            "name":      cat.get("name", ""),
+            "total":     int(cat.get("total", 0)),
+            "complete":  int(cat.get("complete", 0)),
+            "totalPts":  int(cat.get("totalPts", 0)),
+            "earnedPts": int(cat.get("earnedPts", 0)),
+            "subcats":   subcats,
+        })
+
+    # ── Individual achievements — kept per-character ─────────────────────────────
+    chars_raw = raw.get("chars", {})
+    items_by_char: dict[str, list] = {}
+    chars_with_achiev: list[dict] = []
+    seen_ids: set[int] = set()
+    all_achiev: list[dict] = []
+
+    def _parse_achiev(a: dict, aid: int) -> dict:
+        criteria = []
+        for cidx in sorted(a.get("criteria", {}).keys(),
+                            key=lambda x: (int(x) if isinstance(x, int) else x)):
+            c = a["criteria"][cidx]
+            if isinstance(c, dict):
+                criteria.append({
+                    "desc": c.get("desc", ""),
+                    "cur":  int(c.get("cur", 0)),
+                    "req":  int(c.get("req", 1)),
+                })
+        return {
+            "id":                  aid,
+            "name":                a.get("name", ""),
+            "desc":                a.get("desc", ""),
+            "cat":                 a.get("cat", ""),
+            "subcat":              a.get("subcat", ""),
+            "points":              int(a.get("points", 0)),
+            "icon":                a.get("icon", ""),
+            "complete":            bool(a.get("complete", False)),
+            "completionTimestamp": int(a.get("completionTimestamp", 0)),
+            "completionDate":      a.get("completionDate", ""),
+            "criteria":            criteria,
+        }
+
+    for char_id, char_data in chars_raw.items():
+        if not isinstance(char_data, dict):
+            continue
+        char_achievs = char_data.get("achievements", {})
+        if not char_achievs:
+            continue
+        char_items = []
+        for achiev_id, a in char_achievs.items():
+            if not isinstance(a, dict):
+                continue
+            aid = int(achiev_id)
+            item = _parse_achiev(a, aid)
+            char_items.append(item)
+            if aid not in seen_ids:
+                seen_ids.add(aid)
+                all_achiev.append(item)
+        if char_items:
+            items_by_char[str(char_id)] = char_items
+            chars_with_achiev.append({
+                "id":   str(char_id),
+                "name": char_data.get("name", str(char_id)),
+            })
+
+    # Recent = completed across all chars, sorted newest-first
+    recent = sorted(
+        (a for a in all_achiev if a["complete"]),
+        key=lambda x: x["completionTimestamp"],
+        reverse=True,
+    )[:10]
+
+    return {
+        "totalPts":      int(achiev_raw.get("totalPts", 0)),
+        "earnedPts":     int(achiev_raw.get("earnedPts", 0)),
+        "lastUpdate":    int(achiev_raw.get("lastUpdate", 0)),
+        "categories":    categories,
+        "items_by_char": items_by_char,
+        "chars":         chars_with_achiev,
+        "recent":        recent,
+    }
 
 
 def process_iasync_builds(raw: dict) -> dict:
