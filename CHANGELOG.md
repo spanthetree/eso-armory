@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.5] - 2026-05-20
+
+### Added
+- **Multiselect inventory filters** — Type, Location, Character, and Trait dropdowns now accept multiple selections simultaneously; active selections highlight gold, clear individually or via the Clear button
+- **Transmuted filter button** — dedicated toggle button on the filter bar (removed from the Trait dropdown); filters to items with bit 11 set in the item link flags field
+- **Crafted filter button** — dedicated toggle button alongside Transmuted; filters to items where `is_crafted` is true
+- **Group by Set toggle** — button that switches the inventory table into a grouped view with set-name headers and per-group item counts; items not belonging to a set appear last
+- **Gear icons for all slot/weight combinations** — Breton-style webp artwork added for heavy, medium, and light armor (7 slots each), weapons (10 types), and jewelry (neck/ring); stored in `assets/gear/`
+
+### Changed
+- Inventory filter bar split into two rows: search + dropdowns on row 1; quality pills + toggle buttons (Transmuted, Crafted, Group by Set, Clear) on row 2
+- Trait dropdown no longer contains a "Transmuted" entry — use the dedicated Transmuted toggle button instead
+- Group by Set is now a button (was a checkbox label)
+- Dropdown options rendered as highlighted `<div>` rows (no checkbox icons) — selected items shown with gold background tint
+
+## [0.1.0-beta.4] - 2026-05-20
+
+### Added
+- **Armor weight and weapon type tags** in item tooltip — iasync now supplies `armorType` (Light/Medium/Heavy) and `weaponType` (Sword, Bow, etc.) directly; both appear as badge tags alongside trait/style/enchant
+- **Gear icons** replace generic interface icons for all items — inventory list, character equipment panels, and character drilldown all use slot-specific Breton-style webp artwork from `assets/gear/`
+  - Armor: correct slot piece per weight class (e.g. heavy helm for head slot, light shirt for chest)
+  - Weapons: specific icon per type (dagger, 1h/2h sword/axe/hammer, bow, staff, shield)
+  - Jewelry: neck vs. ring distinguished by slot
+- **Name-based weapon icon fallback** — when `weaponType` is null or stale, item name keywords resolve the correct icon so old/unscanned characters still show meaningful icons
+
+### Changed
+- `item_db.py` removed — name-based weapon type heuristics replaced by reading `weaponType`/`armorType` directly from iasync item data
+- Shield icon fix: shields have `filter_type = 2` (Armor) but carry `weaponType = "Shield"`; icon logic now checks `weapon_type` before the armor-weight lookup
+- Stale iasync slot data guard: if `weaponType` claims a staff type but item name disagrees, the type is discarded and name-based detection runs instead
+
 ## [0.1.0-beta.3] - 2026-05-19
 
 ### Added

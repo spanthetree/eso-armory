@@ -96,9 +96,29 @@
           <div class="tip-name mb-2" :style="`color:${tip.item.quality_color}`"
             x-text="tip.item.name"></div>
 
-          <!-- Set name -->
+          <!-- Set name + bonuses -->
           <template x-if="tip.item.set_name">
-            <div class="text-xs text-eso-gold/80 mb-1" x-text="tip.item.set_name"></div>
+            <div class="mb-2">
+              <div class="text-xs text-eso-gold/80 font-semibold" x-text="tip.item.set_name"></div>
+              <template x-if="tip.item.set_id && setBonusCache[tip.item.set_id]">
+                <div class="mt-1 space-y-0.5">
+                  <template x-if="setBonusCache[tip.item.set_id]?.loading">
+                    <div class="text-[11px] text-eso-muted/60 animate-pulse">Loading bonuses…</div>
+                  </template>
+                  <template x-if="!setBonusCache[tip.item.set_id]?.loading">
+                    <div>
+                      <template x-for="b in (setBonusCache[tip.item.set_id]?.bonuses || [])" :key="b.pieces">
+                        <div class="text-[11px] leading-snug">
+                          <span class="text-eso-gold/50 font-mono" x-text="`(${b.pieces})`"></span>
+                          <span class="text-eso-muted ml-1" x-text="b.text"></span>
+                        </div>
+                      </template>
+                      <div class="text-[10px] text-eso-muted/35 mt-1.5">via eso-sets.com</div>
+                    </div>
+                  </template>
+                </div>
+              </template>
+            </div>
           </template>
 
           <!-- Level badge -->
@@ -136,6 +156,12 @@
               <span class="text-xs px-1.5 py-0.5 rounded text-eso-muted"
                 style="background:#3d342430;border:1px solid #3d3424"
                 x-text="tip.item.weapon_type"></span>
+            </template>
+            <!-- Armor weight -->
+            <template x-if="tip.item.armor_type">
+              <span class="text-xs px-1.5 py-0.5 rounded text-eso-muted"
+                style="background:#3d342430;border:1px solid #3d3424"
+                x-text="tip.item.armor_type"></span>
             </template>
             <!-- Enchant name (falls back to generic badge) -->
             <template x-if="tip.item.is_enchanted">
@@ -219,6 +245,104 @@
         </div>
       </div>
     </template>
+    <!-- Stickerbook set tooltip -->
+    <template x-if="tip.sbSet">
+      <div>
+        <div style="height:3px;border-radius:3px 3px 0 0;background:#c9a84c"></div>
+        <div class="p-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-eso-muted" x-text="tip.sbSet.subcategory || tip.sbSet.category"></span>
+            <span class="text-xs" :class="tip.sbSet.complete ? 'text-eso-gold' : 'text-eso-muted'"
+              x-text="tip.sbSet.numCollected + '/' + tip.sbSet.numTotal + ' pieces'"></span>
+          </div>
+          <div class="tip-name mb-2" style="color:#c9a84c" x-text="tip.sbSet.name"></div>
+          <!-- Progress bar -->
+          <div class="h-1.5 bg-eso-border rounded-full overflow-hidden mb-3">
+            <div class="h-full rounded-full" :class="tip.sbSet.complete ? 'bg-eso-gold' : 'bg-eso-gold/50'"
+              :style="'width:' + Math.round(tip.sbSet.numCollected/Math.max(tip.sbSet.numTotal,1)*100) + '%'"></div>
+          </div>
+          <!-- Set bonuses -->
+          <template x-if="setBonusCache[tip.sbSet.setId]">
+            <div class="mb-2 space-y-0.5">
+              <template x-if="setBonusCache[tip.sbSet.setId]?.loading">
+                <div class="text-[11px] text-eso-muted/60 animate-pulse">Loading bonuses…</div>
+              </template>
+              <template x-if="!setBonusCache[tip.sbSet.setId]?.loading">
+                <div>
+                  <template x-for="b in (setBonusCache[tip.sbSet.setId]?.bonuses || [])" :key="b.pieces">
+                    <div class="text-[11px] leading-snug mb-0.5">
+                      <span class="text-eso-gold/50 font-mono" x-text="`(${b.pieces})`"></span>
+                      <span class="text-eso-muted ml-1" x-text="b.text"></span>
+                    </div>
+                  </template>
+                  <div class="tip-divider"></div>
+                  <div class="text-[10px] text-eso-gold/50 hover:text-eso-gold cursor-pointer"
+                    @click="window.open(setEsoSetsUrl(tip.sbSet.name), '_blank')">
+                    View on eso-sets.com ↗
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+    <!-- Skill tooltip -->
+    <template x-if="tip.skill">
+      <div>
+        <div style="height:3px;border-radius:3px 3px 0 0;background:#5199ff88"></div>
+        <div class="p-3">
+          <div class="tip-name mb-2" style="color:#8ab4ff" x-text="tip.skill.name"></div>
+          <template x-if="skillInfoCache[tip.skill.slug]">
+            <div>
+              <template x-if="skillInfoCache[tip.skill.slug]?.loading">
+                <div class="text-xs text-eso-muted/60 animate-pulse">Loading skill info…</div>
+              </template>
+              <template x-if="!skillInfoCache[tip.skill.slug]?.loading">
+                <div>
+                  <div class="flex flex-wrap gap-1 mb-2">
+                    <template x-if="skillInfoCache[tip.skill.slug]?.type">
+                      <span class="text-xs px-1.5 py-0.5 rounded text-eso-muted"
+                        style="background:#5199ff18;border:1px solid #5199ff33"
+                        x-text="skillInfoCache[tip.skill.slug].type"></span>
+                    </template>
+                    <template x-if="skillInfoCache[tip.skill.slug]?.location">
+                      <span class="text-xs px-1.5 py-0.5 rounded text-eso-muted"
+                        style="background:#3d342430;border:1px solid #3d3424"
+                        x-text="skillInfoCache[tip.skill.slug].location"></span>
+                    </template>
+                  </div>
+                  <div class="flex flex-wrap gap-3 mb-2 text-xs text-eso-muted">
+                    <template x-if="skillInfoCache[tip.skill.slug]?.cost">
+                      <span>Cost: <span class="text-eso-text" x-text="skillInfoCache[tip.skill.slug].cost"></span></span>
+                    </template>
+                    <template x-if="skillInfoCache[tip.skill.slug]?.cast_time">
+                      <span>Cast: <span class="text-eso-text" x-text="skillInfoCache[tip.skill.slug].cast_time"></span></span>
+                    </template>
+                    <template x-if="skillInfoCache[tip.skill.slug]?.target">
+                      <span>Target: <span class="text-eso-text" x-text="skillInfoCache[tip.skill.slug].target"></span></span>
+                    </template>
+                    <template x-if="skillInfoCache[tip.skill.slug]?.range">
+                      <span>Range: <span class="text-eso-text" x-text="skillInfoCache[tip.skill.slug].range"></span></span>
+                    </template>
+                  </div>
+                  <template x-if="skillInfoCache[tip.skill.slug]?.description">
+                    <div>
+                      <div class="tip-divider"></div>
+                      <p class="text-xs text-eso-muted leading-snug" x-text="skillInfoCache[tip.skill.slug].description"></p>
+                    </div>
+                  </template>
+                  <div class="text-[10px] text-eso-muted/35 mt-1.5">via eso-skillbook.com</div>
+                </div>
+              </template>
+            </div>
+          </template>
+          <template x-if="!skillInfoCache[tip.skill.slug]">
+            <div class="text-xs text-eso-muted/60 animate-pulse">Loading…</div>
+          </template>
+        </div>
+      </div>
+    </template>
   </div>
 
   <!-- Toast notification -->
@@ -264,6 +388,11 @@
         class="py-2 text-sm font-medium transition-colors"
         :class="tab==='achievements' ? 'tab-active' : 'text-eso-muted hover:text-eso-text'">
         Achievements
+      </button>
+      <button @click="tab='stickerbook'; tipHide()"
+        class="py-2 text-sm font-medium transition-colors"
+        :class="tab==='stickerbook' ? 'tab-active' : 'text-eso-muted hover:text-eso-text'">
+        Collections
       </button>
     </div>
   </header>
@@ -363,8 +492,11 @@
                         <span class="inline-flex flex-wrap gap-0.5">
                           <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
                             <span x-show="b.skills?.[bar]?.[slot]"
-                              class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text"
+                              class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text cursor-pointer"
                               :class="slot===8?'border-eso-gold/40 text-eso-gold':''"
+                              @mouseenter="tipShowSkill(b.skills?.[bar]?.[slot], $event)"
+                              @mouseleave="tipHide()"
+                              @click="openSkillbook(b.skills?.[bar]?.[slot])"
                               x-html="abilitySlotHtml(b.skills?.[bar]?.[slot], slot===8)"></span>
                           </template>
                         </span>
@@ -577,8 +709,11 @@
                         <span class="inline-flex flex-wrap gap-0.5">
                           <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
                             <span x-show="b.skills?.[bar]?.[slot]"
-                              class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text"
+                              class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text cursor-pointer"
                               :class="slot===8?'border-eso-gold/40 text-eso-gold':''"
+                              @mouseenter="tipShowSkill(b.skills?.[bar]?.[slot], $event)"
+                              @mouseleave="tipHide()"
+                              @click="openSkillbook(b.skills?.[bar]?.[slot])"
                               x-html="abilitySlotHtml(b.skills?.[bar]?.[slot], slot===8)"></span>
                           </template>
                         </span>
@@ -676,8 +811,11 @@
                           <div class="flex gap-1 flex-wrap">
                             <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
                               <div x-show="build.skills[bar] && build.skills[bar][slot]"
-                                class="text-xs bg-eso-bg border border-eso-border rounded px-1.5 py-0.5 text-eso-text"
+                                class="text-xs bg-eso-bg border border-eso-border rounded px-1.5 py-0.5 text-eso-text cursor-pointer"
                                 :class="slot === 8 ? 'border-eso-gold/40 text-eso-gold' : ''"
+                                @mouseenter="tipShowSkill(build.skills[bar]?.[slot], $event)"
+                                @mouseleave="tipHide()"
+                                @click="openSkillbook(build.skills[bar]?.[slot])"
                                 x-html="build.skills[bar] ? abilitySlotHtml(build.skills[bar][slot], slot===8) : ''">
                               </div>
                             </template>
@@ -729,15 +867,111 @@
     <!-- ===== INVENTORY TAB ===== -->
     <div x-show="tab === 'inventory' && data">
       <!-- Filters bar -->
-      <div class="bg-eso-card border border-eso-border rounded-lg p-3 mb-4 flex flex-wrap gap-3 items-center">
-        <div class="flex-1 min-w-44">
-          <input type="text" x-model.debounce.150ms="search"
-            placeholder="Search items…"
-            class="w-full bg-eso-bg border border-eso-border rounded px-3 py-1.5 text-sm text-eso-text placeholder-eso-muted focus:outline-none focus:border-eso-gold" />
+      <div class="bg-eso-card border border-eso-border rounded-lg p-3 mb-4 space-y-2">
+
+        <!-- Row 1: Search + dropdowns -->
+        <div class="flex flex-wrap gap-2 items-center">
+          <div class="flex-1 min-w-44">
+            <input type="text" x-model.debounce.150ms="search"
+              placeholder="Search items…"
+              class="w-full bg-eso-bg border border-eso-border rounded px-3 py-1.5 text-sm text-eso-text placeholder-eso-muted focus:outline-none focus:border-eso-gold" />
+          </div>
+
+          <!-- Type multiselect -->
+          <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+            <button @click="open = !open"
+              class="flex items-center gap-1.5 bg-eso-bg border rounded px-2 py-1.5 text-sm focus:outline-none transition-colors min-w-32"
+              :class="filterTypes.length ? 'border-eso-gold/60 text-eso-gold' : 'border-eso-border text-eso-text'">
+              <span class="truncate flex-1 text-left" x-text="filterTypeLabel"></span>
+              <span class="text-eso-muted text-xs shrink-0" x-text="open ? '▴' : '▾'"></span>
+            </button>
+            <div x-show="open" x-cloak class="absolute top-full left-0 mt-1 z-50 bg-eso-card border border-eso-border rounded-lg shadow-xl min-w-40 py-1">
+              <template x-for="opt in [{v:'1',l:'Weapons'},{v:'2',l:'Armor'},{v:'25',l:'Jewelry'},{v:'3',l:'Consumables'},{v:'4',l:'Materials'},{v:'6',l:'Glyphs'},{v:'21',l:'Furnishings'},{v:'5',l:'Miscellaneous'}]" :key="opt.v">
+                <div @click="toggleFilter(filterTypes, opt.v)"
+                  class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                  :class="filterTypes.includes(opt.v) ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'"
+                  x-text="opt.l"></div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Location multiselect -->
+          <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+            <button @click="open = !open"
+              class="flex items-center gap-1.5 bg-eso-bg border rounded px-2 py-1.5 text-sm focus:outline-none transition-colors min-w-36"
+              :class="filterLocTypes.length ? 'border-eso-gold/60 text-eso-gold' : 'border-eso-border text-eso-text'">
+              <span class="truncate flex-1 text-left" x-text="filterLocTypeLabel"></span>
+              <span class="text-eso-muted text-xs shrink-0" x-text="open ? '▴' : '▾'"></span>
+            </button>
+            <div x-show="open" x-cloak class="absolute top-full left-0 mt-1 z-50 bg-eso-card border border-eso-border rounded-lg shadow-xl min-w-40 py-1">
+              <template x-for="opt in [{v:'character',l:'Characters'},{v:'bank',l:'Bank'},{v:'craftbag',l:'Craft Bag'},{v:'house_chest',l:'House Chests'}]" :key="opt.v">
+                <div @click="toggleFilter(filterLocTypes, opt.v)"
+                  class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                  :class="filterLocTypes.includes(opt.v) ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'"
+                  x-text="opt.l"></div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Character multiselect -->
+          <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+            <button @click="open = !open"
+              class="flex items-center gap-1.5 bg-eso-bg border rounded px-2 py-1.5 text-sm focus:outline-none transition-colors min-w-36"
+              :class="filterChars.length ? 'border-eso-gold/60 text-eso-gold' : 'border-eso-border text-eso-text'">
+              <span class="truncate flex-1 text-left" x-text="filterCharLabel"></span>
+              <span class="text-eso-muted text-xs shrink-0" x-text="open ? '▴' : '▾'"></span>
+            </button>
+            <div x-show="open" x-cloak class="absolute top-full left-0 mt-1 z-50 bg-eso-card border border-eso-border rounded-lg shadow-xl min-w-44 py-1">
+              <template x-for="char in sortedCharacters" :key="char.id">
+                <div @click="toggleFilter(filterChars, char.id)"
+                  class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                  :class="filterChars.includes(char.id) ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'"
+                  x-text="char.name"></div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Trait multiselect -->
+          <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+            <button @click="open = !open"
+              class="flex items-center gap-1.5 bg-eso-bg border rounded px-2 py-1.5 text-sm focus:outline-none transition-colors min-w-32"
+              :class="filterTraits.length ? 'border-eso-gold/60 text-eso-gold' : 'border-eso-border text-eso-text'">
+              <span class="truncate flex-1 text-left" x-text="filterTraitLabel"></span>
+              <span class="text-eso-muted text-xs shrink-0" x-text="open ? '▴' : '▾'"></span>
+            </button>
+            <div x-show="open" x-cloak class="absolute top-full left-0 mt-1 z-50 bg-eso-card border border-eso-border rounded-lg shadow-xl min-w-44 py-1 max-h-72 overflow-y-auto">
+              <div @click="toggleFilter(filterTraits, 'any')"
+                class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                :class="filterTraits.includes('any') ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'">
+                Has Trait
+              </div>
+              <div class="px-3 pt-2 pb-0.5 text-[10px] text-eso-muted uppercase tracking-wider font-cinzel border-t border-eso-border/40 mt-1">Armor</div>
+              <template x-for="opt in [{v:'18',l:'Divines'},{v:'16',l:'Infused'},{v:'25',l:'Nirnhoned'},{v:'13',l:'Reinforced'},{v:'11',l:'Sturdy'},{v:'14',l:'Well-Fitted'},{v:'12',l:'Impenetrable'},{v:'15',l:'Training'}]" :key="opt.v">
+                <div @click="toggleFilter(filterTraits, opt.v)"
+                  class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                  :class="filterTraits.includes(opt.v) ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'"
+                  x-text="opt.l"></div>
+              </template>
+              <div class="px-3 pt-2 pb-0.5 text-[10px] text-eso-muted uppercase tracking-wider font-cinzel border-t border-eso-border/40 mt-1">Weapon</div>
+              <template x-for="opt in [{v:'4',l:'Infused'},{v:'26',l:'Nirnhoned'},{v:'5',l:'Defending'},{v:'2',l:'Charged'},{v:'7',l:'Sharpened'},{v:'1',l:'Powered'},{v:'3',l:'Precise'},{v:'8',l:'Decisive'},{v:'6',l:'Training'}]" :key="opt.v">
+                <div @click="toggleFilter(filterTraits, opt.v)"
+                  class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                  :class="filterTraits.includes(opt.v) ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'"
+                  x-text="opt.l"></div>
+              </template>
+              <div class="px-3 pt-2 pb-0.5 text-[10px] text-eso-muted uppercase tracking-wider font-cinzel border-t border-eso-border/40 mt-1">Jewelry</div>
+              <template x-for="opt in [{v:'32',l:'Protective'},{v:'29',l:'Harmony'},{v:'31',l:'Bloodthirsty'},{v:'30',l:'Triune'},{v:'33',l:'Infused'},{v:'28',l:'Swift'},{v:'22',l:'Arcane'},{v:'21',l:'Healthy'},{v:'23',l:'Robust'}]" :key="opt.v">
+                <div @click="toggleFilter(filterTraits, opt.v)"
+                  class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                  :class="filterTraits.includes(opt.v) ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'"
+                  x-text="opt.l"></div>
+              </template>
+            </div>
+          </div>
         </div>
 
-        <!-- Quality pills -->
-        <div class="flex gap-1 flex-wrap">
+        <!-- Row 2: Quality pills + toggle buttons + count -->
+        <div class="flex flex-wrap gap-1.5 items-center">
           <template x-for="q in qualityOptions" :key="q.value">
             <button @click="filterQuality = filterQuality === q.value ? '' : q.value"
               class="px-2 py-1 rounded text-xs font-medium border transition-all"
@@ -745,78 +979,41 @@
               x-text="q.label">
             </button>
           </template>
+
+          <div class="w-px h-4 bg-eso-border mx-0.5 shrink-0"></div>
+
+          <button @click="filterTransmuted = !filterTransmuted"
+            class="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-all"
+            :class="filterTransmuted ? 'border-eso-gold bg-eso-gold/10 text-eso-gold' : 'border-eso-border text-eso-muted hover:text-eso-text'">
+            <img src="/assets/services/transmutation_station.png" class="w-3.5 h-3.5 opacity-80" alt="">
+            Transmuted
+          </button>
+
+          <button @click="filterCrafted = !filterCrafted"
+            class="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-all"
+            :class="filterCrafted ? 'border-eso-gold bg-eso-gold/10 text-eso-gold' : 'border-eso-border text-eso-muted hover:text-eso-text'">
+            Crafted
+          </button>
+
+          <div class="w-px h-4 bg-eso-border mx-0.5 shrink-0"></div>
+
+          <button @click="filterGroupBySet = !filterGroupBySet"
+            class="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-all"
+            :class="filterGroupBySet ? 'border-eso-gold bg-eso-gold/10 text-eso-gold' : 'border-eso-border text-eso-muted hover:text-eso-text'">
+            Group by Set
+          </button>
+
+          <button x-show="hasActiveFilters"
+            @click="search='';filterQuality='';filterTypes=[];filterLocTypes=[];filterChars=[];filterTraits=[];filterTransmuted=false;filterCrafted=false;filterGroupBySet=false"
+            class="text-eso-muted text-xs hover:text-eso-text px-2 py-1 border border-eso-border rounded transition-colors">
+            Clear
+          </button>
+
+          <span class="text-eso-muted text-xs ml-auto">
+            <span x-text="filteredItems.length.toLocaleString()"></span> items
+          </span>
         </div>
 
-        <!-- Type dropdown -->
-        <select x-model="filterType"
-          class="bg-eso-bg border border-eso-border rounded px-2 py-1.5 text-sm text-eso-text focus:outline-none focus:border-eso-gold">
-          <option value="">All Types</option>
-          <option value="1">Weapons</option>
-          <option value="2">Armor</option>
-          <option value="25">Jewelry</option>
-          <option value="3">Consumables</option>
-          <option value="4">Materials</option>
-          <option value="6">Glyphs</option>
-          <option value="21">Furnishings</option>
-          <option value="5">Miscellaneous</option>
-        </select>
-
-        <!-- Location dropdown -->
-        <select x-model="filterLocType"
-          class="bg-eso-bg border border-eso-border rounded px-2 py-1.5 text-sm text-eso-text focus:outline-none focus:border-eso-gold">
-          <option value="">All Locations</option>
-          <option value="character">Characters</option>
-          <option value="bank">Bank</option>
-          <option value="craftbag">Craft Bag</option>
-          <option value="house_chest">House Chests</option>
-        </select>
-
-        <!-- Character dropdown -->
-        <select x-model="filterChar"
-          class="bg-eso-bg border border-eso-border rounded px-2 py-1.5 text-sm text-eso-text focus:outline-none focus:border-eso-gold">
-          <option value="">All Characters</option>
-          <template x-for="char in sortedCharacters" :key="char.id">
-            <option :value="char.id" x-text="char.name"></option>
-          </template>
-        </select>
-
-        <!-- Trait dropdown -->
-        <select x-model="filterTrait"
-          class="bg-eso-bg border border-eso-border rounded px-2 py-1.5 text-sm text-eso-text focus:outline-none focus:border-eso-gold">
-          <option value="">All Traits</option>
-          <option value="any">Has Trait</option>
-          <optgroup label="Armor">
-            <option value="18">Divines</option><option value="16">Infused</option>
-            <option value="25">Nirnhoned</option><option value="13">Reinforced</option>
-            <option value="11">Sturdy</option><option value="14">Well-Fitted</option>
-            <option value="12">Impenetrable</option><option value="15">Training</option>
-          </optgroup>
-          <optgroup label="Weapon">
-            <option value="4">Infused</option><option value="26">Nirnhoned</option>
-            <option value="5">Defending</option><option value="2">Charged</option>
-            <option value="7">Sharpened</option><option value="1">Powered</option>
-            <option value="3">Precise</option><option value="8">Decisive</option>
-            <option value="6">Training (W)</option>
-          </optgroup>
-          <optgroup label="Jewelry">
-            <option value="32">Protective</option><option value="29">Harmony</option>
-            <option value="31">Bloodthirsty</option><option value="30">Triune</option>
-            <option value="33">Infused (J)</option><option value="28">Swift</option>
-            <option value="22">Arcane</option><option value="21">Healthy</option>
-            <option value="23">Robust</option>
-          </optgroup>
-          <option value="transmuted">Transmuted</option>
-        </select>
-
-        <button x-show="search||filterQuality||filterType||filterLocType||filterChar||filterTrait"
-          @click="search='';filterQuality='';filterType='';filterLocType='';filterChar='';filterTrait=''"
-          class="text-eso-muted text-xs hover:text-eso-text px-2 py-1 border border-eso-border rounded transition-colors">
-          Clear
-        </button>
-
-        <span class="text-eso-muted text-xs ml-auto">
-          <span x-text="filteredItems.length.toLocaleString()"></span> items
-        </span>
       </div>
 
       <!-- Table -->
@@ -846,43 +1043,56 @@
               </tr>
             </thead>
             <tbody>
-              <template x-for="item in filteredItems" :key="item.key">
-                <tr class="border-b border-eso-border/40 hover:bg-eso-hover transition-colors"
-                  @mouseenter="tipShow(item, $event)" @mouseleave="tipHide()">
+              <template x-for="row in displayItems" :key="row.t === 'h' ? 'h_' + row.set : row.item.key">
+                <tr :class="row.t === 'h'
+                    ? 'bg-eso-bg/60 border-b border-eso-border'
+                    : 'border-b border-eso-border/40 hover:bg-eso-hover transition-colors'"
+                  :style="row.t === 'item' && row.item?.set_name ? 'cursor:pointer' : ''"
+                  @mouseenter="row.t === 'item' && tipShow(row.item, $event)" @mouseleave="tipHide()"
+                  @click="row.t === 'item' && row.item?.set_name && window.open(setEsoSetsUrl(row.item.set_name), '_blank')">
+                  <!-- Group header -->
+                  <td x-show="row.t === 'h'" colspan="6" class="px-3 py-1.5">
+                    <span class="font-cinzel text-xs text-eso-gold tracking-wide"
+                      :class="row.set && row.set !== 'No Set' ? 'cursor-pointer hover:underline' : ''"
+                      @click.stop="row.set && row.set !== 'No Set' && window.open(setEsoSetsUrl(row.set), '_blank')"
+                      x-text="row.set"></span>
+                    <span class="text-[10px] text-eso-muted ml-2" x-text="row.count ? `(${row.count})` : ''"></span>
+                  </td>
                   <!-- Category badge -->
-                  <td class="px-3 py-2">
+                  <td x-show="row.t === 'item'" class="px-3 py-2">
                     <div class="item-badge"
-                      :style="`background:${item.quality_color}1a;border:1px solid ${item.quality_color}44`">
-                      <span x-html="itemIconHtml(item)"></span>
+                      :style="`background:${row.item?.quality_color}1a;border:1px solid ${row.item?.quality_color}44`">
+                      <span x-html="row.item ? itemIconHtml(row.item) : ''"></span>
                     </div>
                   </td>
                   <!-- Name -->
-                  <td class="px-3 py-2">
-                    <span class="font-medium" :style="`color:${item.quality_color}`"
-                      x-text="item.name"></span>
-                    <span x-show="item.level > 0"
-                      class="ml-2 text-xs text-eso-muted" x-text="`Lv.${item.level}`"></span>
+                  <td x-show="row.t === 'item'" class="px-3 py-2">
+                    <span class="font-medium" :style="`color:${row.item?.quality_color}`"
+                      x-text="row.item?.name"></span>
+                    <span x-show="row.item?.level > 0"
+                      class="ml-2 text-xs text-eso-muted" x-text="row.item ? `Lv.${row.item.level}` : ''"></span>
                   </td>
                   <!-- Type -->
-                  <td class="px-3 py-2 text-eso-muted hidden md:table-cell" x-text="item.filter_type_name"></td>
+                  <td x-show="row.t === 'item'" class="px-3 py-2 text-eso-muted hidden md:table-cell"
+                    x-text="row.item?.filter_type_name"></td>
                   <!-- Quality -->
-                  <td class="px-3 py-2 hidden sm:table-cell">
-                    <span class="text-xs" :style="`color:${item.quality_color}`"
-                      x-text="item.quality_name"></span>
+                  <td x-show="row.t === 'item'" class="px-3 py-2 hidden sm:table-cell">
+                    <span class="text-xs" :style="`color:${row.item?.quality_color}`"
+                      x-text="row.item?.quality_name"></span>
                   </td>
                   <!-- Qty -->
-                  <td class="px-3 py-2 text-right text-eso-muted font-mono"
-                    x-text="item.total_quantity.toLocaleString()"></td>
+                  <td x-show="row.t === 'item'" class="px-3 py-2 text-right text-eso-muted font-mono"
+                    x-text="row.item ? row.item.total_quantity.toLocaleString() : ''"></td>
                   <!-- Locations summary -->
-                  <td class="px-3 py-2 hidden lg:table-cell">
+                  <td x-show="row.t === 'item'" class="px-3 py-2 hidden lg:table-cell">
                     <div class="flex flex-wrap gap-1">
-                      <template x-for="loc in item.locations.slice(0,2)" :key="loc.location_key+loc.bag_id">
+                      <template x-for="loc in (row.item?.locations || []).slice(0,2)" :key="loc.location_key+loc.bag_id">
                         <span class="text-[11px] text-eso-muted border border-eso-border rounded px-1.5 py-0.5"
-                          x-text="(loc.location_type==='character' ? loc.location_label+' · '+loc.bag_label : loc.bag_label) + (item.locations.length > 1 ? ' ×'+loc.quantity : '')"></span>
+                          x-text="(loc.location_type==='character' ? loc.location_label+' · '+loc.bag_label : loc.bag_label) + (row.item.locations.length > 1 ? ' ×'+loc.quantity : '')"></span>
                       </template>
-                      <span x-show="item.locations.length > 2"
+                      <span x-show="(row.item?.locations || []).length > 2"
                         class="text-[11px] text-eso-muted"
-                        x-text="`+${item.locations.length-2} more`"></span>
+                        x-text="row.item ? `+${row.item.locations.length-2} more` : ''"></span>
                     </div>
                   </td>
                 </tr>
@@ -1133,6 +1343,252 @@
       </template>
     </div>
 
+    <!-- ===== STICKERBOOK TAB ===== -->
+    <div x-show="tab === 'stickerbook' && data" x-cloak>
+      <template x-if="!sbData">
+        <div class="flex items-center justify-center h-64 text-eso-muted text-sm animate-pulse">Loading stickerbook…</div>
+      </template>
+      <template x-if="sbData">
+        <div class="flex h-[calc(100vh-9.5rem)] border border-eso-border rounded-lg overflow-hidden">
+
+          <!-- Left nav -->
+          <div class="w-52 shrink-0 border-r border-eso-border bg-eso-card flex flex-col">
+            <!-- Search -->
+            <div class="p-2 border-b border-eso-border">
+              <input x-model="sbSearch" type="text" placeholder="Search sets…"
+                class="w-full bg-eso-bg border border-eso-border rounded px-2 py-1.5 text-xs text-eso-text placeholder-eso-muted/50 focus:outline-none focus:border-eso-gold/50">
+            </div>
+            <!-- Summary -->
+            <button @click="sbCat = null"
+              class="w-full text-left px-4 py-3 border-b border-eso-border transition-colors font-cinzel text-xs tracking-widest font-semibold"
+              :class="sbCat === null ? 'text-eso-gold bg-eso-hover' : 'text-eso-text hover:bg-eso-hover/50'">
+              SUMMARY
+            </button>
+            <!-- Category list -->
+            <div class="overflow-y-auto flex-1">
+              <template x-for="cat in sbCategories()" :key="cat">
+                <button @click="sbCat = cat; sbSearch = ''"
+                  class="w-full text-left px-4 py-2.5 border-b border-eso-border/30 transition-colors"
+                  :class="sbCat === cat ? 'bg-eso-hover text-eso-gold' : 'text-eso-muted hover:bg-eso-hover/50 hover:text-eso-text'">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-[11px] font-cinzel tracking-wide leading-tight" x-text="cat"></span>
+                    <span class="text-[10px] shrink-0 ml-1" x-text="sbCatPct(cat) + '%'"></span>
+                  </div>
+                  <div class="h-0.5 bg-eso-border rounded-full overflow-hidden">
+                    <div class="h-full bg-eso-gold/60 rounded-full transition-all"
+                      :style="'width:' + sbCatPct(cat) + '%'"></div>
+                  </div>
+                </button>
+              </template>
+            </div>
+          </div>
+
+          <!-- Right pane -->
+          <div class="flex-1 overflow-y-auto p-6">
+
+            <!-- SUMMARY view -->
+            <template x-if="sbCat === null && !sbSearch">
+              <div>
+                <h2 class="font-cinzel text-lg font-semibold text-eso-gold mb-6 tracking-wider">SUMMARY</h2>
+
+                <!-- Total progress -->
+                <div class="mb-6">
+                  <div class="text-xs font-cinzel tracking-widest text-eso-muted mb-2">SET ITEMS COLLECTED</div>
+                  <div class="h-3 bg-eso-border rounded-full overflow-hidden mb-1">
+                    <div class="h-full bg-eso-gold rounded-full transition-all"
+                      :style="'width:' + Math.round(sbData.sets.reduce((a,s)=>a+s.numCollected,0) / Math.max(sbData.sets.reduce((a,s)=>a+s.numTotal,0),1)*100) + '%'">
+                    </div>
+                  </div>
+                  <div class="text-xs text-eso-muted text-center"
+                    x-text="sbData.sets.reduce((a,s)=>a+s.numCollected,0).toLocaleString() + ' / ' + sbData.sets.reduce((a,s)=>a+s.numTotal,0).toLocaleString()">
+                  </div>
+                </div>
+
+                <!-- Per-category grid -->
+                <div class="grid grid-cols-2 gap-4">
+                  <template x-for="cat in sbCategorySummary()" :key="cat.name">
+                    <div class="bg-eso-card border border-eso-border rounded-lg p-3 cursor-pointer hover:border-eso-gold/40 transition-colors"
+                      @click="sbCat = cat.name">
+                      <div class="text-xs font-cinzel tracking-wide text-eso-text mb-2 truncate" x-text="cat.name"></div>
+                      <div class="h-2 bg-eso-border rounded-full overflow-hidden mb-1">
+                        <div class="h-full bg-eso-gold/70 rounded-full transition-all"
+                          :style="'width:' + Math.round(cat.collected/Math.max(cat.total,1)*100) + '%'"></div>
+                      </div>
+                      <div class="text-[11px] text-eso-muted text-center"
+                        x-text="cat.collected.toLocaleString() + ' / ' + cat.total.toLocaleString()"></div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <!-- SEARCH RESULTS view (active whenever search has text) -->
+            <template x-if="sbSearch">
+              <div>
+                <h2 class="font-cinzel text-lg font-semibold text-eso-gold mb-4 tracking-wider">
+                  Search: <span class="text-eso-text" x-text="'&quot;' + sbSearch + '&quot;'"></span>
+                  <span class="text-sm text-eso-muted ml-2" x-text="'(' + sbSearchResults().length + ' sets)'"></span>
+                </h2>
+                <template x-if="sbSearchResults().length === 0">
+                  <div class="text-eso-muted text-sm text-center py-12">No sets found.</div>
+                </template>
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  <template x-for="s in sbSearchResults()" :key="s.setId">
+                    <div x-data="{ open: false }" class="bg-eso-card border rounded-lg overflow-hidden transition-colors"
+                      :class="s.complete ? 'border-eso-gold/50' : 'border-eso-border'">
+                      <div class="p-3 cursor-pointer hover:bg-eso-hover/30" @click="open = !open">
+                        <div class="text-[9px] font-cinzel tracking-wide text-eso-muted mb-1" x-text="s.subcategory || s.category"></div>
+                        <div class="flex items-start justify-between gap-2 mb-2">
+                          <span class="text-xs font-cinzel leading-tight text-eso-text cursor-pointer hover:text-eso-gold transition-colors"
+  x-text="s.name"
+  @mouseenter="tipShowSbSet(s, $event)"
+  @mouseleave="tipHide()"
+  @click.stop="window.open(setEsoSetsUrl(s.name), '_blank')"></span>
+                          <span x-show="s.complete" class="shrink-0 text-[9px] font-cinzel tracking-widest text-eso-gold border border-eso-gold/50 rounded px-1 py-0.5">FULL</span>
+                        </div>
+                        <div class="h-1.5 bg-eso-border rounded-full overflow-hidden mb-1.5">
+                          <div class="h-full rounded-full" :class="s.complete ? 'bg-eso-gold' : 'bg-eso-gold/50'"
+                            :style="'width:' + Math.round(s.numCollected/Math.max(s.numTotal,1)*100) + '%'"></div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                          <div class="flex flex-wrap gap-1">
+                            <template x-for="(p, i) in s.pieces" :key="i">
+                              <div class="w-2.5 h-2.5 rounded-sm" :class="p.collected ? 'bg-eso-gold/70' : 'bg-eso-border/80'"></div>
+                            </template>
+                          </div>
+                          <span class="text-[10px] text-eso-muted ml-2 shrink-0" x-text="s.numCollected + '/' + s.numTotal"></span>
+                        </div>
+                      </div>
+                      <div x-show="open" class="border-t border-eso-border/50 px-3 py-2 space-y-0.5">
+                        <template x-for="(p, i) in s.pieces" :key="i">
+                          <div class="flex items-center gap-2 py-0.5">
+                            <span class="text-[11px] shrink-0" :class="p.collected ? 'text-eso-gold/60' : 'text-eso-gold'">
+                              <span x-show="p.collected">✓</span><span x-show="!p.collected">○</span>
+                            </span>
+                            <span class="text-[11px] leading-tight truncate cursor-pointer hover:text-eso-gold hover:underline transition-colors"
+                              :class="p.collected ? 'text-eso-muted/60 line-through' : 'text-eso-text'"
+                              x-text="p.name || ('Piece ' + (i+1))"
+                              @click.stop="window.open(ttcUrl(p.name || s.name), '_blank')"></span>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <!-- CATEGORY view -->
+            <template x-if="sbCat !== null && !sbSearch">
+              <div>
+                <div class="flex items-center justify-between mb-4">
+                  <h2 class="font-cinzel text-lg font-semibold text-eso-gold tracking-wider" x-text="sbCat"></h2>
+                  <span class="text-xs text-eso-muted" x-text="sbSetsInCat(sbCat).length + ' sets'"></span>
+                </div>
+                <template x-if="sbSetsInCat(sbCat).length === 0">
+                  <div class="text-eso-muted text-sm text-center py-12">No sets found.</div>
+                </template>
+                <!-- Sets with no subcategory (direct) -->
+                <template x-if="sbSetsInSubcat(sbCat, '').length > 0">
+                  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
+                    <template x-for="s in sbSetsInSubcat(sbCat, '')" :key="s.setId">
+                      <div x-data="{ open: false }" class="bg-eso-card border rounded-lg overflow-hidden transition-colors"
+                        :class="s.complete ? 'border-eso-gold/50' : 'border-eso-border'">
+                        <div class="p-3 cursor-pointer hover:bg-eso-hover/30" @click="open = !open">
+                          <div class="flex items-start justify-between gap-2 mb-2">
+                            <span class="text-xs font-cinzel leading-tight text-eso-text cursor-pointer hover:text-eso-gold transition-colors"
+  x-text="s.name"
+  @mouseenter="tipShowSbSet(s, $event)"
+  @mouseleave="tipHide()"
+  @click.stop="window.open(setEsoSetsUrl(s.name), '_blank')"></span>
+                            <span x-show="s.complete" class="shrink-0 text-[9px] font-cinzel tracking-widest text-eso-gold border border-eso-gold/50 rounded px-1 py-0.5">FULL</span>
+                          </div>
+                          <div class="h-1.5 bg-eso-border rounded-full overflow-hidden mb-1.5">
+                            <div class="h-full rounded-full" :class="s.complete ? 'bg-eso-gold' : 'bg-eso-gold/50'"
+                              :style="'width:' + Math.round(s.numCollected/Math.max(s.numTotal,1)*100) + '%'"></div>
+                          </div>
+                          <div class="flex items-center justify-between">
+                            <div class="flex flex-wrap gap-1">
+                              <template x-for="(p, i) in s.pieces" :key="i">
+                                <div class="w-2.5 h-2.5 rounded-sm" :class="p.collected ? 'bg-eso-gold/70' : 'bg-eso-border/80'"></div>
+                              </template>
+                            </div>
+                            <span class="text-[10px] text-eso-muted ml-2 shrink-0" x-text="s.numCollected + '/' + s.numTotal"></span>
+                          </div>
+                        </div>
+                        <div x-show="open" class="border-t border-eso-border/50 px-3 py-2 space-y-0.5">
+                          <template x-for="(p, i) in s.pieces" :key="i">
+                            <div class="flex items-center gap-2 py-0.5">
+                              <span class="text-[11px] shrink-0" :class="p.collected ? 'text-eso-gold/60' : 'text-eso-gold'">
+                                <span x-show="p.collected">✓</span><span x-show="!p.collected">○</span>
+                              </span>
+                              <span class="text-[11px] leading-tight truncate cursor-pointer hover:text-eso-gold hover:underline transition-colors"
+                                :class="p.collected ? 'text-eso-muted/60 line-through' : 'text-eso-text'"
+                                x-text="p.name || ('Piece ' + (i+1))"
+                                @click.stop="window.open(ttcUrl(p.name || s.name), '_blank')"></span>
+                            </div>
+                          </template>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+                <!-- Sets grouped by subcategory -->
+                <template x-for="sub in sbSubcategories(sbCat)" :key="sub">
+                  <div class="mb-6">
+                    <h3 class="text-xs font-cinzel tracking-widest text-eso-muted uppercase mb-3 border-b border-eso-border pb-1" x-text="sub"></h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                      <template x-for="s in sbSetsInSubcat(sbCat, sub)" :key="s.setId">
+                        <div x-data="{ open: false }" class="bg-eso-card border rounded-lg overflow-hidden transition-colors"
+                          :class="s.complete ? 'border-eso-gold/50' : 'border-eso-border'">
+                          <div class="p-3 cursor-pointer hover:bg-eso-hover/30" @click="open = !open">
+                            <div class="flex items-start justify-between gap-2 mb-2">
+                              <span class="text-xs font-cinzel leading-tight text-eso-text cursor-pointer hover:text-eso-gold transition-colors"
+  x-text="s.name"
+  @mouseenter="tipShowSbSet(s, $event)"
+  @mouseleave="tipHide()"
+  @click.stop="window.open(setEsoSetsUrl(s.name), '_blank')"></span>
+                              <span x-show="s.complete" class="shrink-0 text-[9px] font-cinzel tracking-widest text-eso-gold border border-eso-gold/50 rounded px-1 py-0.5">FULL</span>
+                            </div>
+                            <div class="h-1.5 bg-eso-border rounded-full overflow-hidden mb-1.5">
+                              <div class="h-full rounded-full" :class="s.complete ? 'bg-eso-gold' : 'bg-eso-gold/50'"
+                                :style="'width:' + Math.round(s.numCollected/Math.max(s.numTotal,1)*100) + '%'"></div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                              <div class="flex flex-wrap gap-1">
+                                <template x-for="(p, i) in s.pieces" :key="i">
+                                  <div class="w-2.5 h-2.5 rounded-sm" :class="p.collected ? 'bg-eso-gold/70' : 'bg-eso-border/80'"></div>
+                                </template>
+                              </div>
+                              <span class="text-[10px] text-eso-muted ml-2 shrink-0" x-text="s.numCollected + '/' + s.numTotal"></span>
+                            </div>
+                          </div>
+                          <div x-show="open" class="border-t border-eso-border/50 px-3 py-2 space-y-0.5">
+                            <template x-for="(p, i) in s.pieces" :key="i">
+                              <div class="flex items-center gap-2 py-0.5">
+                                <span class="text-[11px] shrink-0" :class="p.collected ? 'text-eso-gold/60' : 'text-eso-gold'">
+                                  <span x-show="p.collected">✓</span><span x-show="!p.collected">○</span>
+                                </span>
+                                <span class="text-[11px] leading-tight truncate cursor-pointer hover:text-eso-gold hover:underline transition-colors"
+                                  :class="p.collected ? 'text-eso-muted/60 line-through' : 'text-eso-text'"
+                                  x-text="p.name || ('Piece ' + (i+1))"
+                                  @click.stop="window.open(ttcUrl(p.name || s.name), '_blank')"></span>
+                              </div>
+                            </template>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+          </div><!-- end right pane -->
+        </div>
+      </template>
+    </div>
+
   </main>
 
 <script>
@@ -1149,6 +1605,9 @@ function armory() {
     achievCat: null,
     achievCharId: null,
     _achievIndexByChar: {},
+    sbData: null,
+    sbCat: null,
+    sbSearch: '',
     abilityIcons: {},
     selectedChar: null,
     loading: true,
@@ -1161,15 +1620,20 @@ function armory() {
     // Inventory filters
     search: '',
     filterQuality: '',
-    filterType: '',
-    filterLocType: '',
-    filterChar: '',
-    filterTrait: '',
+    filterTypes: [],
+    filterLocTypes: [],
+    filterChars: [],
+    filterTraits: [],
+    filterTransmuted: false,
+    filterCrafted: false,
+    filterGroupBySet: false,
     sortKey: 'name',
     sortDir: 'asc',
 
     // Tooltip state
-    tip: { visible: false, item: null, achiev: null, slotLabel: null, x: 0, y: 0 },
+    tip: { visible: false, item: null, achiev: null, skill: null, sbSet: null, slotLabel: null, x: 0, y: 0 },
+    setBonusCache: {},
+    skillInfoCache: {},
 
     qualityOptions: [
       { value:'0', label:'Trash',     color:'#8b8b8b' },
@@ -1196,6 +1660,7 @@ function armory() {
         this.fetchWWBuilds(),
         this.fetchAbilityIcons(),
         this.fetchAchievements(),
+        this.fetchStickerbook(),
       ]);
       this.ready = true;
       this.connectSSE();
@@ -1260,6 +1725,74 @@ function armory() {
         this._achievIndexByChar = byChar;
         if (!this.achievCharId && d.chars.length) this.achievCharId = d.chars[0].id;
       } catch(e) {}
+    },
+
+    async fetchStickerbook() {
+      try {
+        const r = await fetch('/api/stickerbook');
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.error) return;
+        this.sbData = d;
+      } catch(e) {}
+    },
+
+    sbCategories() {
+      if (!this.sbData) return [];
+      const cats = new Set(this.sbData.sets.map(s => s.category).filter(Boolean));
+      return [...cats].sort();
+    },
+
+    sbCategorySummary() {
+      if (!this.sbData) return [];
+      const by = {};
+      for (const s of this.sbData.sets) {
+        const c = s.category || 'Unknown';
+        if (!by[c]) by[c] = { name: c, collected: 0, total: 0 };
+        by[c].collected += s.numCollected;
+        by[c].total     += s.numTotal;
+      }
+      return Object.values(by).sort((a,b) => a.name.localeCompare(b.name));
+    },
+
+    sbCatPct(catName) {
+      const sum = this.sbCategorySummary().find(c => c.name === catName);
+      if (!sum || !sum.total) return 0;
+      return Math.round(sum.collected / sum.total * 100);
+    },
+
+    sbSetsInCat(catName) {
+      if (!this.sbData) return [];
+      const q = this.sbSearch.toLowerCase();
+      return this.sbData.sets.filter(s =>
+        s.category === catName && (!q || s.name.toLowerCase().includes(q))
+      );
+    },
+
+    sbSearchResults() {
+      if (!this.sbData || !this.sbSearch) return [];
+      const q = this.sbSearch.toLowerCase();
+      return this.sbData.sets.filter(s => s.name.toLowerCase().includes(q));
+    },
+
+    sbSubcategories(catName) {
+      if (!this.sbData) return [];
+      const subs = new Set(
+        this.sbData.sets
+          .filter(s => s.category === catName && s.subcategory)
+          .map(s => s.subcategory)
+      );
+      return [...subs].sort();
+    },
+
+    sbSetsInSubcat(catName, subcatName) {
+      if (!this.sbData) return [];
+      const q = this.sbSearch.toLowerCase();
+      return this.sbData.sets.filter(s =>
+        s.category === catName &&
+        (subcatName ? s.subcategory === subcatName : !s.subcategory) &&
+        (!q || s.name.toLowerCase().includes(q))
+      );
     },
 
     achievItemsByCatSubcat(catName, subcatName) {
@@ -1337,7 +1870,7 @@ function armory() {
       const es = new EventSource('/events');
       es.onmessage = e => {
         if (e.data === 'reload') {
-          Promise.all([this.fetchData(true), this.fetchAchievements()])
+          Promise.all([this.fetchData(true), this.fetchAchievements(), this.fetchStickerbook()])
             .then(() => this.showToast('Data updated ✓'));
         }
       };
@@ -1356,12 +1889,63 @@ function armory() {
       this.tip.slotLabel = null;
       this.tip.visible = true;
       this._tipPos(evt);
+      if (item?.set_id && item?.set_name) this.fetchSetBonus(item.set_id, item.set_name);
     },
     tipShowSlot(item, slotLbl, evt) {
       this.tip.item = item;
       this.tip.slotLabel = slotLbl;
       this.tip.visible = true;
       this._tipPos(evt);
+      if (item?.set_id && item?.set_name) this.fetchSetBonus(item.set_id, item.set_name);
+    },
+    _slugify(name) {
+      return name.replace(/['''']/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    },
+    skillbookUrl(name) {
+      return `https://eso-skillbook.com/skill/${this._slugify(name)}`;
+    },
+    async fetchSkillInfo(name) {
+      if (!name || name.startsWith('#')) return;
+      const slug = this._slugify(name);
+      if (this.skillInfoCache[slug] !== undefined) return;
+      this.skillInfoCache[slug] = { loading: true };
+      try {
+        const r = await fetch(`/api/skill_info?name=${encodeURIComponent(name)}`);
+        this.skillInfoCache[slug] = await r.json();
+      } catch {
+        this.skillInfoCache[slug] = { error: 'fetch failed' };
+      }
+    },
+    tipShowSkill(abilityId, evt) {
+      const name = this.abilityName(abilityId);
+      if (!name || name.startsWith('#')) return;
+      this.tip.item   = null;
+      this.tip.achiev = null;
+      this.tip.skill  = { name, slug: this._slugify(name) };
+      this.tip.visible = true;
+      this._tipPos(evt);
+      this.fetchSkillInfo(name);
+    },
+    openSkillbook(abilityId) {
+      const name = this.abilityName(abilityId);
+      if (name && !name.startsWith('#')) window.open(this.skillbookUrl(name), '_blank');
+    },
+    setEsoSetsUrl(setName) {
+      return `https://eso-sets.com/set/${this._slugify(setName)}`;
+    },
+    ttcUrl(pieceName) {
+      const region = (this.data?.meta?.server || 'NA').toUpperCase() === 'EU' ? 'eu' : 'us';
+      return `https://${region}.tamrieltradecentre.com/pc/Trade/SearchResult?ItemNamePattern=${encodeURIComponent(pieceName)}`;
+    },
+    async fetchSetBonus(setId, setName) {
+      if (!setId || !setName || this.setBonusCache[setId] !== undefined) return;
+      this.setBonusCache[setId] = { loading: true };
+      try {
+        const r = await fetch(`/api/set_bonus?set_id=${setId}&set_name=${encodeURIComponent(setName)}`);
+        this.setBonusCache[setId] = await r.json();
+      } catch {
+        this.setBonusCache[setId] = { bonuses: [], error: 'fetch failed' };
+      }
     },
     tipShowAchiev(a, evt) {
       this.tip.item = null;
@@ -1370,9 +1954,20 @@ function armory() {
       this.tip.visible = true;
       this._tipPos(evt);
     },
+    tipShowSbSet(s, evt) {
+      this.tip.item   = null;
+      this.tip.achiev = null;
+      this.tip.skill  = null;
+      this.tip.sbSet  = s;
+      this.tip.visible = true;
+      this._tipPos(evt);
+      this.fetchSetBonus(s.setId, s.name);
+    },
     tipHide() {
       this.tip.visible = false;
       this.tip.achiev = null;
+      this.tip.skill  = null;
+      this.tip.sbSet  = null;
     },
     tipMove(evt) {
       if (this.tip.visible) this._tipPos(evt);
@@ -1438,6 +2033,7 @@ function armory() {
         locations:        base?.locations       ?? [],
         total_quantity:   base?.total_quantity  ?? 0,
         weapon_type:      base?.weapon_type     ?? null,
+        armor_type:       base?.armor_type      ?? null,
         is_stolen:        false,
         sell_value:       gear.sell_value       ?? 0,
         trait_id:         gear.trait_id,
@@ -1450,6 +2046,7 @@ function armory() {
         is_enchanted:     gear.is_enchanted,
         enchant_name:     gear.enchant_name     ?? base?.enchant_name ?? '',
         set_name:         gear.set_name         ?? base?.set_name     ?? '',
+        set_id:           gear.set_id           ?? base?.set_id      ?? 0,
       };
       this.tipShowSlot(item, gear.slot_name, evt);
     },
@@ -1472,7 +2069,7 @@ function armory() {
       const name = this.abilityName(id);
       const icon = this.abilityIcon(id);
       if (icon) {
-        return `<img src="${icon}" class="skill-icon" alt="${name}" title="${name}">`;
+        return `<img src="${icon}" class="skill-icon" alt="">`;
       }
       const cls = isUlt ? ' text-eso-gold' : '';
       return `<span class="px-1 py-0.5 text-xs${cls}">${name || ''}</span>`;
@@ -1526,36 +2123,136 @@ function armory() {
     // HTML img tag for an item in a specific equipment SLOT (character sheet).
     // Off-hand slots (5, 21) are ambiguous (weapon or shield) so fall back to item type.
     slotEquipIcon(slot, item) {
-      const i = (name) => `<img src="/assets/interface/${name}.png" class="w-6 h-6 opacity-75" alt="">`;
-      const SLOT_IMGS = {
-        0: i('inventory_armor'), 2: i('inventory_armor'), 3: i('inventory_armor'),
-        6: i('inventory_armor'), 8: i('inventory_armor'), 9: i('inventory_armor'), 16: i('inventory_armor'),
-        1: i('jewelry_crafting_sketches'), 11: i('jewelry_crafting_sketches'), 12: i('jewelry_crafting_sketches'),
-        4: i('inventory_weapons'), 20: i('inventory_weapons'),
-        10: i('character_creation_body'),
-        13: i('inventory_consumables'), 14: i('inventory_consumables'),
+      const G = '/assets/gear';
+      const W = `${G}/weapon`;
+      const img   = (src) => `<img src="${src}" class="w-8 h-8 object-contain" alt="">`;
+      const iface = (name) => `<img src="/assets/interface/${name}.png" class="w-6 h-6 opacity-75" alt="">`;
+
+      const WEAPON_ICONS = {
+        'Dagger':            `${W}/gear_breton_dagger_d.webp`,
+        'Sword':             `${W}/gear_breton_1hsword_d.webp`,
+        'Axe':               `${W}/gear_breton_1haxe_d.webp`,
+        'Hammer':            `${W}/gear_breton_1hhammer_d.webp`,
+        'Two-Handed Sword':  `${W}/gear_breton_2hsword_d.webp`,
+        'Two-Handed Axe':    `${W}/gear_breton_2haxe_d.webp`,
+        'Two-Handed Hammer': `${W}/gear_breton_2hhammer_d.webp`,
+        'Bow':               `${W}/gear_breton_bow_d.webp`,
+        'Shield':            `${W}/gear_breton_shield_d.webp`,
       };
-      if (slot in SLOT_IMGS) return SLOT_IMGS[slot];
-      // Off-hand slots (5, 21): resolve by item type
-      if (item.filter_type === 1) return i('inventory_weapons');
-      if (item.filter_type === 2) return i('inventory_armor');
-      if (item.filter_type === 25) return i('jewelry_crafting_sketches');
-      return i('inventory_miscellaneous');
+      // slot → armor piece name (light chest is "shirt")
+      const ARMOR_SLOT = {
+        0: 'head', 2: 'chest', 3: 'shoulders',
+        6: 'waist', 8: 'legs', 9: 'feet', 16: 'hands',
+      };
+
+      const staffSrc = `${W}/gear_breton_staff_d.webp`;
+      // Name-based fallback: ordered so longer/more-specific matches come first
+      const nameToSrc = (n) => {
+        if (n.includes('greatsword') || n.includes('great sword'))      return WEAPON_ICONS['Two-Handed Sword'];
+        if (n.includes('battle axe') || n.includes('battleaxe') || n.includes('great axe')) return WEAPON_ICONS['Two-Handed Axe'];
+        if (n.includes('maul'))                                         return WEAPON_ICONS['Two-Handed Hammer'];
+        if (n.includes('staff'))                                        return staffSrc;
+        if (n.includes('dagger'))                                       return WEAPON_ICONS['Dagger'];
+        if (n.includes('sword') || n.includes('blade') || n.includes('saber') || n.includes('sabre') || n.includes('machete')) return WEAPON_ICONS['Sword'];
+        if (n.includes('axe'))                                          return WEAPON_ICONS['Axe'];
+        if (n.includes('hammer') || n.includes('mace'))                 return WEAPON_ICONS['Hammer'];
+        if (n.includes('bow'))                                          return WEAPON_ICONS['Bow'];
+        if (n.includes('shield'))                                       return WEAPON_ICONS['Shield'];
+        return null;
+      };
+      const weaponImg = (wt, name) => {
+        const nameLower = (name || '').toLowerCase();
+        // iasync stores weapon type per-slot; discard it if it claims Staff but item name disagrees
+        const resolvedWt = (wt && wt.includes('Staff') && !nameLower.includes('staff')) ? null : wt;
+        if (!resolvedWt) {
+          const src = nameToSrc(nameLower);
+          return src ? img(src) : iface('inventory_weapons');
+        }
+        const src = WEAPON_ICONS[resolvedWt] ?? (resolvedWt.includes('Staff') ? staffSrc : null);
+        return src ? img(src) : iface('inventory_weapons');
+      };
+      const armorImg = (s, at) => {
+        const piece = ARMOR_SLOT[s];
+        if (!piece || !at) return iface('inventory_armor');
+        const w = at.toLowerCase();
+        const p = (w === 'light' && piece === 'chest') ? 'shirt' : piece;
+        return img(`${G}/armor/${w}/gear_breton_${w}_${p}_d.webp`);
+      };
+
+      if (slot in ARMOR_SLOT)                    return armorImg(slot, item.armor_type);
+      if (slot === 1)                            return img(`${G}/jewelry/gear_breton_neck_a.webp`);
+      if (slot === 11 || slot === 12)            return img(`${G}/jewelry/gear_breton_ring_a.webp`);
+      if (slot===4||slot===5||slot===20||slot===21) return weaponImg(item.weapon_type, item.name);
+      if (slot === 10)                           return iface('character_creation_body');
+      if (slot === 13 || slot === 14)            return iface('inventory_consumables');
+      // fallback by filter type (e.g. unrecognised slot numbers)
+      if (item.filter_type === 1)  return weaponImg(item.weapon_type, item.name);
+      if (item.filter_type === 2)  return armorImg(slot, item.armor_type);
+      if (item.filter_type === 25) return img(`${G}/jewelry/gear_breton_neck_a.webp`);
+      return iface('inventory_miscellaneous');
     },
 
     // Icon for an item anywhere in inventory / location lists.
     itemIconHtml(item) {
-      const FT_PNG = {
-        1: 'inventory_weapons',
-        2: 'inventory_armor',
-        3: 'inventory_consumables',
-        4: 'inventory_materials',
-        5: 'inventory_miscellaneous',
-        6: 'enchanting_potency',
+      const G = '/assets/gear';
+      const W = `${G}/weapon`;
+      const WEAPON_ICONS = {
+        'Dagger':           `${W}/gear_breton_dagger_d.webp`,
+        'Sword':            `${W}/gear_breton_1hsword_d.webp`,
+        'Axe':              `${W}/gear_breton_1haxe_d.webp`,
+        'Hammer':           `${W}/gear_breton_1hhammer_d.webp`,
+        'Two-Handed Sword': `${W}/gear_breton_2hsword_d.webp`,
+        'Two-Handed Axe':   `${W}/gear_breton_2haxe_d.webp`,
+        'Two-Handed Hammer':`${W}/gear_breton_2hhammer_d.webp`,
+        'Bow':              `${W}/gear_breton_bow_d.webp`,
+        'Shield':           `${W}/gear_breton_shield_d.webp`,
       };
-      const key = FT_PNG[item.filter_type];
-      if (key) return `<img src="/assets/interface/${key}.png" class="w-5 h-5 opacity-80" alt="">`;
-      if (item.filter_type === 25) return '◎';
+      const ARMOR_ICONS = {
+        'Heavy':  `${G}/armor/heavy/gear_breton_heavy_chest_d.webp`,
+        'Medium': `${G}/armor/medium/gear_breton_medium_chest_d.webp`,
+        'Light':  `${G}/armor/light/gear_breton_light_shirt_d.webp`,
+      };
+      const FALLBACK = {
+        1: '/assets/interface/inventory_weapons.png',
+        2: '/assets/interface/inventory_armor.png',
+        3: '/assets/interface/inventory_consumables.png',
+        4: '/assets/interface/inventory_materials.png',
+        5: '/assets/interface/inventory_miscellaneous.png',
+        6: '/assets/interface/enchanting_potency.png',
+      };
+
+      const staffSrc = `${W}/gear_breton_staff_d.webp`;
+      const nameToSrc = (n) => {
+        if (n.includes('greatsword') || n.includes('great sword'))           return WEAPON_ICONS['Two-Handed Sword'];
+        if (n.includes('battle axe') || n.includes('battleaxe') || n.includes('great axe')) return WEAPON_ICONS['Two-Handed Axe'];
+        if (n.includes('maul'))                                              return WEAPON_ICONS['Two-Handed Hammer'];
+        if (n.includes('staff'))                                             return staffSrc;
+        if (n.includes('dagger'))                                            return WEAPON_ICONS['Dagger'];
+        if (n.includes('sword') || n.includes('blade') || n.includes('saber') || n.includes('sabre') || n.includes('machete')) return WEAPON_ICONS['Sword'];
+        if (n.includes('axe'))                                               return WEAPON_ICONS['Axe'];
+        if (n.includes('hammer') || n.includes('mace'))                      return WEAPON_ICONS['Hammer'];
+        if (n.includes('bow'))                                               return WEAPON_ICONS['Bow'];
+        if (n.includes('shield'))                                            return WEAPON_ICONS['Shield'];
+        return null;
+      };
+      let src = null;
+      if (item.filter_type === 1) {
+        const nameLower = (item.name || '').toLowerCase();
+        const wt = (item.weapon_type && item.weapon_type.includes('Staff') && !nameLower.includes('staff'))
+          ? null : item.weapon_type;
+        src = WEAPON_ICONS[wt]
+          ?? (wt && wt.includes('Staff') ? staffSrc : null)
+          ?? nameToSrc(nameLower)
+          ?? FALLBACK[1];
+      } else if (item.filter_type === 2) {
+        if (item.weapon_type === 'Shield') src = `${W}/gear_breton_shield_d.webp`;
+        else src = ARMOR_ICONS[item.armor_type] ?? FALLBACK[2];
+      } else if (item.filter_type === 25) {
+        src = `${G}/jewelry/gear_breton_neck_a.webp`;
+      } else {
+        src = FALLBACK[item.filter_type];
+      }
+      if (src) return `<img src="${src}" class="w-7 h-7 object-contain" alt="">`;
       return item.filter_type_icon;
     },
 
@@ -1586,24 +2283,100 @@ function armory() {
       const q = this.search.toLowerCase().trim();
       if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
       if (this.filterQuality !== '') items = items.filter(i => i.quality === parseInt(this.filterQuality));
-      if (this.filterType)   items = items.filter(i => i.filter_type === parseInt(this.filterType));
-      if (this.filterLocType || this.filterChar) {
+      if (this.filterTypes.length) items = items.filter(i => this.filterTypes.includes(String(i.filter_type)));
+      if (this.filterLocTypes.length || this.filterChars.length) {
         items = items.filter(item =>
           item.locations.some(loc => {
-            if (this.filterLocType && loc.location_type !== this.filterLocType) return false;
-            if (this.filterChar && loc.location_key !== this.filterChar) return false;
+            if (this.filterLocTypes.length && !this.filterLocTypes.includes(loc.location_type)) return false;
+            if (this.filterChars.length && !this.filterChars.includes(loc.location_key)) return false;
             return true;
           })
         );
       }
-      if (this.filterTrait === 'any')        items = items.filter(i => i.trait_id > 0);
-      else if (this.filterTrait === 'transmuted') items = items.filter(i => i.is_transmuted);
-      else if (this.filterTrait)             items = items.filter(i => i.trait_id === parseInt(this.filterTrait));
+      if (this.filterTraits.length) {
+        if (this.filterTraits.includes('any')) items = items.filter(i => i.trait_id > 0);
+        else items = items.filter(i => this.filterTraits.includes(String(i.trait_id)));
+      }
+      if (this.filterTransmuted) items = items.filter(i => i.is_transmuted);
+      if (this.filterCrafted)    items = items.filter(i => i.is_crafted);
       const k = this.sortKey, dir = this.sortDir === 'asc' ? 1 : -1;
       return [...items].sort((a, b) => {
         const av = a[k], bv = b[k];
         return typeof av === 'string' ? dir * av.localeCompare(bv) : dir * (av - bv);
       });
+    },
+
+    get groupedItems() {
+      const groups = {};
+      const noSet = [];
+      for (const item of this.filteredItems) {
+        if (item.set_name) {
+          if (!groups[item.set_name]) groups[item.set_name] = [];
+          groups[item.set_name].push(item);
+        } else noSet.push(item);
+      }
+      const result = [];
+      for (const [set, items] of Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])))
+        result.push({ set, count: items.length, items });
+      if (noSet.length) result.push({ set: null, count: noSet.length, items: noSet });
+      return result;
+    },
+
+    get displayItems() {
+      if (!this.filterGroupBySet) return this.filteredItems.map(item => ({ t: 'item', item }));
+      const result = [];
+      for (const group of this.groupedItems) {
+        result.push({ t: 'h', set: group.set || 'No Set', count: group.count });
+        for (const item of group.items) result.push({ t: 'item', item });
+      }
+      return result;
+    },
+
+    toggleFilter(arr, val) {
+      const idx = arr.indexOf(val);
+      if (idx >= 0) arr.splice(idx, 1);
+      else arr.push(val);
+    },
+
+    get filterTypeLabel() {
+      if (!this.filterTypes.length) return 'All Types';
+      const map = {'1':'Weapons','2':'Armor','25':'Jewelry','3':'Consumables','4':'Materials','6':'Glyphs','21':'Furnishings','5':'Misc'};
+      const names = this.filterTypes.map(v => map[v] || v);
+      return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+    },
+
+    get filterLocTypeLabel() {
+      if (!this.filterLocTypes.length) return 'All Locations';
+      const map = {'character':'Characters','bank':'Bank','craftbag':'Craft Bag','house_chest':'House Chests'};
+      const names = this.filterLocTypes.map(v => map[v] || v);
+      return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+    },
+
+    get filterCharLabel() {
+      if (!this.filterChars.length) return 'All Characters';
+      const names = this.filterChars.map(id => {
+        const c = this.sortedCharacters.find(c => c.id === id);
+        return c ? c.name.split(' ')[0] : id;
+      });
+      return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+    },
+
+    get filterTraitLabel() {
+      if (!this.filterTraits.length) return 'All Traits';
+      if (this.filterTraits.includes('any')) return 'Has Trait';
+      if (this.filterTraits.length === 1) return this._traitName(this.filterTraits[0]);
+      return `${this.filterTraits.length} Traits`;
+    },
+
+    _traitName(v) {
+      const m = {'18':'Divines','16':'Infused','25':'Nirnhoned','13':'Reinforced','11':'Sturdy','14':'Well-Fitted','12':'Impenetrable','15':'Training','4':'Infused','26':'Nirnhoned','5':'Defending','2':'Charged','7':'Sharpened','1':'Powered','3':'Precise','8':'Decisive','6':'Training','32':'Protective','29':'Harmony','31':'Bloodthirsty','30':'Triune','33':'Infused','28':'Swift','22':'Arcane','21':'Healthy','23':'Robust'};
+      return m[v] || v;
+    },
+
+    get hasActiveFilters() {
+      return this.search || this.filterQuality !== '' || this.filterTypes.length ||
+             this.filterLocTypes.length || this.filterChars.length || this.filterTraits.length ||
+             this.filterTransmuted || this.filterCrafted || this.filterGroupBySet;
     },
 
   };

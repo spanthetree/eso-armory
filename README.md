@@ -1,6 +1,6 @@
 # ESO Armory
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.3-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.5-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -9,9 +9,9 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 
 ## Features
 
-- **Characters tab** — all characters at a glance with equipped gear paper-doll; click any character to see their WizardsWardrobe builds
+- **Characters tab** — all characters at a glance with equipped gear paper-doll using slot-specific gear icons; click any character to see their WizardsWardrobe builds
 - **Builds** — gear, skills (primary + backup bars), Champion Points, and food for each WW setup
-- **Inventory tab** — full cross-character inventory with search, quality/type/trait/location filters, and sortable columns
+- **Inventory tab** — full cross-character inventory with search, multiselect quality/type/trait/location/character filters, Transmuted and Crafted toggle buttons, Group by Set view, and sortable columns; items show weapon-type and armor-weight tags and slot-specific gear icons
 - **Achievements tab** — account-wide achievement summary with category/subcategory drill-down, per-character filtering, progress bars, and recent completions
 - **Currency totals** — gold, AP, Telvar Stones, and Writ Vouchers across all characters + bank in the header
 - **Live reload** — watches SavedVariables files and updates the browser automatically via SSE
@@ -40,7 +40,7 @@ uv sync --active
 
 ### 2. Install the iasync addon
 
-iasync is a small companion addon that exports in-game data (ability names, Champion Point names, and bank currency) that IIfA doesn't persist to disk.
+iasync is a companion addon that exports in-game data that IIfA doesn't persist to disk: ability names, Champion Point names, bank currency, weapon types, armor weights, achievement progress, and stickerbook collection state.
 
 The `iasync/` directory in this repo is symlinked to your ESO AddOns folder. If the symlink is missing or broken:
 
@@ -101,10 +101,10 @@ The server polls your SavedVariables files every 5 seconds (configurable) and pu
 ```
 server.py              # FastAPI app + file watcher
 lua_parser.py          # Recursive-descent Lua parser
-data_processor.py      # IIfA + WW data → JSON model
+data_processor.py      # iasync + WW data → JSON model
 item_link_decoder.py   # ESO item link decoder (trait/style/enchant)
-item_db.py             # Name-based item enrichment
 static/index.html      # Single-file frontend (Alpine.js + Tailwind CDN)
+assets/gear/           # Slot-specific gear icons (weapon/armor/jewelry)
 iasync/                # Companion ESO addon (symlink to AddOns folder)
 config.json            # Auto-generated on first run
 ```

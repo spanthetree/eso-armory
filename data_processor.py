@@ -4,7 +4,6 @@ import re
 import time
 
 from item_link_decoder import decode as decode_link
-from item_db import enrich as enrich_item
 
 QUALITY_NAMES = {
     0: "Trash", 1: "Normal", 2: "Fine", 3: "Superior",
@@ -110,7 +109,6 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
             quality     = int(item_data.get("quality", 1))
             filter_type = int(item_data.get("filterType", 5))
             decoded     = decode_link(link)
-            extra       = enrich_item(item_data.get("name", ""), filter_type)
             # iasync captures trait/enchant via ESO's GetItemTrait/GetItemLinkInfo APIs,
             # which are more reliable than link-field decoding for armor traits.
             trait_id    = int(item_data.get("traitType", 0)) or decoded.get("trait_id", 0)
@@ -145,7 +143,8 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
                 "set_id":           int(item_data.get("setId", 0)),
                 "set_name":         item_data.get("setName") or "",
                 "sell_value":       decoded.get("sell_value", 0),
-                "weapon_type":      extra.get("weapon_type"),
+                "weapon_type":      item_data.get("weaponType") or None,
+                "armor_type":       item_data.get("armorType") or None,
             }
 
         item_map[link]["total_quantity"] += qty
@@ -531,4 +530,50 @@ def process_iasync_builds(raw: dict) -> dict:
         "builds":       builds,
         "abilityNames": ability_names,
         "cpNames":      cp_names,
+    }
+
+
+def process_iasync_stickerbook(raw: dict) -> dict:
+    """Build the /api/stickerbook response from iasync_data.stickerbook."""
+    sb_raw   = raw.get("stickerbook", {})
+    sets_raw = sb_raw.get("sets", {})
+
+    sets = []
+    for set_id, s in sets_raw.items():
+        if not isinstance(s, dict):
+            continue
+
+        num_collected = int(s.get("numCollected", 0))
+        num_total     = int(s.get("numTotal", 0))
+
+        pieces = []
+        for pidx in sorted(s.get("pieces", {}).keys(),
+                            key=lambda x: int(x) if str(x).isdigit() else 0):
+            p = s["pieces"][pidx]
+            if not isinstance(p, dict):
+                continue
+            filter_type = int(p.get("filterType", 0))
+            pieces.append({
+                "filterType": filter_type,
+                "filterName": FILTER_TYPE_NAMES.get(filter_type, ""),
+                "collected":  bool(p.get("collected", False)),
+                "name":       p.get("name", ""),
+            })
+
+        sets.append({
+            "setId":        int(set_id) if str(set_id).isdigit() else set_id,
+            "name":         s.get("name", ""),
+            "category":     s.get("category", ""),
+            "subcategory":  s.get("subcategory", ""),
+            "numCollected": num_collected,
+            "numTotal":     num_total,
+            "complete":     num_total > 0 and num_collected >= num_total,
+            "pieces":       pieces,
+        })
+
+    sets.sort(key=lambda s: s["name"].lower())
+
+    return {
+        "sets":       sets,
+        "lastUpdate": int(sb_raw.get("lastUpdate", 0)),
     }

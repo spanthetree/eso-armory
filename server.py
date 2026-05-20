@@ -7,7 +7,9 @@ import platform
 import re
 import sys
 import time
+import urllib.request
 from contextlib import asynccontextmanager
+from html.parser import HTMLParser
 from pathlib import Path
 
 import uvicorn
@@ -17,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from lua_parser import parse_lua_variable
-from data_processor import process_iasync, process_iasync_builds, process_iasync_achievements, process_ww_builds
+from data_processor import process_iasync, process_iasync_builds, process_iasync_achievements, process_iasync_stickerbook, process_ww_builds
 
 
 def _setup_logging():
@@ -69,9 +71,10 @@ _config: dict = {}
 _cache: dict = {
     "data_bytes":         None,
     "builds_bytes":       None,
-    "achievements_bytes": None,
-    "mtime":              None,
-    "error":              None,
+    "achievements_bytes":  None,
+    "stickerbook_bytes":   None,
+    "mtime":               None,
+    "error":               None,
 }
 _ww_cache: dict = {
     "ww_builds_bytes": None,
@@ -80,6 +83,8 @@ _ww_cache: dict = {
 }
 _sse_queues: set[asyncio.Queue] = set()
 _ability_icon_map: dict = {}
+_set_bonus_cache: dict  = {}  # set_id  -> {bonuses, url} or {bonuses, url, error}
+_skill_info_cache: dict = {}  # slug    -> {cast_time, cost, type, location, description, ...}
 
 
 def _build_ability_icon_map() -> dict:
@@ -90,6 +95,153 @@ def _build_ability_icon_map() -> dict:
     for png in sorted(abilities_dir.rglob("*.png")):
         key = re.sub(r'[^a-z0-9]+', '_', png.stem.lower()).strip('_')
         result[key] = "/" + png.as_posix()
+    return result
+
+
+class _TextExtractor(HTMLParser):
+    _SKIP  = frozenset({'script', 'style', 'noscript', 'head'})
+    _BLOCK = frozenset({
+        'div', 'p', 'li', 'ol', 'ul', 'tr', 'td', 'th', 'br',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'section', 'article', 'header', 'footer', 'nav', 'main',
+    })
+
+    def __init__(self):
+        super().__init__()
+        self._parts: list[str] = []
+        self._depth: int = 0
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        if tag in self._SKIP:
+            self._depth += 1
+        elif tag in self._BLOCK and self._depth == 0:
+            self._parts.append('\n')
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self._SKIP and self._depth > 0:
+            self._depth -= 1
+        elif tag in self._BLOCK and self._depth == 0:
+            self._parts.append('\n')
+
+    def handle_data(self, data: str) -> None:
+        if self._depth == 0:
+            self._parts.append(data)
+
+    def get_text(self) -> str:
+        raw = ''.join(self._parts)
+        lines = [re.sub(r'[ \t]+', ' ', ln).strip() for ln in raw.split('\n')]
+        return '\n'.join(ln for ln in lines if ln)
+
+
+def _set_name_to_slug(name: str) -> str:
+    slug = re.sub(r"['‘’‚′]", "", name)
+    slug = slug.lower()
+    slug = re.sub(r'[^a-z0-9]+', '-', slug)
+    return slug.strip('-')
+
+
+_BONUS_LINE = re.compile(r'^\((\d+)\s+items?\)\s*(.*)$')
+# Lines that mark end of a set's bonus block (metadata / page chrome)
+_META_LINE  = re.compile(
+    r'^(?:Name:|Type:|Location:|Obtainable|LEVEL\s+\d|Drop\s|ArmorSet|Found a mistake|Discord|ESO-Hub)'
+)
+
+
+def _fetch_set_bonuses(slug: str) -> list[dict]:
+    url = f"https://eso-sets.com/set/{slug}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 ESO-Armory/1.0"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        html = resp.read().decode("utf-8", errors="replace")
+    extractor = _TextExtractor()
+    extractor.feed(html)
+    lines = [l for l in extractor.get_text().split('\n') if l.strip()]
+
+    bonuses: list[dict] = []
+    last_pieces = 0
+    cur_pieces: int | None = None
+    cur_parts:  list[str] = []
+
+    def _flush():
+        nonlocal cur_pieces, cur_parts
+        if cur_pieces is not None and cur_parts:
+            bonuses.append({"pieces": cur_pieces, "text": ' '.join(cur_parts)})
+        cur_pieces = None
+        cur_parts = []
+
+    for line in lines:
+        bm = _BONUS_LINE.match(line)
+        if bm:
+            _flush()
+            pieces = int(bm.group(1))
+            if pieces <= last_pieces:
+                break  # piece count reset → entered a new set's section
+            cur_pieces = pieces
+            last_pieces = pieces
+            text = bm.group(2).strip()
+            if text:
+                cur_parts = [text]
+        elif cur_pieces is not None:
+            if _META_LINE.match(line):
+                _flush()
+            else:
+                cur_parts.append(line)
+
+    _flush()
+    return bonuses
+
+
+_SKILL_STOP = re.compile(
+    r'^(?:New effect|Name:|Other morph|Base ability|Found a mistake|Discord|Skills and icons)'
+)
+
+
+def _fetch_skill_info(slug: str) -> dict:
+    url = f"https://eso-skillbook.com/skill/{slug}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 ESO-Armory/1.0"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        html = resp.read().decode("utf-8", errors="replace")
+    extractor = _TextExtractor()
+    extractor.feed(html)
+    lines = [l for l in extractor.get_text().split('\n') if l.strip()]
+
+    result: dict[str, str] = {}
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        if "cast_time" not in result and (m := re.match(r'^Cast Time:\s*(.+)$', line)):
+            try:
+                ms = int(m.group(1).strip())
+                result["cast_time"] = "Instant" if ms == 0 else f"{ms / 1000:.1f}s"
+            except ValueError:
+                result["cast_time"] = m.group(1).strip()
+
+        elif "target" not in result and (m := re.match(r'^Target:\s*(.+)$', line)):
+            result["target"] = m.group(1).strip()
+
+        elif "range" not in result and (m := re.match(r'^Range:\s*(.+)$', line)):
+            result["range"] = m.group(1).strip()
+
+        elif "cost" not in result and (m := re.match(r'^Cost:\s*(.+)$', line)):
+            result["cost"] = m.group(1).strip()
+
+        elif "type" not in result and (m := re.match(r'^Type:\s*(.+)$', line)):
+            result["type"] = m.group(1).strip()
+
+        elif "location" not in result and (m := re.match(r'^Location:\s*(.+)$', line)):
+            result["location"] = m.group(1).strip()
+
+        elif "description" not in result and line == "Skill description":
+            parts: list[str] = []
+            i += 1
+            while i < len(lines) and not _SKILL_STOP.match(lines[i]):
+                parts.append(lines[i])
+                i += 1
+            result["description"] = ' '.join(parts)
+            continue  # i already past description; let outer loop process stop line
+
+        i += 1
+
     return result
 
 
@@ -120,11 +272,13 @@ def _parse_iasync():
         data         = process_iasync(raw, server=_config.get("server", "NA"))
         builds       = process_iasync_builds(raw)
         achievements = process_iasync_achievements(raw)
+        stickerbook  = process_iasync_stickerbook(raw)
         elapsed = time.monotonic() - t0
         data["meta"]["parse_ms"] = int(elapsed * 1000)
-        _cache["data_bytes"]         = json.dumps(data).encode()
-        _cache["builds_bytes"]       = json.dumps(builds).encode()
-        _cache["achievements_bytes"] = json.dumps(achievements).encode()
+        _cache["data_bytes"]          = json.dumps(data).encode()
+        _cache["builds_bytes"]        = json.dumps(builds).encode()
+        _cache["achievements_bytes"]  = json.dumps(achievements).encode()
+        _cache["stickerbook_bytes"]   = json.dumps(stickerbook).encode()
         _cache["mtime"]              = mtime
         _cache["error"]              = None
         n = data["meta"]["item_count"]
@@ -260,6 +414,17 @@ async def api_achievements():
     )
 
 
+@app.get("/api/stickerbook")
+async def api_stickerbook():
+    if _cache["stickerbook_bytes"] is None:
+        return JSONResponse({"error": _cache.get("error", "No data loaded")}, status_code=503)
+    return Response(
+        content=_cache["stickerbook_bytes"],
+        media_type="application/json",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.get("/api/ww_builds")
 async def api_ww_builds():
     if _ww_cache["ww_builds_bytes"] is None:
@@ -284,6 +449,42 @@ async def api_status():
         "last_modified":   _cache["mtime"],
         "error":           None,
     }
+
+
+@app.get("/api/set_bonus")
+async def api_set_bonus(set_id: int, set_name: str):
+    if set_id in _set_bonus_cache:
+        return JSONResponse(_set_bonus_cache[set_id])
+    slug = _set_name_to_slug(set_name)
+    url = f"https://eso-sets.com/set/{slug}"
+    try:
+        loop = asyncio.get_event_loop()
+        bonuses = await loop.run_in_executor(None, lambda: _fetch_set_bonuses(slug))
+        result: dict = {"bonuses": bonuses, "url": url}
+        logger.info("Set bonus: {} → {} bonuses", set_name, len(bonuses))
+    except Exception as exc:
+        result = {"bonuses": [], "url": url, "error": str(exc)}
+        logger.warning("Set bonus fetch failed: {} — {}", set_name, exc)
+    _set_bonus_cache[set_id] = result
+    return JSONResponse(result)
+
+
+@app.get("/api/skill_info")
+async def api_skill_info(name: str):
+    slug = _set_name_to_slug(name)
+    if slug in _skill_info_cache:
+        return JSONResponse(_skill_info_cache[slug])
+    url = f"https://eso-skillbook.com/skill/{slug}"
+    try:
+        loop = asyncio.get_event_loop()
+        info = await loop.run_in_executor(None, lambda: _fetch_skill_info(slug))
+        result: dict = {**info, "url": url}
+        logger.info("Skill info: {} → {}", name, list(info.keys()))
+    except Exception as exc:
+        result = {"url": url, "error": str(exc)}
+        logger.warning("Skill info fetch failed: {} — {}", name, exc)
+    _skill_info_cache[slug] = result
+    return JSONResponse(result)
 
 
 @app.get("/api/ability_icons")
