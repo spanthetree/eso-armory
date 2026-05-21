@@ -1,6 +1,6 @@
 # ESO Armory
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.15-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.18-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -17,8 +17,8 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 - **Currency totals** — gold, AP, Telvar Stones, and Writ Vouchers across all characters + bank in the header
 - **Color themes** — five palettes (Gold, Light, Dark, Synthwave, Outrun) switchable via a "Theme" dropdown in the header; selection persists across sessions
 - **Live reload** — watches SavedVariables files and updates the browser automatically via SSE
-- **File upload / remote use** — upload `iasync.lua` and `WizardsWardrobe.lua` directly via the browser instead of relying on local file paths; makes it easy to share a hosted instance for others to test
-- **Folder watcher** (Chrome/Edge) — select your SavedVariables folder once and the app polls for changes every 5 s, re-uploading automatically; directory handle persists across sessions via IndexedDB
+- **File upload / remote use** — upload `iasync.lua`, `WizardsWardrobe.lua`, and optional Tamriel Trade Centre tables directly via the browser instead of relying on local file paths; hosted users can seed TTC pricing manually even without a live watcher
+- **Folder watcher** (Chrome/Edge) — select your ESO `live` folder once and the app polls for changes every 5 s, re-uploading `SavedVariables/` and Tamriel Trade Centre tables from `AddOns/TamrielTradeCentre/` automatically; directory handle persists across sessions via IndexedDB
 - **Refresh button** — manually check for updated data at any time; toasts "Data updated ✓" or "No updates"
 - **Session isolation** — each browser gets a UUID stored in `localStorage`; multiple users on the same hosted instance see only their own uploaded data; sessions expire after 2 hours of inactivity
 
@@ -124,4 +124,4 @@ config.json            # Auto-generated on first run
 - SavedVariables are only written to disk on `/reloadui` or character logout. The web app shows whatever was last flushed.
 - Bank currency (gold, AP, Telvar, Writ Vouchers) is not saved by IIfA — iasync captures it separately.
 - Ability and CP names in build cards require iasync to have run at least once in-game.
-- Collections piece-price tooltips use local Tamriel Trade Centre `ItemLookUpTable_EN.lua` and `PriceTableNA.lua`/`PriceTableEU.lua` files when present; restart the server after changing TTC config paths or updating routes. If tooltip prices are missing, check `/api/ttc_price` and server logs first.
+- Collections piece-price tooltips use Tamriel Trade Centre `ItemLookUpTable_EN.lua` and `PriceTableNA.lua`/`PriceTableEU.lua` files from the selected live folder when available, or configured local TTC paths on self-hosted installs; hosted users can also upload those TTC files manually. Restart the server after changing TTC config paths or updating routes. If tooltip prices are missing, check `/api/ttc_price` and server logs first.

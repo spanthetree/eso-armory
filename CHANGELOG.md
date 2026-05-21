@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.18] - 2026-05-21
+
+### Changed
+- **Manual TTC upload guidance** — docs now reflect the manual TTC lookup/price table upload path in the browser modal and the live-folder watcher flow
+
+## [0.1.0-beta.17] - 2026-05-21
+
+### Added
+- **Manual TTC table upload** — the upload modal now includes file pickers for `ItemLookUpTable_EN.lua` and `PriceTableNA.lua` / `PriceTableEU.lua`, letting hosted users seed Collections pricing even without a live folder watcher
+
+## [0.1.0-beta.16] - 2026-05-21
+
+### Changed
+- **Hosted live-folder upload flow** — the browser folder watcher now targets the ESO `live` folder instead of `SavedVariables/`, auto-uploads `SavedVariables/iasync.lua`, `SavedVariables/WizardsWardrobe.lua`, and Tamriel Trade Centre tables from `AddOns/TamrielTradeCentre/`, and passes the browser session through to `/api/ttc_price`
+- **TTC session source selection** — `/api/ttc_price` now prefers the uploaded session TTC tables when they exist, falling back to the host machine's configured local TTC paths otherwise
+
 ## [0.1.0-beta.15] - 2026-05-21
 
 ### Added

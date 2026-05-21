@@ -541,9 +541,10 @@
         class="absolute top-4 right-4 text-lg leading-none"
         style="color:var(--t-muted)">&times;</button>
 
-      <h2 class="font-cinzel font-bold text-lg mb-1" style="color:var(--t-gold)">Upload SavedVariables</h2>
+      <h2 class="font-cinzel font-bold text-lg mb-1" style="color:var(--t-gold)">Upload Live Folder</h2>
       <p class="text-xs mb-5" style="color:var(--t-muted)">
-        Find your files at:<br>
+        Select your ESO <code class="rounded px-1 py-0.5 inline-block"
+          style="background:var(--t-bg);color:var(--t-text)">live</code> folder, with data under:<br>
         <code class="rounded px-1 py-0.5 mt-0.5 inline-block"
           style="background:var(--t-bg);color:var(--t-text)">
           Documents/Elder Scrolls Online/live/SavedVariables/
@@ -563,7 +564,7 @@
               class="w-full flex items-center gap-2 rounded-lg px-4 py-3 text-sm transition-colors cursor-pointer"
               style="border:1px dashed var(--t-border);background:var(--t-bg);color:var(--t-muted)">
               <span>📁</span>
-              <span>Select SavedVariables Folder…</span>
+              <span>Select Live Folder…</span>
             </button>
           </template>
           <template x-if="dirHandle">
@@ -578,7 +579,7 @@
             </div>
           </template>
           <p class="mt-1.5 text-[10px]" style="color:var(--t-muted)">
-            Automatically re-uploads files when the game saves them. Persists across sessions.
+            Automatically re-uploads SavedVariables and TTC tables when the game saves them. Persists across sessions.
           </p>
         </div>
       </template>
@@ -630,12 +631,44 @@
         </label>
       </div>
 
+      <!-- Tamriel Trade Centre -->
+      <div class="mb-5">
+        <div class="text-xs font-semibold mb-1.5 uppercase tracking-wide"
+          style="color:var(--t-gold);font-family:'Cinzel',serif">
+          Tamriel Trade Centre <span class="normal-case font-normal" style="color:var(--t-muted)">(optional — pricing)</span>
+        </div>
+        <div class="space-y-3">
+          <label class="flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer"
+            style="border:1px dashed var(--t-border);background:var(--t-bg)"
+            @dragover.prevent="$el.style.borderColor='var(--t-gold)'"
+            @dragleave="$el.style.borderColor='var(--t-border)'"
+            @drop.prevent="$el.style.borderColor='var(--t-border)'; $refs.ttcLookupInput.files = $event.dataTransfer.files; uploadTtcLookupName = $event.dataTransfer.files[0]?.name || ''">
+            <span class="text-lg" style="color:var(--t-muted)">📄</span>
+            <span class="text-sm truncate" style="color:var(--t-muted)"
+              x-text="uploadTtcLookupName || 'Click or drop ItemLookUpTable_EN.lua here'"></span>
+            <input type="file" accept=".lua" x-ref="ttcLookupInput" class="hidden"
+              @change="uploadTtcLookupName = $refs.ttcLookupInput.files[0]?.name || ''">
+          </label>
+          <label class="flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer"
+            style="border:1px dashed var(--t-border);background:var(--t-bg)"
+            @dragover.prevent="$el.style.borderColor='var(--t-gold)'"
+            @dragleave="$el.style.borderColor='var(--t-border)'"
+            @drop.prevent="$el.style.borderColor='var(--t-border)'; $refs.ttcPriceInput.files = $event.dataTransfer.files; uploadTtcPriceName = $event.dataTransfer.files[0]?.name || ''">
+            <span class="text-lg" style="color:var(--t-muted)">📄</span>
+            <span class="text-sm truncate" style="color:var(--t-muted)"
+              x-text="uploadTtcPriceName || 'Click or drop PriceTableNA.lua / PriceTableEU.lua here'"></span>
+            <input type="file" accept=".lua" x-ref="ttcPriceInput" class="hidden"
+              @change="uploadTtcPriceName = $refs.ttcPriceInput.files[0]?.name || ''">
+          </label>
+        </div>
+      </div>
+
       <button
         @click="uploadFiles()"
-        :disabled="uploading || (!uploadIasyncName && !uploadWWName)"
+        :disabled="uploading || (!uploadIasyncName && !uploadWWName && !uploadTtcLookupName && !uploadTtcPriceName)"
         class="w-full py-2.5 rounded-lg font-cinzel font-semibold text-sm"
         style="background:var(--t-gold);color:var(--t-bg)"
-        :style="(uploading || (!uploadIasyncName && !uploadWWName)) ? 'opacity:0.4;cursor:not-allowed' : 'opacity:1;cursor:pointer'">
+        :style="(uploading || (!uploadIasyncName && !uploadWWName && !uploadTtcLookupName && !uploadTtcPriceName)) ? 'opacity:0.4;cursor:not-allowed' : 'opacity:1;cursor:pointer'">
         <span x-show="!uploading">Load Files</span>
         <span x-show="uploading" class="animate-pulse">Parsing…</span>
       </button>
@@ -660,6 +693,22 @@
                 x-text="`✓ WizardsWardrobe — ${uploadStatus.ww.builds} builds`"></span>
               <span x-show="!uploadStatus.ww.ok"
                 x-text="`✗ WizardsWardrobe — ${uploadStatus.ww.error}`"></span>
+            </div>
+          </template>
+          <template x-if="uploadStatus.ttc_lookup">
+            <div :class="uploadStatus.ttc_lookup.ok ? 'text-green-400' : 'text-red-400'">
+              <span x-show="uploadStatus.ttc_lookup.ok"
+                x-text="`✓ TTC lookup table`"></span>
+              <span x-show="!uploadStatus.ttc_lookup.ok"
+                x-text="`✗ TTC lookup table — ${uploadStatus.ttc_lookup.error}`"></span>
+            </div>
+          </template>
+          <template x-if="uploadStatus.ttc_price">
+            <div :class="uploadStatus.ttc_price.ok ? 'text-green-400' : 'text-red-400'">
+              <span x-show="uploadStatus.ttc_price.ok"
+                x-text="`✓ TTC price table`"></span>
+              <span x-show="!uploadStatus.ttc_price.ok"
+                x-text="`✗ TTC price table — ${uploadStatus.ttc_price.error}`"></span>
             </div>
           </template>
         </div>
@@ -712,7 +761,7 @@
         <button @click="uploadOpen = true; uploadStatus = null"
           class="flex items-center gap-1.5 border rounded px-2 py-1 text-xs transition-colors focus:outline-none"
           style="background:var(--t-bg);border-color:var(--t-border);color:var(--t-muted)"
-          title="Upload SavedVariables files">
+          title="Upload data files">
           <span>⬆ Upload</span>
         </button>
         <!-- Theme selector -->
@@ -823,6 +872,22 @@
                   x-text="`✓ WizardsWardrobe — ${uploadStatus.ww.builds} builds`"></span>
                 <span x-show="!uploadStatus.ww.ok"
                   x-text="`✗ WizardsWardrobe — ${uploadStatus.ww.error}`"></span>
+              </div>
+            </template>
+            <template x-if="uploadStatus.ttc_lookup">
+              <div :class="uploadStatus.ttc_lookup.ok ? 'text-green-400' : 'text-red-400'">
+                <span x-show="uploadStatus.ttc_lookup.ok"
+                  x-text="`✓ TTC lookup table`"></span>
+                <span x-show="!uploadStatus.ttc_lookup.ok"
+                  x-text="`✗ TTC lookup table — ${uploadStatus.ttc_lookup.error}`"></span>
+              </div>
+            </template>
+            <template x-if="uploadStatus.ttc_price">
+              <div :class="uploadStatus.ttc_price.ok ? 'text-green-400' : 'text-red-400'">
+                <span x-show="uploadStatus.ttc_price.ok"
+                  x-text="`✓ TTC price table`"></span>
+                <span x-show="!uploadStatus.ttc_price.ok"
+                  x-text="`✗ TTC price table — ${uploadStatus.ttc_price.error}`"></span>
               </div>
             </template>
           </div>
@@ -2249,10 +2314,14 @@ function armory() {
     uploadStatus: null,
     uploadIasyncName: '',
     uploadWWName: '',
+    uploadTtcLookupName: '',
+    uploadTtcPriceName: '',
     dirHandle: null,
     watchInterval: null,
     iasyncLastMod: 0,
     wwLastMod: 0,
+    ttcLookupLastMod: 0,
+    ttcPriceLastMod: 0,
     refreshing: false,
     lastKnownMtime: null,
     hasDirectoryPicker: false,
@@ -2641,7 +2710,9 @@ function armory() {
       const fd = new FormData();
       if (this.$refs.iasyncInput?.files[0]) fd.append('iasync', this.$refs.iasyncInput.files[0]);
       if (this.$refs.wwInput?.files[0])     fd.append('ww',     this.$refs.wwInput.files[0]);
-      if (!fd.has('iasync') && !fd.has('ww')) return;
+      if (this.$refs.ttcLookupInput?.files[0]) fd.append('ttc_lookup', this.$refs.ttcLookupInput.files[0]);
+      if (this.$refs.ttcPriceInput?.files[0])   fd.append('ttc_price',   this.$refs.ttcPriceInput.files[0]);
+      if (!fd.has('iasync') && !fd.has('ww') && !fd.has('ttc_lookup') && !fd.has('ttc_price')) return;
 
       this.uploading = true;
       this.uploadStatus = null;
@@ -2652,6 +2723,7 @@ function armory() {
         const tasks = [];
         if (d.iasync?.ok) tasks.push(this.fetchData(), this.fetchBuilds(), this.fetchAchievements(), this.fetchStickerbook());
         if (d.ww?.ok)     tasks.push(this.fetchWWBuilds());
+        if (d.ttc_lookup?.ok || d.ttc_price?.ok) this.ttcPriceCache = {};
         if (tasks.length) {
           await Promise.all(tasks);
           if (d.iasync?.ok) {
@@ -2697,7 +2769,7 @@ function armory() {
         await this.checkDirForChanges(true);
         this.startDirWatch();
         this.uploadOpen = false;
-        this.showToast('Watching SavedVariables folder ✓');
+        this.showToast('Watching live folder ✓');
       } catch(e) {
         if (e.name !== 'AbortError') this.showToast('Folder access denied');
       }
@@ -2731,6 +2803,9 @@ function armory() {
       this.dirHandle = null;
       this.iasyncLastMod = 0;
       this.wwLastMod = 0;
+      this.ttcLookupLastMod = 0;
+      this.ttcPriceLastMod = 0;
+      this.ttcPriceCache = {};
       await this._idbDel('dirHandle').catch(() => {});
     },
 
@@ -2738,19 +2813,40 @@ function armory() {
       if (!this.dirHandle || this._uploadInProgress) return false;
       this._uploadInProgress = true;
       const fd = new FormData();
-      let iasyncFile = null, wwFile = null;
+      let iasyncFile = null, wwFile = null, ttcLookupFile = null, ttcPriceFile = null;
+      const region = (this.data?.meta?.server || 'NA').toUpperCase() === 'EU' ? 'EU' : 'NA';
+      const readFile = async (parts, name) => {
+        try {
+          let cur = this.dirHandle;
+          for (const part of parts) cur = await cur.getDirectoryHandle(part);
+          const fh = await cur.getFileHandle(name);
+          return await fh.getFile();
+        } catch(e) {
+          return null;
+        }
+      };
+      const pick = async (parts, name) => (await readFile(parts, name)) || await readFile([], name);
       try {
-        const fh = await this.dirHandle.getFileHandle('iasync.lua');
-        iasyncFile = await fh.getFile();
+        iasyncFile = await pick(['SavedVariables'], 'iasync.lua');
         if (force || iasyncFile.lastModified > this.iasyncLastMod) fd.append('iasync', iasyncFile);
       } catch(e) {}
       try {
-        const fh = await this.dirHandle.getFileHandle('WizardsWardrobe.lua');
-        wwFile = await fh.getFile();
+        wwFile = await pick(['SavedVariables'], 'WizardsWardrobe.lua');
         if (force || wwFile.lastModified > this.wwLastMod) fd.append('ww', wwFile);
       } catch(e) {}
+      try {
+        ttcLookupFile = await pick(['AddOns', 'TamrielTradeCentre'], 'ItemLookUpTable_EN.lua');
+        if (force || ttcLookupFile.lastModified > this.ttcLookupLastMod) fd.append('ttc_lookup', ttcLookupFile);
+      } catch(e) {}
+      try {
+        ttcPriceFile = await pick(['AddOns', 'TamrielTradeCentre'], `PriceTable${region}.lua`);
+        if (force || ttcPriceFile.lastModified > this.ttcPriceLastMod) fd.append('ttc_price', ttcPriceFile);
+      } catch(e) {}
 
-      if (!fd.has('iasync') && !fd.has('ww')) { this._uploadInProgress = false; return false; }
+      if (!fd.has('iasync') && !fd.has('ww') && !fd.has('ttc_lookup') && !fd.has('ttc_price')) {
+        this._uploadInProgress = false;
+        return false;
+      }
 
       try {
         const r = await fetch(`/api/upload?session=${this._sessionId}`, { method: 'POST', body: fd });
@@ -2763,6 +2859,14 @@ function armory() {
         if (d.ww?.ok && wwFile) {
           this.wwLastMod = wwFile.lastModified;
           tasks.push(this.fetchWWBuilds());
+        }
+        if (d.ttc_lookup?.ok && ttcLookupFile) {
+          this.ttcLookupLastMod = ttcLookupFile.lastModified;
+          this.ttcPriceCache = {};
+        }
+        if (d.ttc_price?.ok && ttcPriceFile) {
+          this.ttcPriceLastMod = ttcPriceFile.lastModified;
+          this.ttcPriceCache = {};
         }
         if (tasks.length) await Promise.all(tasks);
         return true;
@@ -2910,7 +3014,7 @@ function armory() {
       if (!key || this.ttcPriceCache[key] !== undefined) return;
       this.ttcPriceCache[key] = { loading: true };
       try {
-        const r = await fetch(`/api/ttc_price?name=${encodeURIComponent(name)}`);
+        const r = await fetch(`/api/ttc_price?session=${this._sessionId}&name=${encodeURIComponent(name)}`);
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         this.ttcPriceCache[key] = await r.json();
       } catch(e) {

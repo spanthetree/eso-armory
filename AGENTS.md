@@ -131,10 +131,10 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 | `GET /api/ww_builds` | `{builds: {charId: [build, ...]}}` from WizardsWardrobe |
 | `GET /api/set_bonus?set_id=&set_name=` | Fetches set bonuses from eso-sets.com (cached in memory) |
 | `GET /api/skill_info?name=` | Fetches skill details from eso-skillbook.com (cached in memory) |
-| `GET /api/ttc_price?name=` | Looks up TTC price data for a stickerbook piece from local Tamriel Trade Centre price tables |
+| `GET /api/ttc_price?name=&session=` | Looks up TTC price data for a stickerbook piece from uploaded session TTC tables or configured local Tamriel Trade Centre price tables |
 | `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/...png"}` — scanned at startup |
 | `GET /api/status` | `{ok, item_count, character_count, last_modified, error}` |
-| `POST /api/upload?session=` | Accepts `iasync` and/or `ww` multipart file fields; requires valid UUID session; writes to `uploads/<session_id>/`, re-parses into session cache, notifies session SSE queue; returns `{iasync: {ok, items, chars}, ww: {ok, builds}}` |
+| `POST /api/upload?session=` | Accepts `iasync`, `ww`, `ttc_lookup`, and `ttc_price` multipart file fields; requires valid UUID session; writes to `uploads/<session_id>/`, re-parses into session cache, notifies session SSE queue; returns `{iasync: {ok, items, chars}, ww: {ok, builds}, ttc_lookup: {ok}, ttc_price: {ok}}` |
 | `GET /events?session=` | SSE stream; joins session queue if session has data, else global queue; sends `"reload"` on data change |
 
 ## Server Caches (server.py)
@@ -142,12 +142,14 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 _cache           = {data_bytes, builds_bytes, achievements_bytes, stickerbook_bytes, mtime, error}  # global iasync (local users)
 _ww_cache        = {ww_builds_bytes, mtime, error}    # global WizardsWardrobe (local users)
 _sessions: dict[str, dict]                             # per-browser-session state (keyed by UUID)
-  # session = {cache, ww_cache, upload_dir: Path, sse_queues: set, last_active: float}
+  # session = {cache, ww_cache, ttc_cache, upload_dir: Path, sse_queues: set, last_active: float}
+  # upload_dir mirrors the ESO live folder layout: SavedVariables/ and AddOns/TamrielTradeCentre/
+  # ttc_cache stores uploaded TTC lookup/price tables plus a per-name price cache
   # cache / ww_cache have same shape as global _cache / _ww_cache
 _ability_icon_map: dict                                # built at startup, static
 _set_bonus_cache: dict                                 # (set_id or name_slug) → {bonuses, url}; populated on demand; mythic items have set_id=0 so slug is used as key
 _skill_info_cache: dict                                # slug → {details}; populated on demand
-_ttc_tables      = {lookup, price, lookup_mtime, price_mtime, price_path}  # local TTC Lua tables, lazy-loaded
+_ttc_tables      = {lookup, price, lookup_mtime, price_mtime, lookup_path, price_path, price_cache}  # local TTC Lua tables, lazy-loaded
 _ttc_price_cache: dict                                 # normalized piece name → TTC price result/error
 ```
 `_ability_icon_map` is built by `_build_ability_icon_map()` at startup — scans `assets/abilities/**/*.png`, normalizes stems to keys.
@@ -166,9 +168,11 @@ Optional local TTC integration powers Collections piece-price tooltips. Config k
 ```
 Leave `ttc_price_table_path` empty to select `PriceTableNA.lua` or `PriceTableEU.lua` from `ttc_addon_path` using `server`.
 
-`/api/ttc_price?name=` resolves a lowercased piece name through `ItemLookUpTable_EN.lua`, uses the first/default TTC item id, then returns the first available price row from the local price table: `avg`, `min`, `max`, listing counts, suggested/sale values when present, `priceTableTimeText`, `fetchedAtText`, `source`, `attribution`, and the TTC search `url`. TTC website scraping is intentionally avoided because search pages are undocumented and CAPTCHA-prone. Restart the server after changing TTC config paths or adding the endpoint; a stale running process returns 404 for new routes.
+Hosted users can also upload `ItemLookUpTable_EN.lua` and `PriceTableNA.lua` / `PriceTableEU.lua` manually through the upload modal; those files are stored in the session's live-folder mirror and take precedence for `/api/ttc_price`.
 
-If Collections piece tooltips render but price rows are missing, check `/api/ttc_price?name=<piece>` and `logs/armory.log`. A `404` means the running server has not been restarted with the route registered; frontend fetch handling should display the HTTP status instead of a blank price area.
+`/api/ttc_price?name=&session=` resolves a lowercased piece name through `ItemLookUpTable_EN.lua`, uses the first/default TTC item id, then returns the first available price row from the session-uploaded TTC tables when present, otherwise the configured local price table: `avg`, `min`, `max`, listing counts, suggested/sale values when present, `priceTableTimeText`, `fetchedAtText`, `source`, `attribution`, and the TTC search `url`. TTC website scraping is intentionally avoided because search pages are undocumented and CAPTCHA-prone. Restart the server after changing TTC config paths or adding the endpoint; a stale running process returns 404 for new routes.
+
+If Collections piece tooltips render but price rows are missing, check `/api/ttc_price?name=<piece>&session=<id>` and `logs/armory.log`. A `404` means the running server has not been restarted with the route registered; frontend fetch handling should display the HTTP status instead of a blank price area.
 
 ## Assets System
 All icons are served via `app.mount("/assets", StaticFiles(directory="assets"))`.
@@ -326,11 +330,11 @@ if "microsoft" in platform.uname().release.lower():  # WSL2
 
 ## Restarting the Server
 ```bash
-fuser -k 5000/tcp && sleep 0.5 && uv run server.py
+fuser -k 5000/tcp 2>/dev/null; sleep 1 && uv run server.py &
 ```
 If an existing virtualenv is active (i.e. `uv sync --active` was used), run directly instead:
 ```bash
-fuser -k 5000/tcp && sleep 0.5 && python server.py
+fuser -k 5000/tcp 2>/dev/null; sleep 1 && python server.py &
 ```
 Use `fuser -k 5000/tcp` (not `pkill`) — it targets the port directly and works reliably in WSL2.
 

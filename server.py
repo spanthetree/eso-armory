@@ -114,8 +114,14 @@ _sessions: dict[str, dict] = {}
 _ability_icon_map: dict = {}
 _set_bonus_cache: dict  = {}  # set_id  -> {bonuses, url} or {bonuses, url, error}
 _skill_info_cache: dict = {}  # slug    -> {cast_time, cost, type, location, description, ...}
-_ttc_tables: dict = {"lookup": None, "price": None, "lookup_mtime": None, "price_mtime": None, "price_path": None}
-_ttc_price_cache: dict = {}
+_ttc_tables: dict = {
+    "lookup": None,
+    "price": None,
+    "lookup_mtime": None,
+    "price_mtime": None,
+    "lookup_path": None,
+    "price_path": None,
+}
 
 
 def _build_ability_icon_map() -> dict:
@@ -294,14 +300,39 @@ def _parse_lua_assignment(path: Path, lhs: str) -> dict:
     return parser._parse_value()
 
 
-def _ttc_price_table_path() -> Path:
+def _ttc_lookup_table_path(root: Path | None = None) -> Path:
+    if root is not None:
+        return root / "AddOns" / "TamrielTradeCentre" / "ItemLookUpTable_EN.lua"
+
+    configured = _config.get("ttc_lookup_table_path") or ""
+    if configured:
+        p = Path(configured)
+        if p.exists():
+            return p
+
+    addon = Path(_config.get("ttc_addon_path") or "")
+    return addon / "ItemLookUpTable_EN.lua"
+
+
+def _ttc_price_table_path(root: Path | None = None) -> Path:
+    region = "EU" if str(_config.get("server", "NA")).upper() == "EU" else "NA"
+    other = "NA" if region == "EU" else "EU"
+    if root is not None:
+        addon = root / "AddOns" / "TamrielTradeCentre"
+        for candidate in (addon / f"PriceTable{region}.lua", addon / f"PriceTable{other}.lua"):
+            if candidate.exists():
+                return candidate
+        return addon / f"PriceTable{region}.lua"
+
     configured = _config.get("ttc_price_table_path") or ""
     if configured:
         p = Path(configured)
         if p.exists():
             return p
-    region = "EU" if str(_config.get("server", "NA")).upper() == "EU" else "NA"
     addon = Path(_config.get("ttc_addon_path") or "")
+    for candidate in (addon / f"PriceTable{region}.lua", addon / f"PriceTable{other}.lua"):
+        if candidate.exists():
+            return candidate
     return addon / f"PriceTable{region}.lua"
 
 
@@ -310,33 +341,36 @@ def _ttc_search_url(name: str) -> str:
     return f"https://{region}.tamrieltradecentre.com/pc/Trade/SearchResult?ItemNamePattern={urllib.parse.quote(name)}"
 
 
-def _ensure_ttc_tables() -> tuple[dict, dict, int | None, Path]:
-    lookup_path = Path(_config.get("ttc_lookup_table_path") or "")
-    price_path = _ttc_price_table_path()
+def _ensure_ttc_tables(cache: dict | None = None, root: Path | None = None) -> tuple[dict, dict, int | None, Path]:
+    cache = cache or _ttc_tables
+    lookup_path = _ttc_lookup_table_path(root)
+    price_path = _ttc_price_table_path(root)
     lookup_mtime = os.path.getmtime(lookup_path)
     price_mtime = os.path.getmtime(price_path)
 
     if (
-        _ttc_tables["lookup"] is not None
-        and _ttc_tables["price"] is not None
-        and _ttc_tables["lookup_mtime"] == lookup_mtime
-        and _ttc_tables["price_mtime"] == price_mtime
-        and _ttc_tables["price_path"] == str(price_path)
+        cache["lookup"] is not None
+        and cache["price"] is not None
+        and cache["lookup_mtime"] == lookup_mtime
+        and cache["price_mtime"] == price_mtime
+        and cache["lookup_path"] == str(lookup_path)
+        and cache["price_path"] == str(price_path)
     ):
-        price_time = _ttc_tables["price"].get("TimeStamp") if isinstance(_ttc_tables["price"], dict) else None
-        return _ttc_tables["lookup"], _ttc_tables["price"], price_time, price_path
+        price_time = cache["price"].get("TimeStamp") if isinstance(cache["price"], dict) else None
+        return cache["lookup"], cache["price"], price_time, price_path
 
     t0 = time.monotonic()
     lookup = _parse_lua_assignment(lookup_path, "self.ItemLookUpTable")
     price = _parse_lua_assignment(price_path, "self.PriceTable")
-    _ttc_tables.update({
+    cache.update({
         "lookup": lookup,
         "price": price,
         "lookup_mtime": lookup_mtime,
         "price_mtime": price_mtime,
+        "lookup_path": str(lookup_path),
         "price_path": str(price_path),
     })
-    _ttc_price_cache.clear()
+    cache["price_cache"] = {}
     logger.info("TTC tables loaded from {} in {:.2f}s", price_path.name, time.monotonic() - t0)
     return lookup, price, price.get("TimeStamp"), price_path
 
@@ -369,18 +403,30 @@ def _fmt_ttc_time(ts) -> str | None:
         return None
 
 
-def _fetch_ttc_price(name: str) -> dict:
+def _resolve_ttc_cache(session_id: str | None) -> tuple[dict, Path | None]:
+    sid = _valid_session(session_id)
+    if sid and sid in _sessions:
+        sess = _sessions[sid]
+        ttc_cache = sess["ttc_cache"]
+        if ttc_cache["lookup"] is not None and ttc_cache["price"] is not None:
+            return ttc_cache, sess["upload_dir"]
+    return _ttc_tables, None
+
+
+def _fetch_ttc_price(name: str, session_id: str | None = None) -> dict:
     clean_name = re.sub(r"\s+", " ", name or "").strip()
     url = _ttc_search_url(clean_name)
     if not clean_name:
         return {"name": clean_name, "url": url, "error": "name is required"}
 
     cache_key = clean_name.lower()
-    if cache_key in _ttc_price_cache:
-        return _ttc_price_cache[cache_key]
+    cache, root = _resolve_ttc_cache(session_id)
+    price_cache = cache.setdefault("price_cache", {})
+    if cache_key in price_cache:
+        return price_cache[cache_key]
 
     fetched_at = int(time.time())
-    lookup, price_table, price_time, price_path = _ensure_ttc_tables()
+    lookup, price_table, price_time, price_path = _ensure_ttc_tables(cache, root)
     item_ids = lookup.get(cache_key)
     if not isinstance(item_ids, dict):
         result = {
@@ -389,12 +435,12 @@ def _fetch_ttc_price(name: str) -> dict:
             "fetchedAtText": _fmt_ttc_time(fetched_at),
             "priceTableTime": price_time,
             "priceTableTimeText": _fmt_ttc_time(price_time),
-            "source": "TTC local PriceTable",
+            "source": f"TTC {'uploaded' if root is not None else 'local'} PriceTable",
             "attribution": "Data from Tamriel Trade Centre",
             "url": url,
             "error": "No TTC item match",
         }
-        _ttc_price_cache[cache_key] = result
+        price_cache[cache_key] = result
         return result
 
     item_id = _first_ttc_item_id(item_ids)
@@ -408,12 +454,12 @@ def _fetch_ttc_price(name: str) -> dict:
             "fetchedAtText": _fmt_ttc_time(fetched_at),
             "priceTableTime": price_time,
             "priceTableTimeText": _fmt_ttc_time(price_time),
-            "source": "TTC local PriceTable",
+            "source": f"TTC {'uploaded' if root is not None else 'local'} PriceTable",
             "attribution": "Data from Tamriel Trade Centre",
             "url": url,
             "error": "No TTC price data",
         }
-        _ttc_price_cache[cache_key] = result
+        price_cache[cache_key] = result
         return result
 
     result = {
@@ -433,11 +479,11 @@ def _fetch_ttc_price(name: str) -> dict:
         "priceTableTimeText": _fmt_ttc_time(price_time),
         "fetchedAt": fetched_at,
         "fetchedAtText": _fmt_ttc_time(fetched_at),
-        "source": f"TTC local {price_path.name}",
+        "source": f"TTC {'uploaded' if root is not None else 'local'} {price_path.name}",
         "attribution": "Data from Tamriel Trade Centre",
         "url": url,
     }
-    _ttc_price_cache[cache_key] = result
+    price_cache[cache_key] = result
     return result
 
 
@@ -534,6 +580,15 @@ def _get_or_create_session(session_id: str) -> dict:
                       "achievements_bytes": None, "stickerbook_bytes": None,
                       "mtime": None, "error": None},
             "ww_cache": {"ww_builds_bytes": None, "mtime": None, "error": None},
+            "ttc_cache": {
+                "lookup": None,
+                "price": None,
+                "lookup_mtime": None,
+                "price_mtime": None,
+                "lookup_path": None,
+                "price_path": None,
+                "price_cache": {},
+            },
             "upload_dir": UPLOADS_DIR / session_id,
             "sse_queues": set(),
             "last_active": time.time(),
@@ -721,9 +776,11 @@ async def api_status(session: str | None = Query(None)):
 async def api_upload(
     iasync: UploadFile | None = File(None),
     ww:     UploadFile | None = File(None),
+    ttc_lookup: UploadFile | None = File(None),
+    ttc_price: UploadFile | None = File(None),
     session: str | None = Query(None),
 ):
-    """Accept uploaded iasync.lua and/or WizardsWardrobe.lua files."""
+    """Accept uploaded live-folder files for iasync, WW, and TTC tables."""
     sid = _valid_session(session)
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
@@ -732,14 +789,19 @@ async def api_upload(
     upload_dir: Path = sess["upload_dir"]
     s_cache    = sess["cache"]
     s_ww_cache = sess["ww_cache"]
+    s_ttc_cache = sess["ttc_cache"]
 
     loop = asyncio.get_event_loop()
     results = {}
 
-    if iasync and iasync.filename:
-        dest = upload_dir / "iasync.lua"
-        data = await iasync.read()
+    def _write_upload(dest: Path, data: bytes) -> None:
+        dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(data)
+
+    if iasync and iasync.filename:
+        dest = upload_dir / "SavedVariables" / "iasync.lua"
+        data = await iasync.read()
+        _write_upload(dest, data)
         s_cache["mtime"] = None
         iasync_path = str(dest)
         await loop.run_in_executor(None, lambda: _parse_iasync_into(iasync_path, s_cache))
@@ -756,9 +818,9 @@ async def api_upload(
         logger.info("Session {} uploaded iasync.lua ({} bytes)", sid[:8], len(data))
 
     if ww and ww.filename:
-        dest = upload_dir / "WizardsWardrobe.lua"
+        dest = upload_dir / "SavedVariables" / "WizardsWardrobe.lua"
         data = await ww.read()
-        dest.write_bytes(data)
+        _write_upload(dest, data)
         s_ww_cache["mtime"] = None
         ww_path = str(dest)
         await loop.run_in_executor(None, lambda: _parse_ww_into(ww_path, s_ww_cache))
@@ -769,6 +831,40 @@ async def api_upload(
             n = sum(len(v) for v in builds["builds"].values())
             results["ww"] = {"ok": True, "builds": n}
         logger.info("Session {} uploaded WizardsWardrobe.lua ({} bytes)", sid[:8], len(data))
+
+    if ttc_lookup and ttc_lookup.filename:
+        dest = upload_dir / "AddOns" / "TamrielTradeCentre" / "ItemLookUpTable_EN.lua"
+        data = await ttc_lookup.read()
+        _write_upload(dest, data)
+        s_ttc_cache["lookup"] = None
+        s_ttc_cache["price_cache"] = {}
+        try:
+            s_ttc_cache["lookup"] = _parse_lua_assignment(dest, "self.ItemLookUpTable")
+            s_ttc_cache["lookup_mtime"] = os.path.getmtime(dest)
+            s_ttc_cache["lookup_path"] = str(dest)
+            s_ttc_cache["error"] = None
+            results["ttc_lookup"] = {"ok": True}
+        except Exception as exc:
+            s_ttc_cache["error"] = str(exc)
+            results["ttc_lookup"] = {"ok": False, "error": str(exc)}
+        logger.info("Session {} uploaded TTC lookup ({} bytes)", sid[:8], len(data))
+
+    if ttc_price and ttc_price.filename:
+        dest = upload_dir / "AddOns" / "TamrielTradeCentre" / ("PriceTableEU.lua" if str(_config.get("server", "NA")).upper() == "EU" else "PriceTableNA.lua")
+        data = await ttc_price.read()
+        _write_upload(dest, data)
+        s_ttc_cache["price"] = None
+        s_ttc_cache["price_cache"] = {}
+        try:
+            s_ttc_cache["price"] = _parse_lua_assignment(dest, "self.PriceTable")
+            s_ttc_cache["price_mtime"] = os.path.getmtime(dest)
+            s_ttc_cache["price_path"] = str(dest)
+            s_ttc_cache["error"] = None
+            results["ttc_price"] = {"ok": True}
+        except Exception as exc:
+            s_ttc_cache["error"] = str(exc)
+            results["ttc_price"] = {"ok": False, "error": str(exc)}
+        logger.info("Session {} uploaded TTC price table ({} bytes)", sid[:8], len(data))
 
     if not results:
         return JSONResponse({"error": "No files received"}, status_code=400)
@@ -813,10 +909,10 @@ async def api_skill_info(name: str):
 
 
 @app.get("/api/ttc_price")
-async def api_ttc_price(name: str):
+async def api_ttc_price(name: str, session: str | None = Query(None)):
     try:
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, lambda: _fetch_ttc_price(name))
+        result = await loop.run_in_executor(None, lambda: _fetch_ttc_price(name, session))
         logger.info("TTC price: {} → {}", name, "ok" if not result.get("error") else result.get("error"))
     except Exception as exc:
         result = {
