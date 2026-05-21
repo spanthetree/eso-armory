@@ -4,6 +4,9 @@
 
 ## [0.1.0-beta.15] - 2026-05-21
 
+### Added
+- **Server wake-up spinner** — on page load the app polls `/api/status` before fetching data; if the server returns 503 the loading message switches to "Server is waking up…" and retries every 3 s until the server responds, then proceeds normally
+
 ### Fixed
 - **Achievements character selector** — the drill-down now merges `account_items` with the selected character's `items_by_char` slice, so mixed-persistence achievements render correctly for the chosen character instead of showing only the per-character subset
 

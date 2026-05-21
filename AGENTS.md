@@ -223,6 +223,7 @@ charMaps     // {charId: {slot: gearItem}} — equipped gear per char, built fro
 itemIdMap    // {itemId: item} — for WW gear name lookups (WW links lack embedded names)
 selectedChar // currently expanded character object
 tab          // 'characters' | 'inventory' | 'achievements' | 'stickerbook'
+serverWaking // bool — true while init() is polling /api/status waiting for server to come up (503 cold-start)
 theme        // 'gold' | 'light' | 'dark' | 'synthwave' | 'outrun' — persisted to localStorage under 'eso-theme'
 themes       // {gold|light|dark|synthwave|outrun: {label, bgR, cardR, borderR, goldR, textR, mutedR, hoverR}}
              //   *R fields are RGB triplets ('r,g,b') for rgba() math in Tailwind overrides

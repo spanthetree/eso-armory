@@ -773,7 +773,14 @@
     <div x-show="loading" class="flex items-center justify-center h-64">
       <div class="text-center">
         <div class="text-4xl mb-3">⚔️</div>
-        <p class="font-cinzel text-eso-gold animate-pulse">Loading Armory…</p>
+        <template x-if="serverWaking">
+          <div>
+            <p class="font-cinzel animate-pulse" style="color:var(--t-gold)">Server is waking up…</p>
+          </div>
+        </template>
+        <template x-if="!serverWaking">
+          <p class="font-cinzel animate-pulse" style="color:var(--t-gold)">Loading Armory…</p>
+        </template>
       </div>
     </div>
 
@@ -2233,6 +2240,7 @@ function armory() {
     abilityIcons: {},
     selectedChar: null,
     loading: true,
+    serverWaking: false,
     ready: false,
     error: null,
     tab: 'characters',
@@ -2389,6 +2397,16 @@ function armory() {
       })();
       this.hasDirectoryPicker = typeof window.showDirectoryPicker === 'function';
       this._applyThemeTailwind(this.theme);
+      // Poll until the server is up (handles Render free-tier cold starts returning 503).
+      while (true) {
+        try {
+          const probe = await fetch(`/api/status?session=${this._sessionId}`,
+            { signal: AbortSignal.timeout(6000) });
+          if (probe.status !== 503) { this.serverWaking = false; break; }
+        } catch(_) {}
+        this.serverWaking = true;
+        await new Promise(res => setTimeout(res, 3000));
+      }
       await Promise.all([
         this.fetchData(),
         this.fetchBuilds(),
