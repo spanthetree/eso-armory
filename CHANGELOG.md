@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.21] - 2026-05-21
+
+### Changed
+- **Ability icon discovery** — current builds and WizardsWardrobe saved builds now resolve ability icons from both PNG and WebP assets, enabling the new scribing icons for Chilling Throw and Shocking Contingency
+
 ## [0.1.0-beta.20] - 2026-05-21
 
 ### Fixed

@@ -1,6 +1,6 @@
 # ESO Armory
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.20-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.21-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -10,7 +10,7 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 ## Features
 
 - **Characters tab** — all characters at a glance with equipped gear paper-doll using slot-specific gear icons; click any character to see current build details, character-scoped inventory, and WizardsWardrobe builds
-- **Builds** — gear, skills (primary + backup bars), Champion Points, and food for each WW setup
+- **Builds** — gear, skills (primary + backup bars), Champion Points, and food for each WW setup; ability icons are discovered from PNG and WebP assets, including scribing skills such as Chilling Throw and Shocking Contingency
 - **Inventory tab** — full cross-character inventory with search, multiselect quality/type/trait/location/character filters, Transmuted and Crafted toggle buttons, Group by Set view, and sortable columns; items show weapon-type and armor-weight tags and slot-specific gear icons
 - **Achievements tab** — account-wide achievement summary with category/subcategory drill-down, a character selector that merges account-wide and character-specific completions, progress bars, recent completions, and completion attribution
 - **Collections tab** — stickerbook set drill-down with TTC links for individual pieces; if Tamriel Trade Centre is installed locally, piece hovers show TTC price data with attribution and timestamps
@@ -117,6 +117,7 @@ data_processor.py      # iasync + WW data → JSON model
 item_link_decoder.py   # ESO item link decoder (trait/style/enchant)
 static/index.html      # Single-file frontend (Alpine.js + Tailwind CDN)
 assets/gear/           # Slot-specific gear icons (weapon/armor/jewelry)
+assets/abilities/      # Skill icons used by current builds and WW saved builds
 iasync/                # Companion ESO addon (symlink to AddOns folder)
 config.json            # Auto-generated on first run
 ```

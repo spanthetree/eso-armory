@@ -135,7 +135,7 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 | `GET /api/share?session=&share=` | Returns the current pairing code for a workspace if one exists |
 | `POST /api/share?session=&share=` | Creates a pairing code for the resolved workspace if none exists yet |
 | `POST /api/share/join?session=&code=` | Validates a pairing code and binds the browser to the shared workspace |
-| `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/...png"}` — scanned at startup |
+| `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/...png|.webp"}` — scanned at startup |
 | `GET /api/status?session=&share=` | `{ok, item_count, character_count, last_modified, error}` |
 | `POST /api/upload?session=&share=` | Accepts `iasync`, `ww`, `ttc_lookup`, and `ttc_price` multipart file fields; requires valid UUID session; writes to `uploads/<session_id>/`, re-parses into session cache, notifies session SSE queue; returns `{iasync: {ok, items, chars}, ww: {ok, builds}, ttc_lookup: {ok}, ttc_price: {ok}}` |
 | `GET /events?session=&share=` | SSE stream; joins the shared workspace queue when `share` resolves, otherwise the browser's own session queue if it has data, else global queue; sends `"reload"` on data change |
@@ -155,7 +155,7 @@ _skill_info_cache: dict                                # slug → {details}; pop
 _ttc_tables      = {lookup, price, lookup_mtime, price_mtime, lookup_path, price_path, price_cache}  # local TTC Lua tables, lazy-loaded
 _ttc_price_cache: dict                                 # normalized piece name → TTC price result/error
 ```
-`_ability_icon_map` is built by `_build_ability_icon_map()` at startup — scans `assets/abilities/**/*.png`, normalizes stems to keys.
+`_ability_icon_map` is built by `_build_ability_icon_map()` at startup — scans `assets/abilities/**/*.{png,webp}`, normalizes stems to keys.
 
 ### Session isolation
 `_resolve_cache(session_id, share)` / `_resolve_ww_cache(session_id, share)` return the shared workspace cache when `share` resolves to a canonical session, otherwise the browser's own session cache if it has data, else the global cache. `_SESSION_RE` validates UUIDs before using them as filesystem paths (`uploads/<session_id>/`). Pairing codes live in `uploads/share_registry.json` and map short share codes back to the canonical session id. Shared sessions are treated as persistent workspaces and are skipped by the idle cleanup task; private sessions still expire after 2 hours. Parse functions refactored: `_parse_iasync_into(path, cache)` / `_parse_ww_into(path, cache)` take explicit targets; `_parse_iasync()` / `_parse_ww()` are thin wrappers for the global case.
@@ -186,12 +186,13 @@ All icons are served via `app.mount("/assets", StaticFiles(directory="assets"))`
 ### Icon normalization (both Python and JS must match)
 ```python
 # Python (server.py _build_ability_icon_map):
-key = re.sub(r'[^a-z0-9]+', '_', png.stem.lower()).strip('_')
+key = re.sub(r'[^a-z0-9]+', '_', icon.stem.lower()).strip('_')
 
 # JS (index.html abilityIcon()):
 const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
 ```
 "Lava Whip" → `lava_whip` → `/assets/abilities/class/dragonknight/ardent_flame/lava_whip.png`
+"Chilling Throw" → `chilling_throw` → `/assets/abilities/scribing/chilling_throw.webp`
 
 ### Asset Directories
 | Path | Contents | Size |
@@ -208,6 +209,7 @@ const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').r
 | `assets/abilities/class/dragonknight/{ardent_flame,draconic_power,earthen_heart}/` | ~76 DK ability icons | 64×64 |
 | `assets/abilities/weapons/{bow,destruction_staff,dual_wield,one_hand_and_shield,restoration_staff,two_handed}/` | ~197 weapon ability icons | 64×64 |
 | `assets/abilities/alliance_war/{assault,support}/` | ~40 alliance war icons | 64×64 |
+| `assets/abilities/scribing/` | Scribing ability icons, including Chilling Throw and Shocking Contingency | png/webp |
 | `assets/gear/weapon/` | 10 Breton-style weapon icons (dagger, 1h/2h sword/axe/hammer, bow, shield, staff) | webp |
 | `assets/gear/armor/{heavy,medium,light}/` | 7 slot icons per weight class (head, shoulders, hands, chest/shirt, waist, legs, feet) | webp |
 | `assets/gear/jewelry/` | neck and ring icons | webp |

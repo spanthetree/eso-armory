@@ -255,9 +255,12 @@ def _build_ability_icon_map() -> dict:
     if not abilities_dir.exists():
         return {}
     result = {}
-    for png in sorted(abilities_dir.rglob("*.png")):
-        key = re.sub(r'[^a-z0-9]+', '_', png.stem.lower()).strip('_')
-        result[key] = "/" + png.as_posix()
+    for icon in sorted(
+        p for p in abilities_dir.rglob("*")
+        if p.is_file() and p.suffix.lower() in {".png", ".webp"}
+    ):
+        key = re.sub(r'[^a-z0-9]+', '_', icon.stem.lower()).strip('_')
+        result[key] = "/" + icon.as_posix()
     return result
 
 
