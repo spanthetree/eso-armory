@@ -25,14 +25,128 @@
       },
     }
   </script>
+  <!-- Apply saved theme before Alpine boots to avoid flash -->
+  <script>(function(){let t=localStorage.getItem('eso-theme');if(t==='eso'){t='gold';localStorage.setItem('eso-theme','gold');}if(t&&t!=='gold')document.documentElement.setAttribute('data-theme',t);})();</script>
   <style>
-    body { background:#1a1612; color:#d4c8a8; font-family:'Inter',sans-serif; }
+    /* ── Theme color variables ─────────────────────────── */
+    :root {
+      --t-bg:            #1a1612;
+      --t-card:          #252119;
+      --t-border:        #3d3424;
+      --t-border-subtle: #3d342430;
+      --t-border-line:   #3d342470;
+      --t-border-ghost:  #3d342490;
+      --t-gold:          #c9a84c;
+      --t-gold-dark:     #8b6914;
+      --t-gold-dim:      #c9a84c55;
+      --t-gold-faint:    #c9a84c80;
+      --t-text:          #d4c8a8;
+      --t-muted:         #9a8f76;
+      --t-muted-dim:     #6b5c3e;
+      --t-hover:         #2e2820;
+      --t-header-bg:     #1a1612ee;
+      --t-tip-bg:        linear-gradient(160deg,#1c1810 0%,#13100c 100%);
+      --t-tip-border:    #5a4520;
+      --t-tip-inset:     #c9a84c18;
+      --t-achiev-bg:     #1e130a;
+      --t-progress:      #8b6914;
+    }
+    [data-theme="light"] {
+      --t-bg:            #faf6ee;
+      --t-card:          #ffffff;
+      --t-border:        #d9cba8;
+      --t-border-subtle: #d9cba830;
+      --t-border-line:   #d9cba870;
+      --t-border-ghost:  #d9cba890;
+      --t-gold:          #7a5c00;
+      --t-gold-dark:     #5c4400;
+      --t-gold-dim:      #7a5c0055;
+      --t-gold-faint:    #7a5c0080;
+      --t-text:          #1c1408;
+      --t-muted:         #7a6a4a;
+      --t-muted-dim:     #a08060;
+      --t-hover:         #f0e8d4;
+      --t-header-bg:     #faf6eeee;
+      --t-tip-bg:        linear-gradient(160deg,#fff8e8 0%,#faf0d8 100%);
+      --t-tip-border:    #c9a84c;
+      --t-tip-inset:     #7a5c0018;
+      --t-achiev-bg:     #fff8e8;
+      --t-progress:      #7a5c00;
+    }
+    [data-theme="dark"] {
+      --t-bg:            #0d1117;
+      --t-card:          #161b22;
+      --t-border:        #30363d;
+      --t-border-subtle: #30363d30;
+      --t-border-line:   #30363d70;
+      --t-border-ghost:  #30363d90;
+      --t-gold:          #58a6ff;
+      --t-gold-dark:     #1f6feb;
+      --t-gold-dim:      #58a6ff55;
+      --t-gold-faint:    #58a6ff80;
+      --t-text:          #e6edf3;
+      --t-muted:         #7d8590;
+      --t-muted-dim:     #484f58;
+      --t-hover:         #1c2128;
+      --t-header-bg:     #0d1117ee;
+      --t-tip-bg:        linear-gradient(160deg,#1c2128 0%,#0d1117 100%);
+      --t-tip-border:    #388bfd;
+      --t-tip-inset:     #58a6ff18;
+      --t-achiev-bg:     #0d1117;
+      --t-progress:      #58a6ff;
+    }
+    [data-theme="synthwave"] {
+      --t-bg:            #0d001a;
+      --t-card:          #160028;
+      --t-border:        #3d0066;
+      --t-border-subtle: #3d006630;
+      --t-border-line:   #3d006670;
+      --t-border-ghost:  #3d006690;
+      --t-gold:          #bf5fff;
+      --t-gold-dark:     #8800cc;
+      --t-gold-dim:      #bf5fff55;
+      --t-gold-faint:    #bf5fff80;
+      --t-text:          #ffe6ff;
+      --t-muted:         #aa77cc;
+      --t-muted-dim:     #663388;
+      --t-hover:         #200033;
+      --t-header-bg:     #0d001aee;
+      --t-tip-bg:        linear-gradient(160deg,#1a0033 0%,#0d001a 100%);
+      --t-tip-border:    #6600cc;
+      --t-tip-inset:     #bf5fff18;
+      --t-achiev-bg:     #100020;
+      --t-progress:      #00ffe5;
+    }
+    [data-theme="outrun"] {
+      --t-bg:            #0a0a1e;
+      --t-card:          #0f0f2e;
+      --t-border:        #1e1a4a;
+      --t-border-subtle: #1e1a4a30;
+      --t-border-line:   #1e1a4a70;
+      --t-border-ghost:  #1e1a4a90;
+      --t-gold:          #ff0090;
+      --t-gold-dark:     #cc006e;
+      --t-gold-dim:      #ff009055;
+      --t-gold-faint:    #ff009080;
+      --t-text:          #f4eaff;
+      --t-muted:         #9080b0;
+      --t-muted-dim:     #5a4080;
+      --t-hover:         #16163a;
+      --t-header-bg:     #0a0a1eee;
+      --t-tip-bg:        linear-gradient(160deg,#120a2a 0%,#0a0620 100%);
+      --t-tip-border:    #3a1060;
+      --t-tip-inset:     #ff009018;
+      --t-achiev-bg:     #0a0a28;
+      --t-progress:      #00ddff;
+    }
+
+    body { background:var(--t-bg); color:var(--t-text); font-family:'Inter',sans-serif; }
     ::-webkit-scrollbar { width:6px; height:6px; }
-    ::-webkit-scrollbar-track { background:#1a1612; }
-    ::-webkit-scrollbar-thumb { background:#3d3424; border-radius:3px; }
-    ::-webkit-scrollbar-thumb:hover { background:#8b6914; }
+    ::-webkit-scrollbar-track { background:var(--t-bg); }
+    ::-webkit-scrollbar-thumb { background:var(--t-border); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:var(--t-gold-dark); }
     [x-cloak] { display:none !important; }
-    .tab-active { border-bottom:2px solid #c9a84c; color:#c9a84c; }
+    .tab-active { border-bottom:2px solid var(--t-gold); color:var(--t-gold); }
 
     /* Item icon badge */
     .item-badge { width:32px; height:32px; border-radius:5px; display:flex;
@@ -41,30 +155,30 @@
     /* Equipment slot */
     .eq-slot { width:40px; height:40px; border-radius:5px; display:flex;
       align-items:center; justify-content:center; font-size:16px;
-      border:1px solid #3d3424; position:relative; cursor:default; transition:border-color .15s; }
-    .eq-slot:hover { border-color:#c9a84c88; }
-    .eq-slot span { color: #c9a84c; }
+      border:1px solid var(--t-border); position:relative; cursor:default; transition:border-color .15s; }
+    .eq-slot:hover { border-color:var(--t-gold-dim); }
+    .eq-slot span { color:var(--t-gold); }
     .eq-slot.eq-empty { opacity:0.2; pointer-events:none; }
     .eq-section-label { font-size:9px; letter-spacing:.1em; text-transform:uppercase;
-      color:#6b5c3e; font-family:'Cinzel',serif; margin-bottom:4px; }
+      color:var(--t-muted-dim); font-family:'Cinzel',serif; margin-bottom:4px; }
 
     /* Tooltip */
     #eso-tip {
       position:fixed; z-index:9999; pointer-events:none;
       width:290px; max-height:80vh; overflow:hidden;
-      background:linear-gradient(160deg,#1c1810 0%,#13100c 100%);
-      border:1px solid #5a4520; border-radius:6px;
-      box-shadow:0 8px 32px rgba(0,0,0,.8), inset 0 0 0 1px #c9a84c18;
+      background:var(--t-tip-bg);
+      border:1px solid var(--t-tip-border); border-radius:6px;
+      box-shadow:0 8px 32px rgba(0,0,0,.8), inset 0 0 0 1px var(--t-tip-inset);
     }
     #eso-tip .tip-name {
       font-family:'Cinzel',serif; font-weight:700; font-size:15px; line-height:1.3;
     }
-    #eso-tip .tip-divider { height:1px; background:linear-gradient(90deg,transparent,#5a4520,transparent); margin:8px 0; }
-    #eso-tip .tip-section-header { font-family:'Cinzel',serif; font-size:10px; letter-spacing:.06em; color:#8b6914; text-transform:uppercase; }
+    #eso-tip .tip-divider { height:1px; background:linear-gradient(90deg,transparent,var(--t-tip-border),transparent); margin:8px 0; }
+    #eso-tip .tip-section-header { font-family:'Cinzel',serif; font-size:10px; letter-spacing:.06em; color:var(--t-gold-dark); text-transform:uppercase; }
 
     /* Toast */
-    .toast { position:fixed; bottom:24px; right:24px; background:#252119;
-      border:1px solid #c9a84c; color:#c9a84c; padding:10px 18px;
+    .toast { position:fixed; bottom:24px; right:24px; background:var(--t-card);
+      border:1px solid var(--t-gold); color:var(--t-gold); padding:10px 18px;
       border-radius:6px; font-size:14px; z-index:100; font-family:'Cinzel',serif;
       opacity:0; transition:opacity .3s; }
     .toast.show { opacity:1; }
@@ -74,6 +188,7 @@
 </head>
 <body x-data="armory()" x-init="init()"
   @mousemove.window="tipMove($event)"
+  @resize.window="syncDetailPanelHeights()"
   x-cloak>
 
   <!-- Global ESO-style tooltip -->
@@ -100,14 +215,14 @@
           <template x-if="tip.item.set_name">
             <div class="mb-2">
               <div class="text-xs text-eso-gold/80 font-semibold" x-text="tip.item.set_name"></div>
-              <template x-if="tip.item.set_id && setBonusCache[tip.item.set_id]">
+              <template x-if="getBonusEntry(tip.item)">
                 <div class="mt-1 space-y-0.5">
-                  <template x-if="setBonusCache[tip.item.set_id]?.loading">
+                  <template x-if="getBonusEntry(tip.item)?.loading">
                     <div class="text-[11px] text-eso-muted/60 animate-pulse">Loading bonuses…</div>
                   </template>
-                  <template x-if="!setBonusCache[tip.item.set_id]?.loading">
+                  <template x-if="!getBonusEntry(tip.item)?.loading">
                     <div>
-                      <template x-for="b in (setBonusCache[tip.item.set_id]?.bonuses || [])" :key="b.pieces">
+                      <template x-for="b in (getBonusEntry(tip.item)?.bonuses || [])" :key="b.pieces">
                         <div class="text-[11px] leading-snug">
                           <span class="text-eso-gold/50 font-mono" x-text="`(${b.pieces})`"></span>
                           <span class="text-eso-muted ml-1" x-text="b.text"></span>
@@ -147,20 +262,20 @@
             <!-- Style -->
             <template x-if="tip.item.style_name">
               <span class="text-xs px-1.5 py-0.5 rounded text-eso-muted"
-                style="background:#3d342430;border:1px solid #3d3424">
+                style="background:var(--t-border-subtle);border:1px solid var(--t-border)">
                 <span x-text="tip.item.style_name"></span>
               </span>
             </template>
             <!-- Weapon subtype -->
             <template x-if="tip.item.weapon_type">
               <span class="text-xs px-1.5 py-0.5 rounded text-eso-muted"
-                style="background:#3d342430;border:1px solid #3d3424"
+                style="background:var(--t-border-subtle);border:1px solid var(--t-border)"
                 x-text="tip.item.weapon_type"></span>
             </template>
             <!-- Armor weight -->
             <template x-if="tip.item.armor_type">
               <span class="text-xs px-1.5 py-0.5 rounded text-eso-muted"
-                style="background:#3d342430;border:1px solid #3d3424"
+                style="background:var(--t-border-subtle);border:1px solid var(--t-border)"
                 x-text="tip.item.armor_type"></span>
             </template>
             <!-- Enchant name (falls back to generic badge) -->
@@ -208,19 +323,22 @@
     </template>
     <template x-if="tip.achiev">
       <div>
-        <div style="height:3px;border-radius:3px 3px 0 0;background:#8b6914"></div>
+        <div style="height:3px;border-radius:3px 3px 0 0;background:var(--t-gold-dark)"></div>
         <div class="p-3">
           <div class="flex items-center justify-between mb-1">
             <span class="text-xs text-eso-muted" x-text="tip.achiev.cat + (tip.achiev.subcat ? ' › ' + tip.achiev.subcat : '')"></span>
-            <span class="text-xs" :style="tip.achiev.complete ? 'color:#c9a84c' : 'color:#9a8f76'"
+            <span class="text-xs" :style="tip.achiev.complete ? 'color:var(--t-gold)' : 'color:var(--t-muted)'"
               x-text="tip.achiev.complete ? '✓ Completed' : 'Incomplete'"></span>
           </div>
-          <div class="tip-name mb-2" style="color:#c9a84c" x-text="tip.achiev.name"></div>
+          <div class="tip-name mb-2" style="color:var(--t-gold)" x-text="tip.achiev.name"></div>
           <p class="text-xs text-eso-muted leading-snug mb-2" x-text="tip.achiev.desc"></p>
           <div class="tip-divider"></div>
           <div class="flex items-center justify-between text-xs">
             <span class="text-eso-muted" x-text="tip.achiev.points + ' Achievement Points'"></span>
             <span x-show="tip.achiev.complete" class="text-eso-muted/70" x-text="tip.achiev.completionDate"></span>
+          </div>
+          <div x-show="tip.achiev.complete && tip.achiev.completedByCharName" class="text-[10px] text-eso-muted/60 mt-1">
+            Earned by <span class="text-eso-text" x-text="tip.achiev.completedByCharName"></span>
           </div>
           <template x-if="!tip.achiev.complete && tip.achiev.criteria.length">
             <div class="mt-2 space-y-1.5">
@@ -233,9 +351,9 @@
                       x-text="`${c.cur}/${c.req}`"></span>
                   </div>
                   <template x-if="c.req > 1">
-                    <div class="w-full h-1 rounded-full overflow-hidden" style="background:#1a1612">
+                    <div class="w-full h-1 rounded-full overflow-hidden" style="background:var(--t-bg)">
                       <div class="h-full rounded-full"
-                        :style="`background:#8b6914;width:${Math.min(100,Math.round(c.cur/c.req*100))}%`"></div>
+                        :style="`background:var(--t-progress);width:${Math.min(100,Math.round(c.cur/c.req*100))}%`"></div>
                     </div>
                   </template>
                 </div>
@@ -248,18 +366,18 @@
     <!-- Stickerbook set tooltip -->
     <template x-if="tip.sbSet">
       <div>
-        <div style="height:3px;border-radius:3px 3px 0 0;background:#c9a84c"></div>
+        <div style="height:3px;border-radius:3px 3px 0 0;background:var(--t-gold)"></div>
         <div class="p-3">
           <div class="flex items-center justify-between mb-1">
             <span class="text-xs text-eso-muted" x-text="tip.sbSet.subcategory || tip.sbSet.category"></span>
             <span class="text-xs" :class="tip.sbSet.complete ? 'text-eso-gold' : 'text-eso-muted'"
               x-text="tip.sbSet.numCollected + '/' + tip.sbSet.numTotal + ' pieces'"></span>
           </div>
-          <div class="tip-name mb-2" style="color:#c9a84c" x-text="tip.sbSet.name"></div>
+          <div class="tip-name mb-2" style="color:var(--t-gold)" x-text="tip.sbSet.name"></div>
           <!-- Progress bar -->
           <div class="h-1.5 bg-eso-border rounded-full overflow-hidden mb-3">
-            <div class="h-full rounded-full" :class="tip.sbSet.complete ? 'bg-eso-gold' : 'bg-eso-gold/50'"
-              :style="'width:' + Math.round(tip.sbSet.numCollected/Math.max(tip.sbSet.numTotal,1)*100) + '%'"></div>
+            <div class="h-full rounded-full"
+              :style="'background:var(--t-progress);opacity:' + (tip.sbSet.complete ? 1 : 0.5) + ';width:' + Math.round(tip.sbSet.numCollected/Math.max(tip.sbSet.numTotal,1)*100) + '%'"></div>
           </div>
           <!-- Set bonuses -->
           <template x-if="setBonusCache[tip.sbSet.setId]">
@@ -287,6 +405,71 @@
         </div>
       </div>
     </template>
+    <!-- Stickerbook TTC piece price tooltip -->
+    <template x-if="tip.ttcPiece">
+      <div>
+        <div style="height:3px;border-radius:3px 3px 0 0;background:var(--t-progress)"></div>
+        <div class="p-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-eso-muted">TTC price</span>
+            <span class="text-xs text-eso-muted" x-text="tip.ttcPiece.price?.entryCount ? tip.ttcPiece.price.entryCount + ' listings' : ''"></span>
+          </div>
+          <div class="tip-name mb-2" style="color:var(--t-gold)" x-text="tip.ttcPiece.name"></div>
+          <template x-if="!tip.ttcPiece.price || tip.ttcPiece.price.loading">
+            <div class="text-xs text-eso-muted/60 animate-pulse">Loading TTC price…</div>
+          </template>
+          <template x-if="tip.ttcPiece.price && !tip.ttcPiece.price.loading">
+            <div>
+              <template x-if="!tip.ttcPiece.price.error">
+                <div>
+                  <div class="grid grid-cols-3 gap-2 mb-2">
+                    <div>
+                      <div class="text-[10px] uppercase tracking-wide text-eso-muted/70">Lowest</div>
+                      <div class="text-xs text-eso-text" x-text="fmtGold(tip.ttcPiece.price.min)"></div>
+                    </div>
+                    <div>
+                      <div class="text-[10px] uppercase tracking-wide text-eso-muted/70">Average</div>
+                      <div class="text-xs text-eso-text" x-text="fmtGold(tip.ttcPiece.price.avg)"></div>
+                    </div>
+                    <div>
+                      <div class="text-[10px] uppercase tracking-wide text-eso-muted/70">Highest</div>
+                      <div class="text-xs text-eso-text" x-text="fmtGold(tip.ttcPiece.price.max)"></div>
+                    </div>
+                  </div>
+                  <template x-if="tip.ttcPiece.price.suggestedPrice">
+                    <div class="flex justify-between text-xs mb-1">
+                      <span class="text-eso-muted">Suggested</span>
+                      <span class="text-eso-text" x-text="fmtGold(tip.ttcPiece.price.suggestedPrice)"></span>
+                    </div>
+                  </template>
+                  <template x-if="tip.ttcPiece.price.saleAvg">
+                    <div class="flex justify-between text-xs mb-1">
+                      <span class="text-eso-muted">Sale avg</span>
+                      <span class="text-eso-text" x-text="fmtGold(tip.ttcPiece.price.saleAvg)"></span>
+                    </div>
+                  </template>
+                </div>
+              </template>
+              <template x-if="tip.ttcPiece.price.error">
+                <div class="text-xs text-eso-muted leading-snug mb-2" x-text="tip.ttcPiece.price.error"></div>
+              </template>
+              <div class="tip-divider"></div>
+              <div class="space-y-1 text-[10px] text-eso-muted/70">
+                <div x-show="tip.ttcPiece.price.priceTableTimeText">
+                  TTC table: <span x-text="tip.ttcPiece.price.priceTableTimeText"></span>
+                </div>
+                <div x-show="tip.ttcPiece.price.fetchedAtText">
+                  Fetched: <span x-text="tip.ttcPiece.price.fetchedAtText"></span>
+                </div>
+                <div class="text-eso-gold/50 hover:text-eso-gold cursor-pointer"
+                  @click="window.open(tip.ttcPiece.price.url || ttcUrl(tip.ttcPiece.name), '_blank')"
+                  x-text="tip.ttcPiece.price.attribution || 'Data from Tamriel Trade Centre'"></div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
     <!-- Skill tooltip -->
     <template x-if="tip.skill">
       <div>
@@ -308,7 +491,7 @@
                     </template>
                     <template x-if="skillInfoCache[tip.skill.slug]?.location">
                       <span class="text-xs px-1.5 py-0.5 rounded text-eso-muted"
-                        style="background:#3d342430;border:1px solid #3d3424"
+                        style="background:var(--t-border-subtle);border:1px solid var(--t-border)"
                         x-text="skillInfoCache[tip.skill.slug].location"></span>
                     </template>
                   </div>
@@ -345,12 +528,151 @@
     </template>
   </div>
 
+  <!-- Upload modal -->
+  <div x-show="uploadOpen" x-cloak
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    style="background:rgba(0,0,0,0.7)"
+    @keydown.escape.window="uploadOpen = false">
+    <div class="w-full max-w-md rounded-xl p-7 relative"
+      style="background:var(--t-card);border:1px solid var(--t-border)"
+      @click.stop>
+      <!-- Close -->
+      <button @click="uploadOpen = false"
+        class="absolute top-4 right-4 text-lg leading-none"
+        style="color:var(--t-muted)">&times;</button>
+
+      <h2 class="font-cinzel font-bold text-lg mb-1" style="color:var(--t-gold)">Upload SavedVariables</h2>
+      <p class="text-xs mb-5" style="color:var(--t-muted)">
+        Find your files at:<br>
+        <code class="rounded px-1 py-0.5 mt-0.5 inline-block"
+          style="background:var(--t-bg);color:var(--t-text)">
+          Documents/Elder Scrolls Online/live/SavedVariables/
+        </code>
+      </p>
+
+      <!-- Folder watcher (Chrome/Edge only) -->
+      <template x-if="hasDirectoryPicker">
+        <div class="mb-4">
+          <div class="flex items-center justify-between mb-1.5">
+            <div class="text-xs font-semibold uppercase tracking-wide"
+              style="color:var(--t-gold);font-family:'Cinzel',serif">Auto-Watch Folder</div>
+            <span class="text-[10px]" style="color:var(--t-muted)">Chrome / Edge only</span>
+          </div>
+          <template x-if="!dirHandle">
+            <button @click="openFolderPicker()"
+              class="w-full flex items-center gap-2 rounded-lg px-4 py-3 text-sm transition-colors cursor-pointer"
+              style="border:1px dashed var(--t-border);background:var(--t-bg);color:var(--t-muted)">
+              <span>📁</span>
+              <span>Select SavedVariables Folder…</span>
+            </button>
+          </template>
+          <template x-if="dirHandle">
+            <div class="flex items-center gap-3 rounded-lg px-4 py-2.5"
+              style="border:1px solid var(--t-gold-dim);background:var(--t-bg)">
+              <span>📁</span>
+              <span class="text-sm flex-1 truncate" style="color:var(--t-text)" x-text="dirHandle.name"></span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded"
+                style="background:var(--t-gold-dim);color:var(--t-gold)">Watching</span>
+              <button @click="clearDirHandle()"
+                class="text-lg leading-none" style="color:var(--t-muted)">&times;</button>
+            </div>
+          </template>
+          <p class="mt-1.5 text-[10px]" style="color:var(--t-muted)">
+            Automatically re-uploads files when the game saves them. Persists across sessions.
+          </p>
+        </div>
+      </template>
+
+      <!-- Divider -->
+      <template x-if="hasDirectoryPicker">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="flex-1 h-px" style="background:var(--t-border)"></div>
+          <span class="text-[10px]" style="color:var(--t-muted)">or upload files manually</span>
+          <div class="flex-1 h-px" style="background:var(--t-border)"></div>
+        </div>
+      </template>
+
+      <!-- iasync.lua -->
+      <div class="mb-3">
+        <div class="text-xs font-semibold mb-1.5 uppercase tracking-wide"
+          style="color:var(--t-gold);font-family:'Cinzel',serif">
+          iasync.lua <span class="normal-case font-normal" style="color:var(--t-muted)">(inventory &amp; characters)</span>
+        </div>
+        <label class="flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer"
+          style="border:1px dashed var(--t-border);background:var(--t-bg)"
+          @dragover.prevent="$el.style.borderColor='var(--t-gold)'"
+          @dragleave="$el.style.borderColor='var(--t-border)'"
+          @drop.prevent="$el.style.borderColor='var(--t-border)'; $refs.iasyncInput.files = $event.dataTransfer.files; uploadIasyncName = $event.dataTransfer.files[0]?.name || ''">
+          <span class="text-lg" style="color:var(--t-muted)">📄</span>
+          <span class="text-sm truncate" style="color:var(--t-muted)"
+            x-text="uploadIasyncName || 'Click or drop iasync.lua here'"></span>
+          <input type="file" accept=".lua" x-ref="iasyncInput" class="hidden"
+            @change="uploadIasyncName = $refs.iasyncInput.files[0]?.name || ''">
+        </label>
+      </div>
+
+      <!-- WizardsWardrobe.lua -->
+      <div class="mb-5">
+        <div class="text-xs font-semibold mb-1.5 uppercase tracking-wide"
+          style="color:var(--t-gold);font-family:'Cinzel',serif">
+          WizardsWardrobe.lua <span class="normal-case font-normal" style="color:var(--t-muted)">(optional — builds)</span>
+        </div>
+        <label class="flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer"
+          style="border:1px dashed var(--t-border);background:var(--t-bg)"
+          @dragover.prevent="$el.style.borderColor='var(--t-gold)'"
+          @dragleave="$el.style.borderColor='var(--t-border)'"
+          @drop.prevent="$el.style.borderColor='var(--t-border)'; $refs.wwInput.files = $event.dataTransfer.files; uploadWWName = $event.dataTransfer.files[0]?.name || ''">
+          <span class="text-lg" style="color:var(--t-muted)">📄</span>
+          <span class="text-sm truncate" style="color:var(--t-muted)"
+            x-text="uploadWWName || 'Click or drop WizardsWardrobe.lua here'"></span>
+          <input type="file" accept=".lua" x-ref="wwInput" class="hidden"
+            @change="uploadWWName = $refs.wwInput.files[0]?.name || ''">
+        </label>
+      </div>
+
+      <button
+        @click="uploadFiles()"
+        :disabled="uploading || (!uploadIasyncName && !uploadWWName)"
+        class="w-full py-2.5 rounded-lg font-cinzel font-semibold text-sm"
+        style="background:var(--t-gold);color:var(--t-bg)"
+        :style="(uploading || (!uploadIasyncName && !uploadWWName)) ? 'opacity:0.4;cursor:not-allowed' : 'opacity:1;cursor:pointer'">
+        <span x-show="!uploading">Load Files</span>
+        <span x-show="uploading" class="animate-pulse">Parsing…</span>
+      </button>
+
+      <!-- Result -->
+      <template x-if="uploadStatus">
+        <div class="mt-4 space-y-1.5 text-sm">
+          <template x-if="uploadStatus.error">
+            <p class="text-red-400" x-text="uploadStatus.error"></p>
+          </template>
+          <template x-if="uploadStatus.iasync">
+            <div :class="uploadStatus.iasync.ok ? 'text-green-400' : 'text-red-400'">
+              <span x-show="uploadStatus.iasync.ok"
+                x-text="`✓ iasync — ${uploadStatus.iasync.chars} characters, ${uploadStatus.iasync.items.toLocaleString()} items`"></span>
+              <span x-show="!uploadStatus.iasync.ok"
+                x-text="`✗ iasync — ${uploadStatus.iasync.error}`"></span>
+            </div>
+          </template>
+          <template x-if="uploadStatus.ww">
+            <div :class="uploadStatus.ww.ok ? 'text-green-400' : 'text-red-400'">
+              <span x-show="uploadStatus.ww.ok"
+                x-text="`✓ WizardsWardrobe — ${uploadStatus.ww.builds} builds`"></span>
+              <span x-show="!uploadStatus.ww.ok"
+                x-text="`✗ WizardsWardrobe — ${uploadStatus.ww.error}`"></span>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+  </div>
+
   <!-- Toast notification -->
   <div class="toast" :class="{ show: toastVisible }" x-text="toastMsg"></div>
 
   <!-- Header -->
   <header class="border-b border-eso-border sticky top-0 z-40"
-    style="background:#1a1612ee;backdrop-filter:blur(6px)">
+    style="background:var(--t-header-bg);backdrop-filter:blur(6px)">
     <div class="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <span class="text-2xl">⚔️</span>
@@ -370,6 +692,54 @@
           <span x-show="totalTV > 0" class="flex items-center gap-1"><img src="/assets/currencies/tv.png" class="cur-icon"> <span x-text="fmtNum(totalTV)"></span> TV</span>
           <span x-show="totalWV > 0" class="flex items-center gap-1"><img src="/assets/currencies/wv.png" class="cur-icon"> <span x-text="fmtNum(totalWV)"></span> WV</span>
         </span>
+        <!-- Watching indicator -->
+        <span x-show="dirHandle && watchInterval" class="flex items-center gap-1 text-[11px]"
+          style="color:var(--t-gold)" :title="'Watching: ' + (dirHandle?.name || '')">
+          <span class="inline-block w-1.5 h-1.5 rounded-full" style="background:var(--t-gold)"></span>
+          <span x-text="dirHandle?.name || 'Watching'"></span>
+        </span>
+        <!-- Refresh button -->
+        <button @click="manualRefresh()"
+          :disabled="refreshing"
+          class="flex items-center gap-1.5 border rounded px-2 py-1 text-xs transition-colors focus:outline-none"
+          style="background:var(--t-bg);border-color:var(--t-border);color:var(--t-muted)"
+          :style="refreshing ? 'opacity:0.4;cursor:not-allowed' : ''"
+          title="Check for updated SavedVariables data">
+          <span :class="refreshing ? 'animate-spin inline-block' : ''" style="display:inline-block">↻</span>
+          <span x-text="refreshing ? 'Checking…' : 'Refresh'"></span>
+        </button>
+        <!-- Upload button -->
+        <button @click="uploadOpen = true; uploadStatus = null"
+          class="flex items-center gap-1.5 border rounded px-2 py-1 text-xs transition-colors focus:outline-none"
+          style="background:var(--t-bg);border-color:var(--t-border);color:var(--t-muted)"
+          title="Upload SavedVariables files">
+          <span>⬆ Upload</span>
+        </button>
+        <!-- Theme selector -->
+        <div class="relative" x-data="{ tOpen: false }" @click.outside="tOpen = false">
+          <button @click="tOpen = !tOpen"
+            class="flex items-center gap-1.5 border rounded px-2 py-1 text-xs transition-colors focus:outline-none"
+            style="background:var(--t-bg);border-color:var(--t-border);color:var(--t-muted)"
+            title="Color theme">
+            <span>Theme</span>
+            <span x-text="tOpen ? '▴' : '▾'"></span>
+          </button>
+          <div x-show="tOpen" x-cloak
+            class="absolute right-0 top-full mt-1 z-50 rounded-lg shadow-xl min-w-36 py-1"
+            style="background:var(--t-card);border:1px solid var(--t-border)">
+            <template x-for="(t, key) in themes" :key="key">
+              <button @click="setTheme(key); tOpen = false"
+                class="w-full text-left px-3 py-1.5 text-sm transition-colors select-none"
+                :style="theme === key
+                  ? 'color:var(--t-gold);background:var(--t-hover)'
+                  : 'color:var(--t-text)'"
+                @mouseover="if(theme!==key) $el.style.background='var(--t-hover)'"
+                @mouseout="if(theme!==key) $el.style.background=''"
+                x-text="t.label">
+              </button>
+            </template>
+          </div>
+        </div>
       </div>
     </div>
     <!-- Tabs -->
@@ -407,11 +777,54 @@
       </div>
     </div>
 
-    <!-- Error -->
-    <div x-show="error && !loading && !data"
-      class="bg-red-900/20 border border-red-700 rounded-lg p-6 text-center">
-      <p class="text-red-400 font-cinzel text-lg mb-2">Failed to load data</p>
-      <p class="text-eso-muted text-sm" x-text="error"></p>
+    <!-- Upload / Setup -->
+    <div x-show="!loading && !data" class="max-w-lg mx-auto mt-16">
+      <div class="rounded-xl p-8" style="background:var(--t-card);border:1px solid var(--t-border)">
+        <h2 class="font-cinzel font-bold text-2xl mb-1" style="color:var(--t-gold)">Load Your ESO Data</h2>
+        <p class="text-sm mb-6" style="color:var(--t-muted)">
+          Upload your SavedVariables files to browse your armory.
+          Find them at:<br>
+          <code class="text-xs rounded px-1 py-0.5 mt-1 inline-block"
+            style="background:var(--t-bg);color:var(--t-text)">
+            Documents/Elder Scrolls Online/live/SavedVariables/
+          </code>
+        </p>
+
+        <button @click="uploadOpen = true; uploadStatus = null"
+          class="w-full py-2.5 rounded-lg font-cinzel font-semibold text-sm"
+          style="background:var(--t-gold);color:var(--t-bg);cursor:pointer">
+          Select Files…
+        </button>
+
+        <!-- Result shown after modal upload -->
+        <template x-if="uploadStatus">
+          <div class="mt-4 space-y-2 text-sm">
+            <template x-if="uploadStatus.error">
+              <p class="text-red-400" x-text="uploadStatus.error"></p>
+            </template>
+            <template x-if="uploadStatus.iasync">
+              <div :class="uploadStatus.iasync.ok ? 'text-green-400' : 'text-red-400'">
+                <span x-show="uploadStatus.iasync.ok"
+                  x-text="`✓ iasync — ${uploadStatus.iasync.chars} characters, ${uploadStatus.iasync.items.toLocaleString()} items`"></span>
+                <span x-show="!uploadStatus.iasync.ok"
+                  x-text="`✗ iasync — ${uploadStatus.iasync.error}`"></span>
+              </div>
+            </template>
+            <template x-if="uploadStatus.ww">
+              <div :class="uploadStatus.ww.ok ? 'text-green-400' : 'text-red-400'">
+                <span x-show="uploadStatus.ww.ok"
+                  x-text="`✓ WizardsWardrobe — ${uploadStatus.ww.builds} builds`"></span>
+                <span x-show="!uploadStatus.ww.ok"
+                  x-text="`✗ WizardsWardrobe — ${uploadStatus.ww.error}`"></span>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <template x-if="error && !uploadStatus">
+          <p class="mt-4 text-xs" style="color:var(--t-muted)" x-text="'Server: ' + error"></p>
+        </template>
+      </div>
     </div>
 
     <!-- ===== CHARACTERS TAB ===== -->
@@ -549,7 +962,7 @@
 
                 <!-- Center silhouette spans all 4 rows -->
                 <div style="grid-column:2;grid-row:1/span 4;display:flex;align-items:center;justify-content:center;">
-                  <div style="width:1px;height:88%;background:#3d342470;border-radius:1px;"></div>
+                  <div style="width:1px;height:88%;background:var(--t-border-line);border-radius:1px;"></div>
                 </div>
 
                 <!-- Right col -->
@@ -621,9 +1034,11 @@
           <span class="font-cinzel text-eso-gold font-semibold" x-text="selectedChar?.name"></span>
         </div>
 
-        <div class="flex flex-col xl:flex-row gap-6 items-start" x-show="selectedChar">
+        <div class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6 items-start"
+          x-show="selectedChar"
+          x-effect="selectedChar && $nextTick(() => syncDetailPanelHeights())">
           <!-- Left column -->
-          <div class="w-full xl:w-[580px] xl:shrink-0">
+          <div class="min-w-0 order-1" x-ref="currentBuildPanel">
             <div class="flex items-center mb-2">
               <span class="font-cinzel text-xs text-eso-muted uppercase tracking-wider">Current Build</span>
             </div>
@@ -657,7 +1072,7 @@
                 <div class="eq-slot" style="grid-column:1;grid-row:1" :class="!sl[0]&&'eq-empty'" :style="sl[0]?`background:${sl[0].item.quality_color}18;border-color:${sl[0].item.quality_color}55`:''" @mouseenter="sl[0]&&tipShowSlot(sl[0].item,slotLabel(0),$event)" @mouseleave="tipHide()"><span x-show="!!sl[0]" x-html="sl[0]?slotEquipIcon(0,sl[0].item):''"></span></div>
                 <div class="eq-slot" style="grid-column:1;grid-row:2" :class="!sl[3]&&'eq-empty'" :style="sl[3]?`background:${sl[3].item.quality_color}18;border-color:${sl[3].item.quality_color}55`:''" @mouseenter="sl[3]&&tipShowSlot(sl[3].item,slotLabel(3),$event)" @mouseleave="tipHide()"><span x-show="!!sl[3]" x-html="sl[3]?slotEquipIcon(3,sl[3].item):''"></span></div>
                 <div class="eq-slot" style="grid-column:1;grid-row:3" :class="!sl[16]&&'eq-empty'" :style="sl[16]?`background:${sl[16].item.quality_color}18;border-color:${sl[16].item.quality_color}55`:''" @mouseenter="sl[16]&&tipShowSlot(sl[16].item,slotLabel(16),$event)" @mouseleave="tipHide()"><span x-show="!!sl[16]" x-html="sl[16]?slotEquipIcon(16,sl[16].item):''"></span></div>
-                <div style="grid-column:2;grid-row:1/span 4;display:flex;align-items:center;justify-content:center;"><div style="width:1px;height:88%;background:#3d342470;border-radius:1px;"></div></div>
+                <div style="grid-column:2;grid-row:1/span 4;display:flex;align-items:center;justify-content:center;"><div style="width:1px;height:88%;background:var(--t-border-line);border-radius:1px;"></div></div>
                 <div class="eq-slot" style="grid-column:3;grid-row:1" :class="!sl[2]&&'eq-empty'" :style="sl[2]?`background:${sl[2].item.quality_color}18;border-color:${sl[2].item.quality_color}55`:''" @mouseenter="sl[2]&&tipShowSlot(sl[2].item,slotLabel(2),$event)" @mouseleave="tipHide()"><span x-show="!!sl[2]" x-html="sl[2]?slotEquipIcon(2,sl[2].item):''"></span></div>
                 <div class="eq-slot" style="grid-column:3;grid-row:2" :class="!sl[6]&&'eq-empty'" :style="sl[6]?`background:${sl[6].item.quality_color}18;border-color:${sl[6].item.quality_color}55`:''" @mouseenter="sl[6]&&tipShowSlot(sl[6].item,slotLabel(6),$event)" @mouseleave="tipHide()"><span x-show="!!sl[6]" x-html="sl[6]?slotEquipIcon(6,sl[6].item):''"></span></div>
                 <div class="eq-slot" style="grid-column:3;grid-row:3" :class="!sl[8]&&'eq-empty'" :style="sl[8]?`background:${sl[8].item.quality_color}18;border-color:${sl[8].item.quality_color}55`:''" @mouseenter="sl[8]&&tipShowSlot(sl[8].item,slotLabel(8),$event)" @mouseleave="tipHide()"><span x-show="!!sl[8]" x-html="sl[8]?slotEquipIcon(8,sl[8].item):''"></span></div>
@@ -751,8 +1166,10 @@
           </div>
           </div><!-- end left column -->
 
-          <!-- Right: WizardsWardrobe saved builds -->
-          <div class="flex-1 min-w-0" x-data="{ allCollapsed: true }" x-effect="selectedChar && (allCollapsed = true)">
+          <!-- WizardsWardrobe saved builds -->
+          <div class="min-w-0 order-3 xl:col-span-2 2xl:col-span-1 2xl:flex 2xl:flex-col"
+            :style="detailPanelHeightStyle"
+            x-data="{ allCollapsed: true }" x-effect="selectedChar && (allCollapsed = true)">
             <div class="flex items-center justify-between mb-2">
               <span class="font-cinzel text-xs text-eso-muted uppercase tracking-wider">WW Saved Builds</span>
               <button @click="allCollapsed = !allCollapsed; $dispatch(allCollapsed ? 'ww-collapse-all' : 'ww-expand-all')"
@@ -768,7 +1185,7 @@
                 No WizardsWardrobe builds saved for this character.
               </div>
             </template>
-            <div class="space-y-4">
+            <div class="space-y-4 2xl:min-h-0 2xl:flex-1 2xl:overflow-y-auto 2xl:pr-1">
               <template x-for="build in (wwBuilds ? charWWBuilds(selectedChar?.id) : [])"
                 :key="build.zone + '-' + build.page + '-' + build.setup">
                 <div class="bg-eso-card border border-eso-border rounded-lg p-4"
@@ -857,6 +1274,203 @@
                   </div><!-- end collapsible body -->
                 </div>
               </template>
+            </div>
+          </div>
+
+          <!-- Character inventory -->
+          <div class="min-w-0 order-2 2xl:flex 2xl:flex-col"
+            :style="detailPanelHeightStyle">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-cinzel text-xs text-eso-muted uppercase tracking-wider">Character Inventory</span>
+              <span class="text-xs text-eso-muted">
+                <span x-text="charFilteredItems.length.toLocaleString()"></span> items
+              </span>
+            </div>
+
+            <div class="bg-eso-card border border-eso-border rounded-lg p-3 mb-3 space-y-2">
+              <div>
+                <div class="w-full">
+                  <input type="text" x-model.debounce.150ms="charInvSearch"
+                    placeholder="Search character items..."
+                    class="w-full bg-eso-bg border border-eso-border rounded px-3 py-1.5 text-sm text-eso-text placeholder-eso-muted focus:outline-none focus:border-eso-gold" />
+                </div>
+              </div>
+
+              <div class="flex flex-wrap gap-2 items-center">
+
+                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                  <button @click="open = !open"
+                    class="flex items-center gap-1.5 bg-eso-bg border rounded px-2 py-1.5 text-sm focus:outline-none transition-colors min-w-24"
+                    :class="charInvTypes.length ? 'border-eso-gold/60 text-eso-gold' : 'border-eso-border text-eso-text'">
+                    <span class="truncate flex-1 text-left" x-text="charInvTypeLabel"></span>
+                    <span class="text-eso-muted text-xs shrink-0" x-text="open ? '▴' : '▾'"></span>
+                  </button>
+                  <div x-show="open" x-cloak class="absolute top-full left-0 mt-1 z-50 bg-eso-card border border-eso-border rounded-lg shadow-xl min-w-40 py-1">
+                    <template x-for="opt in [{v:'1',l:'Weapons'},{v:'2',l:'Armor'},{v:'25',l:'Jewelry'},{v:'3',l:'Consumables'},{v:'4',l:'Materials'},{v:'6',l:'Glyphs'},{v:'21',l:'Furnishings'},{v:'5',l:'Miscellaneous'}]" :key="opt.v">
+                      <div @click="toggleFilter(charInvTypes, opt.v)"
+                        class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                        :class="charInvTypes.includes(opt.v) ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'"
+                        x-text="opt.l"></div>
+                    </template>
+                  </div>
+                </div>
+
+                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                  <button @click="open = !open"
+                    class="flex items-center gap-1.5 bg-eso-bg border rounded px-2 py-1.5 text-sm focus:outline-none transition-colors min-w-24"
+                    :class="charInvLocTypes.length ? 'border-eso-gold/60 text-eso-gold' : 'border-eso-border text-eso-text'">
+                    <span class="truncate flex-1 text-left" x-text="charInvLocLabel"></span>
+                    <span class="text-eso-muted text-xs shrink-0" x-text="open ? '▴' : '▾'"></span>
+                  </button>
+                  <div x-show="open" x-cloak class="absolute top-full left-0 mt-1 z-50 bg-eso-card border border-eso-border rounded-lg shadow-xl min-w-36 py-1">
+                    <template x-for="opt in [{v:'0',l:'Equipped'},{v:'1',l:'Backpack'}]" :key="opt.v">
+                      <div @click="toggleFilter(charInvLocTypes, opt.v)"
+                        class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                        :class="charInvLocTypes.includes(opt.v) ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'"
+                        x-text="opt.l"></div>
+                    </template>
+                  </div>
+                </div>
+
+                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                  <button @click="open = !open"
+                    class="flex items-center gap-1.5 bg-eso-bg border rounded px-2 py-1.5 text-sm focus:outline-none transition-colors min-w-24"
+                    :class="charInvTraits.length ? 'border-eso-gold/60 text-eso-gold' : 'border-eso-border text-eso-text'">
+                    <span class="truncate flex-1 text-left" x-text="charInvTraitLabel"></span>
+                    <span class="text-eso-muted text-xs shrink-0" x-text="open ? '▴' : '▾'"></span>
+                  </button>
+                  <div x-show="open" x-cloak class="absolute top-full left-0 mt-1 z-50 bg-eso-card border border-eso-border rounded-lg shadow-xl min-w-44 py-1 max-h-72 overflow-y-auto">
+                    <div @click="toggleFilter(charInvTraits, 'any')"
+                      class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                      :class="charInvTraits.includes('any') ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'">
+                      Has Trait
+                    </div>
+                    <div class="px-3 pt-2 pb-0.5 text-[10px] text-eso-muted uppercase tracking-wider font-cinzel border-t border-eso-border/40 mt-1">Armor</div>
+                    <template x-for="opt in [{v:'18',l:'Divines'},{v:'16',l:'Infused'},{v:'25',l:'Nirnhoned'},{v:'13',l:'Reinforced'},{v:'11',l:'Sturdy'},{v:'14',l:'Well-Fitted'},{v:'12',l:'Impenetrable'},{v:'15',l:'Training'}]" :key="opt.v">
+                      <div @click="toggleFilter(charInvTraits, opt.v)"
+                        class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                        :class="charInvTraits.includes(opt.v) ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'"
+                        x-text="opt.l"></div>
+                    </template>
+                    <div class="px-3 pt-2 pb-0.5 text-[10px] text-eso-muted uppercase tracking-wider font-cinzel border-t border-eso-border/40 mt-1">Weapon</div>
+                    <template x-for="opt in [{v:'4',l:'Infused'},{v:'26',l:'Nirnhoned'},{v:'5',l:'Defending'},{v:'2',l:'Charged'},{v:'7',l:'Sharpened'},{v:'1',l:'Powered'},{v:'3',l:'Precise'},{v:'8',l:'Decisive'},{v:'6',l:'Training'}]" :key="opt.v">
+                      <div @click="toggleFilter(charInvTraits, opt.v)"
+                        class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                        :class="charInvTraits.includes(opt.v) ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'"
+                        x-text="opt.l"></div>
+                    </template>
+                    <div class="px-3 pt-2 pb-0.5 text-[10px] text-eso-muted uppercase tracking-wider font-cinzel border-t border-eso-border/40 mt-1">Jewelry</div>
+                    <template x-for="opt in [{v:'32',l:'Protective'},{v:'29',l:'Harmony'},{v:'31',l:'Bloodthirsty'},{v:'30',l:'Triune'},{v:'33',l:'Infused'},{v:'28',l:'Swift'},{v:'22',l:'Arcane'},{v:'21',l:'Healthy'},{v:'23',l:'Robust'}]" :key="opt.v">
+                      <div @click="toggleFilter(charInvTraits, opt.v)"
+                        class="px-3 py-1.5 cursor-pointer text-sm transition-colors select-none"
+                        :class="charInvTraits.includes(opt.v) ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'"
+                        x-text="opt.l"></div>
+                    </template>
+                  </div>
+                </div>
+
+                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                  <button @click="open = !open"
+                    class="flex items-center gap-1.5 bg-eso-bg border rounded px-2 py-1.5 text-sm focus:outline-none transition-colors min-w-24"
+                    :class="charInvQuality !== '' || charInvTransmuted || charInvCrafted ? 'border-eso-gold/60 text-eso-gold' : 'border-eso-border text-eso-text'">
+                    <span class="truncate flex-1 text-left" x-text="charInvExtraFilterLabel"></span>
+                    <span class="text-eso-muted text-xs shrink-0" x-text="open ? '▴' : '▾'"></span>
+                  </button>
+                  <div x-show="open" x-cloak class="absolute top-full right-0 mt-1 z-50 bg-eso-card border border-eso-border rounded-lg shadow-xl w-64 py-2">
+                    <div class="px-3 pb-1 text-[10px] text-eso-muted uppercase tracking-wider font-cinzel">Quality</div>
+                    <div class="px-3 pb-2 flex flex-wrap gap-1">
+                      <template x-for="q in qualityOptions" :key="'ciq'+q.value">
+                        <button @click="charInvQuality = charInvQuality === q.value ? '' : q.value"
+                          class="px-2 py-1 rounded text-xs font-medium border transition-all"
+                          :style="`border-color:${charInvQuality===q.value ? q.color : 'var(--t-border)'};color:${q.color};background:${charInvQuality===q.value ? q.color+'22' : 'transparent'}`"
+                          x-text="q.label">
+                        </button>
+                      </template>
+                    </div>
+                    <div class="border-t border-eso-border/40 pt-1">
+                      <button @click="charInvTransmuted = !charInvTransmuted"
+                        class="w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors"
+                        :class="charInvTransmuted ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'">
+                        <img src="/assets/services/transmutation_station.png" class="w-3.5 h-3.5 opacity-80" alt="">
+                        <span>Transmuted</span>
+                      </button>
+                      <button @click="charInvCrafted = !charInvCrafted"
+                        class="w-full text-left px-3 py-1.5 text-sm transition-colors"
+                        :class="charInvCrafted ? 'bg-eso-gold/10 text-eso-gold' : 'text-eso-text hover:bg-eso-hover'">
+                        Crafted
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <button @click="charInvGroupBySet = !charInvGroupBySet"
+                  class="flex items-center gap-1 px-2 py-1.5 rounded text-sm font-medium border transition-all"
+                  :class="charInvGroupBySet ? 'border-eso-gold bg-eso-gold/10 text-eso-gold' : 'border-eso-border text-eso-muted hover:text-eso-text'">
+                  Group by Set
+                </button>
+
+                <button x-show="hasActiveCharInvFilters"
+                  @click="clearCharInvFilters()"
+                  class="text-eso-muted text-sm hover:text-eso-text px-2 py-1.5 border border-eso-border rounded transition-colors">
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <div class="bg-eso-card border border-eso-border rounded-lg overflow-hidden min-h-0 flex-1">
+              <div class="overflow-x-auto h-full overflow-y-auto">
+                <table class="w-full text-sm">
+                  <thead class="sticky top-0 bg-eso-card z-10">
+                    <tr class="border-b border-eso-border text-eso-muted text-xs font-cinzel tracking-wide">
+                      <th class="text-left px-3 py-2 cursor-pointer hover:text-eso-gold select-none" @click="setSort('name')">
+                        Item <span x-text="sortIndicator('name')"></span>
+                      </th>
+                      <th class="text-left px-3 py-2 cursor-pointer hover:text-eso-gold select-none hidden md:table-cell" @click="setSort('filter_type_name')">
+                        Type <span x-text="sortIndicator('filter_type_name')"></span>
+                      </th>
+                      <th class="text-right px-3 py-2 cursor-pointer hover:text-eso-gold select-none w-16" @click="setSort('total_quantity')">
+                        Qty <span x-text="sortIndicator('total_quantity')"></span>
+                      </th>
+                      <th class="text-left px-3 py-2 hidden lg:table-cell">Where</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="row in charDisplayItems" :key="row.t === 'h' ? 'cih_' + row.set : 'cii_' + row.item.key">
+                      <tr :class="row.t === 'h'
+                          ? 'bg-eso-bg/60 border-b border-eso-border'
+                          : 'border-b border-eso-border/40 hover:bg-eso-hover transition-colors'"
+                        :style="row.t === 'item' && row.item?.set_name ? 'cursor:pointer' : ''"
+                        @mouseenter="row.t === 'item' && tipShow(row.item, $event)" @mouseleave="tipHide()"
+                        @click="row.t === 'item' && row.item?.set_name && window.open(setEsoSetsUrl(row.item.set_name), '_blank')">
+                        <td x-show="row.t === 'h'" colspan="4" class="px-3 py-1.5">
+                          <span class="font-cinzel text-xs text-eso-gold tracking-wide"
+                            :class="row.set && row.set !== 'No Set' ? 'cursor-pointer hover:underline' : ''"
+                            @click.stop="row.set && row.set !== 'No Set' && window.open(setEsoSetsUrl(row.set), '_blank')"
+                            x-text="row.set"></span>
+                          <span class="text-[10px] text-eso-muted ml-2" x-text="row.count ? `(${row.count})` : ''"></span>
+                        </td>
+                        <td x-show="row.t === 'item'" class="px-3 py-2">
+                          <span class="font-medium" :style="`color:${row.item?.quality_color}`" x-text="row.item?.name"></span>
+                          <span x-show="row.item?.level > 0" class="ml-2 text-xs text-eso-muted" x-text="row.item ? `Lv.${row.item.level}` : ''"></span>
+                        </td>
+                        <td x-show="row.t === 'item'" class="px-3 py-2 text-eso-muted hidden md:table-cell" x-text="row.item?.filter_type_name"></td>
+                        <td x-show="row.t === 'item'" class="px-3 py-2 text-right text-eso-muted font-mono" x-text="row.item ? row.item.total_quantity.toLocaleString() : ''"></td>
+                        <td x-show="row.t === 'item'" class="px-3 py-2 hidden lg:table-cell">
+                          <div class="flex flex-wrap gap-1">
+                            <template x-for="loc in charItemLocations(row.item)" :key="'cil_' + loc.location_key + loc.bag_id">
+                              <span class="text-[11px] text-eso-muted border border-eso-border rounded px-1.5 py-0.5"
+                                x-text="loc.bag_label + (charItemLocations(row.item).length > 1 ? ' ×' + loc.quantity : '')"></span>
+                            </template>
+                          </div>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <div x-show="charFilteredItems.length === 0" class="text-center py-12 text-eso-muted">
+                No character items match your filters
+              </div>
             </div>
           </div>
         </div>
@@ -975,7 +1589,7 @@
           <template x-for="q in qualityOptions" :key="q.value">
             <button @click="filterQuality = filterQuality === q.value ? '' : q.value"
               class="px-2 py-1 rounded text-xs font-medium border transition-all"
-              :style="`border-color:${filterQuality===q.value ? q.color : '#3d3424'};color:${q.color};background:${filterQuality===q.value ? q.color+'22' : 'transparent'}`"
+              :style="`border-color:${filterQuality===q.value ? q.color : 'var(--t-border)'};color:${q.color};background:${filterQuality===q.value ? q.color+'22' : 'transparent'}`"
               x-text="q.label">
             </button>
           </template>
@@ -1137,7 +1751,7 @@
                 </div>
                 <div class="w-full h-1 bg-eso-bg rounded-full overflow-hidden">
                   <div class="h-full rounded-full"
-                    :style="`background:#8b6914;width:${cat.totalPts ? Math.round(cat.earnedPts/cat.totalPts*100) : 0}%`"></div>
+                    :style="`background:var(--t-progress);width:${cat.totalPts ? Math.round(cat.earnedPts/cat.totalPts*100) : 0}%`"></div>
                 </div>
               </button>
             </template>
@@ -1178,10 +1792,10 @@
                       <div class="flex flex-col items-center gap-1 group cursor-default" style="width:72px"
                         @mouseenter="tipShowAchiev(a, $event)" @mouseleave="tipHide()">
                         <div class="w-14 h-14 rounded border flex items-center justify-center relative overflow-hidden"
-                          style="background:#1e130a;border-color:#c9a84c55">
+                          style="background:var(--t-achiev-bg);border-color:var(--t-gold-dim)">
                           <img :src="achievIconUrl(a.icon)" class="absolute inset-0 w-full h-full object-cover"
                             @error="$el.style.visibility='hidden'" alt="">
-                          <span class="text-2xl" style="color:#c9a84c80;pointer-events:none">★</span>
+                          <span class="text-2xl" style="color:var(--t-gold-faint);pointer-events:none">★</span>
                         </div>
                         <span class="text-[9px] text-eso-muted text-center leading-tight group-hover:text-eso-text transition-colors"
                           style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden"
@@ -1201,7 +1815,7 @@
                 </div>
                 <div class="w-full h-4 bg-eso-card border border-eso-border rounded-sm overflow-hidden">
                   <div class="h-full transition-all"
-                    :style="`background:#8b6914;width:${achievData.totalPts ? Math.round(achievData.earnedPts/achievData.totalPts*100) : 0}%`"></div>
+                    :style="`background:var(--t-progress);width:${achievData.totalPts ? Math.round(achievData.earnedPts/achievData.totalPts*100) : 0}%`"></div>
                 </div>
               </div>
 
@@ -1215,7 +1829,7 @@
                     </div>
                     <div class="w-full h-3 bg-eso-card border border-eso-border rounded-sm overflow-hidden">
                       <div class="h-full"
-                        :style="`background:#8b6914;width:${cat.totalPts ? Math.round(cat.earnedPts/cat.totalPts*100) : 0}%`"></div>
+                        :style="`background:var(--t-progress);width:${cat.totalPts ? Math.round(cat.earnedPts/cat.totalPts*100) : 0}%`"></div>
                     </div>
                     <div class="text-[10px] text-eso-muted mt-0.5"
                       x-text="`${cat.earnedPts.toLocaleString()} / ${cat.totalPts.toLocaleString()}`"></div>
@@ -1253,7 +1867,7 @@
                 </div>
                 <div class="w-full h-3 bg-eso-card border border-eso-border rounded-sm overflow-hidden">
                   <div class="h-full"
-                    :style="`background:#8b6914;width:${achievCat?.totalPts ? Math.round(achievCat.earnedPts/achievCat.totalPts*100) : 0}%`"></div>
+                    :style="`background:var(--t-progress);width:${achievCat?.totalPts ? Math.round(achievCat.earnedPts/achievCat.totalPts*100) : 0}%`"></div>
                 </div>
               </div>
 
@@ -1274,22 +1888,23 @@
                   </div>
                   <div class="w-full h-2 bg-eso-card border border-eso-border rounded-sm overflow-hidden mb-2">
                     <div class="h-full"
-                      :style="`background:#8b6914;width:${sub.totalPts ? Math.round(sub.earnedPts/sub.totalPts*100) : 0}%`"></div>
+                      :style="`background:var(--t-progress);width:${sub.totalPts ? Math.round(sub.earnedPts/sub.totalPts*100) : 0}%`"></div>
                   </div>
 
                   <!-- Individual achievements -->
                   <div x-show="open" class="space-y-0.5">
-                    <template x-for="a in achievItemsByCatSubcat(achievCat?.name, sub.name)" :key="a.id">
+                    <template x-for="a in achievItemsByCatSubcat(achievCat?.name, sub.name)"
+                      :key="`${achievCharId || 'nochar'}_${a.id}`">
                       <div class="flex items-start gap-3 px-2 py-2 rounded transition-colors"
                         :class="a.complete ? 'bg-eso-card/70 hover:bg-eso-card' : 'hover:bg-eso-hover/30'">
 
                         <!-- Icon / completion badge -->
                         <div class="w-9 h-9 rounded shrink-0 relative overflow-hidden flex items-center justify-center border"
-                          :style="a.complete ? 'border-color:#c9a84c55;background:#1e130a' : 'border-color:#3d342460;background:#1a1612'">
+                          :style="a.complete ? 'border-color:var(--t-gold-dim);background:var(--t-achiev-bg)' : 'border-color:var(--t-border-line);background:var(--t-bg)'">
                           <img :src="achievIconUrl(a.icon)" class="absolute inset-0 w-full h-full object-cover"
                             @error="$el.style.visibility='hidden'" alt="">
                           <span class="text-lg" style="pointer-events:none"
-                            :style="a.complete ? 'color:#c9a84c80' : 'color:#3d342490'">★</span>
+                            :style="a.complete ? 'color:var(--t-gold-faint)' : 'color:var(--t-border-ghost)'">★</span>
                         </div>
 
                         <!-- Text content -->
@@ -1319,7 +1934,7 @@
                                   <template x-if="c.req > 1">
                                     <div class="w-full h-1 bg-eso-bg rounded-full overflow-hidden">
                                       <div class="h-full rounded-full"
-                                        :style="`background:#8b6914;width:${Math.min(100,Math.round(c.cur/c.req*100))}%`"></div>
+                                        :style="`background:var(--t-progress);width:${Math.min(100,Math.round(c.cur/c.req*100))}%`"></div>
                                     </div>
                                   </template>
                                 </div>
@@ -1375,8 +1990,8 @@
                     <span class="text-[10px] shrink-0 ml-1" x-text="sbCatPct(cat) + '%'"></span>
                   </div>
                   <div class="h-0.5 bg-eso-border rounded-full overflow-hidden">
-                    <div class="h-full bg-eso-gold/60 rounded-full transition-all"
-                      :style="'width:' + sbCatPct(cat) + '%'"></div>
+                    <div class="h-full rounded-full transition-all"
+                      :style="'background:var(--t-progress);width:' + sbCatPct(cat) + '%'"></div>
                   </div>
                 </button>
               </template>
@@ -1395,8 +2010,8 @@
                 <div class="mb-6">
                   <div class="text-xs font-cinzel tracking-widest text-eso-muted mb-2">SET ITEMS COLLECTED</div>
                   <div class="h-3 bg-eso-border rounded-full overflow-hidden mb-1">
-                    <div class="h-full bg-eso-gold rounded-full transition-all"
-                      :style="'width:' + Math.round(sbData.sets.reduce((a,s)=>a+s.numCollected,0) / Math.max(sbData.sets.reduce((a,s)=>a+s.numTotal,0),1)*100) + '%'">
+                    <div class="h-full rounded-full transition-all"
+                      :style="'background:var(--t-progress);width:' + Math.round(sbData.sets.reduce((a,s)=>a+s.numCollected,0) / Math.max(sbData.sets.reduce((a,s)=>a+s.numTotal,0),1)*100) + '%'">
                     </div>
                   </div>
                   <div class="text-xs text-eso-muted text-center"
@@ -1411,8 +2026,8 @@
                       @click="sbCat = cat.name">
                       <div class="text-xs font-cinzel tracking-wide text-eso-text mb-2 truncate" x-text="cat.name"></div>
                       <div class="h-2 bg-eso-border rounded-full overflow-hidden mb-1">
-                        <div class="h-full bg-eso-gold/70 rounded-full transition-all"
-                          :style="'width:' + Math.round(cat.collected/Math.max(cat.total,1)*100) + '%'"></div>
+                        <div class="h-full rounded-full transition-all"
+                          :style="'background:var(--t-progress);width:' + Math.round(cat.collected/Math.max(cat.total,1)*100) + '%'"></div>
                       </div>
                       <div class="text-[11px] text-eso-muted text-center"
                         x-text="cat.collected.toLocaleString() + ' / ' + cat.total.toLocaleString()"></div>
@@ -1447,8 +2062,8 @@
                           <span x-show="s.complete" class="shrink-0 text-[9px] font-cinzel tracking-widest text-eso-gold border border-eso-gold/50 rounded px-1 py-0.5">FULL</span>
                         </div>
                         <div class="h-1.5 bg-eso-border rounded-full overflow-hidden mb-1.5">
-                          <div class="h-full rounded-full" :class="s.complete ? 'bg-eso-gold' : 'bg-eso-gold/50'"
-                            :style="'width:' + Math.round(s.numCollected/Math.max(s.numTotal,1)*100) + '%'"></div>
+                          <div class="h-full rounded-full"
+                            :style="'background:var(--t-progress);opacity:' + (s.complete ? 1 : 0.5) + ';width:' + Math.round(s.numCollected/Math.max(s.numTotal,1)*100) + '%'"></div>
                         </div>
                         <div class="flex items-center justify-between">
                           <div class="flex flex-wrap gap-1">
@@ -1468,6 +2083,8 @@
                             <span class="text-[11px] leading-tight truncate cursor-pointer hover:text-eso-gold hover:underline transition-colors"
                               :class="p.collected ? 'text-eso-muted/60 line-through' : 'text-eso-text'"
                               x-text="p.name || ('Piece ' + (i+1))"
+                              @mouseenter="tipShowSbPiece(p.name || s.name, $event)"
+                              @mouseleave="tipHide()"
                               @click.stop="window.open(ttcUrl(p.name || s.name), '_blank')"></span>
                           </div>
                         </template>
@@ -1504,8 +2121,8 @@
                             <span x-show="s.complete" class="shrink-0 text-[9px] font-cinzel tracking-widest text-eso-gold border border-eso-gold/50 rounded px-1 py-0.5">FULL</span>
                           </div>
                           <div class="h-1.5 bg-eso-border rounded-full overflow-hidden mb-1.5">
-                            <div class="h-full rounded-full" :class="s.complete ? 'bg-eso-gold' : 'bg-eso-gold/50'"
-                              :style="'width:' + Math.round(s.numCollected/Math.max(s.numTotal,1)*100) + '%'"></div>
+                            <div class="h-full rounded-full"
+                              :style="'background:var(--t-progress);opacity:' + (s.complete ? 1 : 0.5) + ';width:' + Math.round(s.numCollected/Math.max(s.numTotal,1)*100) + '%'"></div>
                           </div>
                           <div class="flex items-center justify-between">
                             <div class="flex flex-wrap gap-1">
@@ -1525,6 +2142,8 @@
                               <span class="text-[11px] leading-tight truncate cursor-pointer hover:text-eso-gold hover:underline transition-colors"
                                 :class="p.collected ? 'text-eso-muted/60 line-through' : 'text-eso-text'"
                                 x-text="p.name || ('Piece ' + (i+1))"
+                                @mouseenter="tipShowSbPiece(p.name || s.name, $event)"
+                                @mouseleave="tipHide()"
                                 @click.stop="window.open(ttcUrl(p.name || s.name), '_blank')"></span>
                             </div>
                           </template>
@@ -1551,8 +2170,8 @@
                               <span x-show="s.complete" class="shrink-0 text-[9px] font-cinzel tracking-widest text-eso-gold border border-eso-gold/50 rounded px-1 py-0.5">FULL</span>
                             </div>
                             <div class="h-1.5 bg-eso-border rounded-full overflow-hidden mb-1.5">
-                              <div class="h-full rounded-full" :class="s.complete ? 'bg-eso-gold' : 'bg-eso-gold/50'"
-                                :style="'width:' + Math.round(s.numCollected/Math.max(s.numTotal,1)*100) + '%'"></div>
+                              <div class="h-full rounded-full"
+                                :style="'background:var(--t-progress);opacity:' + (s.complete ? 1 : 0.5) + ';width:' + Math.round(s.numCollected/Math.max(s.numTotal,1)*100) + '%'"></div>
                             </div>
                             <div class="flex items-center justify-between">
                               <div class="flex flex-wrap gap-1">
@@ -1572,6 +2191,8 @@
                                 <span class="text-[11px] leading-tight truncate cursor-pointer hover:text-eso-gold hover:underline transition-colors"
                                   :class="p.collected ? 'text-eso-muted/60 line-through' : 'text-eso-text'"
                                   x-text="p.name || ('Piece ' + (i+1))"
+                                  @mouseenter="tipShowSbPiece(p.name || s.name, $event)"
+                                  @mouseleave="tipHide()"
                                   @click.stop="window.open(ttcUrl(p.name || s.name), '_blank')"></span>
                               </div>
                             </template>
@@ -1614,8 +2235,101 @@ function armory() {
     ready: false,
     error: null,
     tab: 'characters',
+    uploading: false,
+    uploadOpen: false,
+    uploadStatus: null,
+    uploadIasyncName: '',
+    uploadWWName: '',
+    dirHandle: null,
+    watchInterval: null,
+    iasyncLastMod: 0,
+    wwLastMod: 0,
+    refreshing: false,
+    lastKnownMtime: null,
+    hasDirectoryPicker: false,
+    _uploadInProgress: false,
     toastVisible: false,
     toastMsg: '',
+
+    theme: (() => { const t = localStorage.getItem('eso-theme'); return (t === 'eso' ? 'gold' : t) || 'gold'; })(),
+    themes: {
+      gold:      { label: 'Gold',      bgR:'26,22,18',    cardR:'37,33,25',    borderR:'61,52,36',    goldR:'201,168,76', textR:'212,200,168', mutedR:'154,143,118', hoverR:'46,40,32'    },
+      light:     { label: 'Light',     bgR:'250,246,238', cardR:'255,255,255', borderR:'217,203,168', goldR:'122,92,0',   textR:'28,20,8',     mutedR:'122,106,74',  hoverR:'240,232,212' },
+      dark:      { label: 'Dark',      bgR:'13,17,23',    cardR:'22,27,34',    borderR:'48,54,61',    goldR:'88,166,255', textR:'230,237,243', mutedR:'125,133,144', hoverR:'28,33,40'    },
+      synthwave: { label: 'Synthwave', bgR:'13,0,26',     cardR:'22,0,40',     borderR:'61,0,102',    goldR:'191,95,255', textR:'255,230,255', mutedR:'170,119,204', hoverR:'32,0,51'     },
+      outrun:    { label: 'Outrun',    bgR:'10,10,30',    cardR:'15,15,46',    borderR:'30,26,74',    goldR:'255,0,144',  textR:'244,234,255', mutedR:'144,128,176', hoverR:'22,22,58'    },
+    },
+
+    setTheme(name) {
+      this.theme = name;
+      localStorage.setItem('eso-theme', name);
+      document.documentElement.setAttribute('data-theme', name);
+      this._applyThemeTailwind(name);
+    },
+
+    _applyThemeTailwind(name) {
+      let el = document.getElementById('theme-tw');
+      if (!el) { el = document.createElement('style'); el.id = 'theme-tw'; document.head.appendChild(el); }
+      if (name === 'gold') { el.textContent = ''; return; }
+      const t = this.themes[name];
+      const r = (rgb, a) => `rgba(${rgb},${a})`;
+      const [g,gR,bg,bgR,card,cardR,border,borderR,text,textR,muted,mutedR,hover,hoverR] = [
+        `var(--t-gold)`,t.goldR, `var(--t-bg)`,t.bgR, `var(--t-card)`,t.cardR,
+        `var(--t-border)`,t.borderR, `var(--t-text)`,t.textR, `var(--t-muted)`,t.mutedR,
+        `var(--t-hover)`,t.hoverR
+      ];
+      el.textContent = [
+        `.bg-eso-bg{background-color:${bg}!important}`,
+        `.bg-eso-card{background-color:${card}!important}`,
+        `.bg-eso-card\\/50{background-color:${r(cardR,.5)}!important}`,
+        `.bg-eso-card\\/70{background-color:${r(cardR,.7)}!important}`,
+        `.bg-eso-border{background-color:${border}!important}`,
+        `.bg-eso-border\\/40{background-color:${r(borderR,.4)}!important}`,
+        `.bg-eso-border\\/70{background-color:${r(borderR,.7)}!important}`,
+        `.bg-eso-border\\/80{background-color:${r(borderR,.8)}!important}`,
+        `.bg-eso-hover{background-color:${hover}!important}`,
+        `.bg-eso-hover\\/30{background-color:${r(hoverR,.3)}!important}`,
+        `.bg-eso-hover\\/50{background-color:${r(hoverR,.5)}!important}`,
+        `.bg-eso-gold{background-color:${g}!important}`,
+        `.bg-eso-gold\\/10{background-color:${r(gR,.1)}!important}`,
+        `.bg-eso-gold\\/20{background-color:${r(gR,.2)}!important}`,
+        `.bg-eso-gold\\/50{background-color:${r(gR,.5)}!important}`,
+        `.bg-eso-gold\\/60{background-color:${r(gR,.6)}!important}`,
+        `.bg-eso-gold\\/70{background-color:${r(gR,.7)}!important}`,
+        `.text-eso-gold{color:${g}!important}`,
+        `.text-eso-gold\\/80{color:${r(gR,.8)}!important}`,
+        `.text-eso-gold\\/70{color:${r(gR,.7)}!important}`,
+        `.text-eso-gold\\/60{color:${r(gR,.6)}!important}`,
+        `.text-eso-gold\\/50{color:${r(gR,.5)}!important}`,
+        `.text-eso-gold\\/40{color:${r(gR,.4)}!important}`,
+        `.text-eso-text{color:${text}!important}`,
+        `.text-eso-muted{color:${muted}!important}`,
+        `.text-eso-muted\\/70{color:${r(mutedR,.7)}!important}`,
+        `.text-eso-muted\\/60{color:${r(mutedR,.6)}!important}`,
+        `.text-eso-muted\\/50{color:${r(mutedR,.5)}!important}`,
+        `.text-eso-muted\\/35{color:${r(mutedR,.35)}!important}`,
+        `.border-eso-border{border-color:${border}!important}`,
+        `.border-eso-border\\/30{border-color:${r(borderR,.3)}!important}`,
+        `.border-eso-border\\/40{border-color:${r(borderR,.4)}!important}`,
+        `.border-eso-border\\/50{border-color:${r(borderR,.5)}!important}`,
+        `.border-eso-gold{border-color:${g}!important}`,
+        `.border-eso-gold\\/40{border-color:${r(gR,.4)}!important}`,
+        `.border-eso-gold\\/50{border-color:${r(gR,.5)}!important}`,
+        `.border-eso-gold\\/60{border-color:${r(gR,.6)}!important}`,
+        `.ring-eso-gold\\/20{--tw-ring-color:${r(gR,.2)}!important}`,
+        `.hover\\:bg-eso-hover:hover{background-color:${hover}!important}`,
+        `.hover\\:bg-eso-hover\\/30:hover{background-color:${r(hoverR,.3)}!important}`,
+        `.hover\\:bg-eso-hover\\/50:hover{background-color:${r(hoverR,.5)}!important}`,
+        `.hover\\:border-eso-gold\\/40:hover{border-color:${r(gR,.4)}!important}`,
+        `.hover\\:text-eso-gold:hover{color:${g}!important}`,
+        `.hover\\:text-eso-text:hover{color:${text}!important}`,
+        `.focus\\:border-eso-gold:focus{border-color:${g}!important}`,
+        `.focus\\:border-eso-gold\\/50:focus{border-color:${r(gR,.5)}!important}`,
+        `.placeholder-eso-muted::placeholder{color:${muted}!important}`,
+        `.group:hover .group-hover\\:text-eso-text{color:${text}!important}`,
+        `.group:hover .group-hover\\:text-eso-gold{color:${g}!important}`,
+      ].join('');
+    },
 
     // Inventory filters
     search: '',
@@ -1630,10 +2344,22 @@ function armory() {
     sortKey: 'name',
     sortDir: 'asc',
 
+    // Character detail inventory filters
+    charInvSearch: '',
+    charInvQuality: '',
+    charInvTypes: [],
+    charInvLocTypes: [],
+    charInvTraits: [],
+    charInvTransmuted: false,
+    charInvCrafted: false,
+    charInvGroupBySet: false,
+    detailPanelHeight: 0,
+
     // Tooltip state
-    tip: { visible: false, item: null, achiev: null, skill: null, sbSet: null, slotLabel: null, x: 0, y: 0 },
+    tip: { visible: false, item: null, achiev: null, skill: null, sbSet: null, ttcPiece: null, slotLabel: null, x: 0, y: 0 },
     setBonusCache: {},
     skillInfoCache: {},
+    ttcPriceCache: {},
 
     qualityOptions: [
       { value:'0', label:'Trash',     color:'#8b8b8b' },
@@ -1654,6 +2380,8 @@ function armory() {
     },
 
     async init() {
+      this.hasDirectoryPicker = typeof window.showDirectoryPicker === 'function';
+      this._applyThemeTailwind(this.theme);
       await Promise.all([
         this.fetchData(),
         this.fetchBuilds(),
@@ -1664,6 +2392,7 @@ function armory() {
       ]);
       this.ready = true;
       this.connectSSE();
+      await this.restoreDirHandle();
     },
 
     async fetchData(silent = false) {
@@ -1672,6 +2401,8 @@ function armory() {
       try {
         const r = await fetch('/api/data');
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const etag = r.headers.get('ETag');
+        if (etag) this.lastKnownMtime = parseFloat(etag);
         this.data = await r.json();
         if (this.data.error) throw new Error(this.data.error);
         this.buildCharMaps();
@@ -1866,6 +2597,167 @@ function armory() {
       return this.itemIdMap[g.item_id]?.quality_color ?? '#a02ee4';
     },
 
+    async uploadFiles() {
+      const fd = new FormData();
+      if (this.$refs.iasyncInput?.files[0]) fd.append('iasync', this.$refs.iasyncInput.files[0]);
+      if (this.$refs.wwInput?.files[0])     fd.append('ww',     this.$refs.wwInput.files[0]);
+      if (!fd.has('iasync') && !fd.has('ww')) return;
+
+      this.uploading = true;
+      this.uploadStatus = null;
+      try {
+        const r = await fetch('/api/upload', { method: 'POST', body: fd });
+        const d = await r.json();
+        this.uploadStatus = d;
+        const tasks = [];
+        if (d.iasync?.ok) tasks.push(this.fetchData(), this.fetchBuilds(), this.fetchAchievements(), this.fetchStickerbook());
+        if (d.ww?.ok)     tasks.push(this.fetchWWBuilds());
+        if (tasks.length) {
+          await Promise.all(tasks);
+          if (d.iasync?.ok) {
+            this.uploadOpen = false;
+            this.showToast('Armory loaded ✓');
+          }
+        }
+      } catch(e) {
+        this.uploadStatus = { error: e.message };
+      } finally {
+        this.uploading = false;
+      }
+    },
+
+    // ── IndexedDB helpers ─────────────────────────────────
+    _idbOp(mode, action) {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open('eso-armory', 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore('kv');
+        req.onsuccess = e => {
+          try {
+            const db = e.target.result;
+            const tx = db.transaction('kv', mode);
+            const op = action(tx.objectStore('kv'));
+            op.onsuccess = () => resolve(op.result);
+            op.onerror  = () => reject(op.error);
+          } catch(err) { reject(err); }
+        };
+        req.onerror = () => reject(req.error);
+      });
+    },
+    _idbGet(key) { return this._idbOp('readonly',  s => s.get(key)); },
+    _idbSet(key, val) { return this._idbOp('readwrite', s => s.put(val, key)); },
+    _idbDel(key) { return this._idbOp('readwrite', s => s.delete(key)); },
+
+    // ── Folder watcher (File System Access API) ───────────
+    async openFolderPicker() {
+      if (!this.hasDirectoryPicker) return;
+      try {
+        const handle = await window.showDirectoryPicker({ mode: 'read' });
+        this.dirHandle = handle;
+        await this._idbSet('dirHandle', handle).catch(() => {});
+        await this.checkDirForChanges(true);
+        this.startDirWatch();
+        this.uploadOpen = false;
+        this.showToast('Watching SavedVariables folder ✓');
+      } catch(e) {
+        if (e.name !== 'AbortError') this.showToast('Folder access denied');
+      }
+    },
+
+    async restoreDirHandle() {
+      try {
+        const handle = await this._idbGet('dirHandle');
+        if (!handle) return;
+        if ((await handle.queryPermission({ mode: 'read' })) !== 'granted') return;
+        this.dirHandle = handle;
+        await this.checkDirForChanges(true);
+        this.startDirWatch();
+      } catch(e) { /* IDB or permission API unavailable */ }
+    },
+
+    startDirWatch() {
+      this.stopDirWatch();
+      this.watchInterval = setInterval(async () => {
+        const changed = await this.checkDirForChanges(false);
+        if (changed) this.showToast('Data updated ✓');
+      }, 5000);
+    },
+
+    stopDirWatch() {
+      if (this.watchInterval) { clearInterval(this.watchInterval); this.watchInterval = null; }
+    },
+
+    async clearDirHandle() {
+      this.stopDirWatch();
+      this.dirHandle = null;
+      this.iasyncLastMod = 0;
+      this.wwLastMod = 0;
+      await this._idbDel('dirHandle').catch(() => {});
+    },
+
+    async checkDirForChanges(force = false) {
+      if (!this.dirHandle || this._uploadInProgress) return false;
+      this._uploadInProgress = true;
+      const fd = new FormData();
+      let iasyncFile = null, wwFile = null;
+      try {
+        const fh = await this.dirHandle.getFileHandle('iasync.lua');
+        iasyncFile = await fh.getFile();
+        if (force || iasyncFile.lastModified > this.iasyncLastMod) fd.append('iasync', iasyncFile);
+      } catch(e) {}
+      try {
+        const fh = await this.dirHandle.getFileHandle('WizardsWardrobe.lua');
+        wwFile = await fh.getFile();
+        if (force || wwFile.lastModified > this.wwLastMod) fd.append('ww', wwFile);
+      } catch(e) {}
+
+      if (!fd.has('iasync') && !fd.has('ww')) { this._uploadInProgress = false; return false; }
+
+      try {
+        const r = await fetch('/api/upload', { method: 'POST', body: fd });
+        const d = await r.json();
+        const tasks = [];
+        if (d.iasync?.ok && iasyncFile) {
+          this.iasyncLastMod = iasyncFile.lastModified;
+          tasks.push(this.fetchData(true), this.fetchBuilds(), this.fetchAchievements(), this.fetchStickerbook());
+        }
+        if (d.ww?.ok && wwFile) {
+          this.wwLastMod = wwFile.lastModified;
+          tasks.push(this.fetchWWBuilds());
+        }
+        if (tasks.length) await Promise.all(tasks);
+        return true;
+      } catch(e) {
+        return false;
+      } finally {
+        this._uploadInProgress = false;
+      }
+    },
+
+    // ── Manual refresh ────────────────────────────────────
+    async manualRefresh() {
+      if (this.refreshing) return;
+      this.refreshing = true;
+      try {
+        if (this.dirHandle) {
+          const changed = await this.checkDirForChanges(false);
+          this.showToast(changed ? 'Data updated ✓' : 'No updates');
+        } else {
+          const r = await fetch('/api/status');
+          const status = await r.json();
+          if (status.ok && status.last_modified && status.last_modified !== this.lastKnownMtime) {
+            await Promise.all([this.fetchData(true), this.fetchAchievements(), this.fetchStickerbook()]);
+            this.showToast('Data updated ✓');
+          } else {
+            this.showToast('No updates');
+          }
+        }
+      } catch(e) {
+        this.showToast('Refresh failed');
+      } finally {
+        this.refreshing = false;
+      }
+    },
+
     connectSSE() {
       const es = new EventSource('/events');
       es.onmessage = e => {
@@ -1886,17 +2778,25 @@ function armory() {
     // ── Tooltip ──────────────────────────────────────────
     tipShow(item, evt) {
       this.tip.item = item;
+      this.tip.achiev = null;
+      this.tip.skill = null;
+      this.tip.sbSet = null;
+      this.tip.ttcPiece = null;
       this.tip.slotLabel = null;
       this.tip.visible = true;
       this._tipPos(evt);
-      if (item?.set_id && item?.set_name) this.fetchSetBonus(item.set_id, item.set_name);
+      if (item?.set_name) this.fetchSetBonus(item.set_id || 0, item.set_name);
     },
     tipShowSlot(item, slotLbl, evt) {
       this.tip.item = item;
+      this.tip.achiev = null;
+      this.tip.skill = null;
+      this.tip.sbSet = null;
+      this.tip.ttcPiece = null;
       this.tip.slotLabel = slotLbl;
       this.tip.visible = true;
       this._tipPos(evt);
-      if (item?.set_id && item?.set_name) this.fetchSetBonus(item.set_id, item.set_name);
+      if (item?.set_name) this.fetchSetBonus(item.set_id || 0, item.set_name);
     },
     _slugify(name) {
       return name.replace(/['''']/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -1921,6 +2821,8 @@ function armory() {
       if (!name || name.startsWith('#')) return;
       this.tip.item   = null;
       this.tip.achiev = null;
+      this.tip.sbSet  = null;
+      this.tip.ttcPiece = null;
       this.tip.skill  = { name, slug: this._slugify(name) };
       this.tip.visible = true;
       this._tipPos(evt);
@@ -1937,19 +2839,56 @@ function armory() {
       const region = (this.data?.meta?.server || 'NA').toUpperCase() === 'EU' ? 'eu' : 'us';
       return `https://${region}.tamrieltradecentre.com/pc/Trade/SearchResult?ItemNamePattern=${encodeURIComponent(pieceName)}`;
     },
+    fmtGold(v) {
+      if (v === null || v === undefined || Number.isNaN(Number(v))) return '—';
+      return Math.round(Number(v)).toLocaleString();
+    },
+    _setBonusKey(item) {
+      return item?.set_id || (item?.set_name ? this._slugify(item.set_name) : null);
+    },
+    getBonusEntry(item) {
+      const key = this._setBonusKey(item);
+      return key != null ? this.setBonusCache[key] : undefined;
+    },
     async fetchSetBonus(setId, setName) {
-      if (!setId || !setName || this.setBonusCache[setId] !== undefined) return;
-      this.setBonusCache[setId] = { loading: true };
+      if (!setName) return;
+      const key = setId || this._slugify(setName);
+      if (this.setBonusCache[key] !== undefined) return;
+      this.setBonusCache[key] = { loading: true };
       try {
         const r = await fetch(`/api/set_bonus?set_id=${setId}&set_name=${encodeURIComponent(setName)}`);
-        this.setBonusCache[setId] = await r.json();
+        this.setBonusCache[key] = await r.json();
       } catch {
-        this.setBonusCache[setId] = { bonuses: [], error: 'fetch failed' };
+        this.setBonusCache[key] = { bonuses: [], error: 'fetch failed' };
+      }
+    },
+    _ttcPriceKey(name) {
+      return (name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    },
+    async fetchTtcPrice(name) {
+      const key = this._ttcPriceKey(name);
+      if (!key || this.ttcPriceCache[key] !== undefined) return;
+      this.ttcPriceCache[key] = { loading: true };
+      try {
+        const r = await fetch(`/api/ttc_price?name=${encodeURIComponent(name)}`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        this.ttcPriceCache[key] = await r.json();
+      } catch(e) {
+        this.ttcPriceCache[key] = {
+          name,
+          loading: false,
+          error: e.message || 'fetch failed',
+          attribution: 'Data from Tamriel Trade Centre',
+          url: this.ttcUrl(name),
+        };
       }
     },
     tipShowAchiev(a, evt) {
       this.tip.item = null;
       this.tip.achiev = a;
+      this.tip.skill = null;
+      this.tip.sbSet = null;
+      this.tip.ttcPiece = null;
       this.tip.slotLabel = null;
       this.tip.visible = true;
       this._tipPos(evt);
@@ -1958,16 +2897,32 @@ function armory() {
       this.tip.item   = null;
       this.tip.achiev = null;
       this.tip.skill  = null;
+      this.tip.ttcPiece = null;
       this.tip.sbSet  = s;
       this.tip.visible = true;
       this._tipPos(evt);
       this.fetchSetBonus(s.setId, s.name);
+    },
+    tipShowSbPiece(pieceName, evt) {
+      const name = pieceName || '';
+      const key = this._ttcPriceKey(name);
+      this.tip.item = null;
+      this.tip.achiev = null;
+      this.tip.skill = null;
+      this.tip.sbSet = null;
+      this.tip.ttcPiece = { name, key, price: this.ttcPriceCache[key] || { loading: true } };
+      this.tip.visible = true;
+      this._tipPos(evt);
+      this.fetchTtcPrice(name).then(() => {
+        if (this.tip.ttcPiece?.key === key) this.tip.ttcPiece.price = this.ttcPriceCache[key];
+      });
     },
     tipHide() {
       this.tip.visible = false;
       this.tip.achiev = null;
       this.tip.skill  = null;
       this.tip.sbSet  = null;
+      this.tip.ttcPiece = null;
     },
     tipMove(evt) {
       if (this.tip.visible) this._tipPos(evt);
@@ -1986,6 +2941,35 @@ function armory() {
     selectChar(char) {
       this.selectedChar = char;
       this.tipHide();
+      this.$nextTick(() => this.syncDetailPanelHeights());
+      setTimeout(() => this.syncDetailPanelHeights(), 100);
+    },
+
+    syncDetailPanelHeights() {
+      if (!this.selectedChar || !this.$refs.currentBuildPanel) {
+        this.detailPanelHeight = 0;
+        return;
+      }
+      if (window.innerWidth < 1536) {
+        this.detailPanelHeight = 0;
+        return;
+      }
+      this.detailPanelHeight = Math.ceil(this.$refs.currentBuildPanel.getBoundingClientRect().height);
+    },
+
+    get detailPanelHeightStyle() {
+      return this.detailPanelHeight ? `height:${this.detailPanelHeight}px` : '';
+    },
+
+    clearCharInvFilters() {
+      this.charInvSearch = '';
+      this.charInvQuality = '';
+      this.charInvTypes = [];
+      this.charInvLocTypes = [];
+      this.charInvTraits = [];
+      this.charInvTransmuted = false;
+      this.charInvCrafted = false;
+      this.charInvGroupBySet = false;
     },
 
     charBuilds(charId) {
@@ -2045,7 +3029,7 @@ function armory() {
         is_bound:         gear.is_bound,
         is_enchanted:     gear.is_enchanted,
         enchant_name:     gear.enchant_name     ?? base?.enchant_name ?? '',
-        set_name:         gear.set_name         ?? base?.set_name     ?? '',
+        set_name:         gear.set_name         || base?.set_name     || '',
         set_id:           gear.set_id           ?? base?.set_id      ?? 0,
       };
       this.tipShowSlot(item, gear.slot_name, evt);
@@ -2332,6 +3316,80 @@ function armory() {
       return result;
     },
 
+    get charInventoryItems() {
+      if (!this.data || !this.selectedChar) return [];
+      const cid = this.selectedChar.id;
+      const result = [];
+      for (const item of this.data.items) {
+        const locations = (item.locations || []).filter(loc =>
+          loc.location_type === 'character' && loc.location_key === cid
+        );
+        if (!locations.length) continue;
+        const total = locations.reduce((sum, loc) => sum + (loc.quantity || 0), 0);
+        result.push({
+          ...item,
+          key: `${item.key}::${cid}`,
+          locations,
+          total_quantity: total,
+        });
+      }
+      return result;
+    },
+
+    get charFilteredItems() {
+      let items = this.charInventoryItems;
+      const q = this.charInvSearch.toLowerCase().trim();
+      if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
+      if (this.charInvQuality !== '') items = items.filter(i => i.quality === parseInt(this.charInvQuality));
+      if (this.charInvTypes.length) items = items.filter(i => this.charInvTypes.includes(String(i.filter_type)));
+      if (this.charInvLocTypes.length) {
+        items = items.filter(item =>
+          item.locations.some(loc => this.charInvLocTypes.includes(String(loc.bag_id)))
+        );
+      }
+      if (this.charInvTraits.length) {
+        if (this.charInvTraits.includes('any')) items = items.filter(i => i.trait_id > 0);
+        else items = items.filter(i => this.charInvTraits.includes(String(i.trait_id)));
+      }
+      if (this.charInvTransmuted) items = items.filter(i => i.is_transmuted);
+      if (this.charInvCrafted)    items = items.filter(i => i.is_crafted);
+      const k = this.sortKey, dir = this.sortDir === 'asc' ? 1 : -1;
+      return [...items].sort((a, b) => {
+        const av = a[k], bv = b[k];
+        return typeof av === 'string' ? dir * av.localeCompare(bv) : dir * (av - bv);
+      });
+    },
+
+    get charGroupedItems() {
+      const groups = {};
+      const noSet = [];
+      for (const item of this.charFilteredItems) {
+        if (item.set_name) {
+          if (!groups[item.set_name]) groups[item.set_name] = [];
+          groups[item.set_name].push(item);
+        } else noSet.push(item);
+      }
+      const result = [];
+      for (const [set, items] of Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])))
+        result.push({ set, count: items.length, items });
+      if (noSet.length) result.push({ set: null, count: noSet.length, items: noSet });
+      return result;
+    },
+
+    get charDisplayItems() {
+      if (!this.charInvGroupBySet) return this.charFilteredItems.map(item => ({ t: 'item', item }));
+      const result = [];
+      for (const group of this.charGroupedItems) {
+        result.push({ t: 'h', set: group.set || 'No Set', count: group.count });
+        for (const item of group.items) result.push({ t: 'item', item });
+      }
+      return result;
+    },
+
+    charItemLocations(item) {
+      return item?.locations || [];
+    },
+
     toggleFilter(arr, val) {
       const idx = arr.indexOf(val);
       if (idx >= 0) arr.splice(idx, 1);
@@ -2368,6 +3426,39 @@ function armory() {
       return `${this.filterTraits.length} Traits`;
     },
 
+    get charInvTypeLabel() {
+      if (!this.charInvTypes.length) return 'Type';
+      const map = {'1':'Weapons','2':'Armor','25':'Jewelry','3':'Consumables','4':'Materials','6':'Glyphs','21':'Furnishings','5':'Misc'};
+      const names = this.charInvTypes.map(v => map[v] || v);
+      return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+    },
+
+    get charInvLocLabel() {
+      if (!this.charInvLocTypes.length) return 'Slots';
+      const map = {'0':'Equipped','1':'Backpack'};
+      const names = this.charInvLocTypes.map(v => map[v] || v);
+      return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+    },
+
+    get charInvTraitLabel() {
+      if (!this.charInvTraits.length) return 'Traits';
+      if (this.charInvTraits.includes('any')) return 'Has Trait';
+      if (this.charInvTraits.length === 1) return this._traitName(this.charInvTraits[0]);
+      return `${this.charInvTraits.length} Traits`;
+    },
+
+    get charInvExtraFilterLabel() {
+      const parts = [];
+      if (this.charInvQuality !== '') {
+        const q = this.qualityOptions.find(q => q.value === this.charInvQuality);
+        parts.push(q ? q.label : 'Quality');
+      }
+      if (this.charInvTransmuted) parts.push('Transmuted');
+      if (this.charInvCrafted) parts.push('Crafted');
+      if (!parts.length) return 'More';
+      return parts.length <= 2 ? parts.join(', ') : `${parts[0]} +${parts.length - 1}`;
+    },
+
     _traitName(v) {
       const m = {'18':'Divines','16':'Infused','25':'Nirnhoned','13':'Reinforced','11':'Sturdy','14':'Well-Fitted','12':'Impenetrable','15':'Training','4':'Infused','26':'Nirnhoned','5':'Defending','2':'Charged','7':'Sharpened','1':'Powered','3':'Precise','8':'Decisive','6':'Training','32':'Protective','29':'Harmony','31':'Bloodthirsty','30':'Triune','33':'Infused','28':'Swift','22':'Arcane','21':'Healthy','23':'Robust'};
       return m[v] || v;
@@ -2377,6 +3468,12 @@ function armory() {
       return this.search || this.filterQuality !== '' || this.filterTypes.length ||
              this.filterLocTypes.length || this.filterChars.length || this.filterTraits.length ||
              this.filterTransmuted || this.filterCrafted || this.filterGroupBySet;
+    },
+
+    get hasActiveCharInvFilters() {
+      return this.charInvSearch || this.charInvQuality !== '' || this.charInvTypes.length ||
+             this.charInvLocTypes.length || this.charInvTraits.length ||
+             this.charInvTransmuted || this.charInvCrafted || this.charInvGroupBySet;
     },
 
   };

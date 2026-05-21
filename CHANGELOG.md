@@ -2,6 +2,74 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.13] - 2026-05-21
+
+### Added
+- **File upload endpoint** — `POST /api/upload` accepts `iasync.lua` and/or `WizardsWardrobe.lua` as multipart form uploads, writes them to `uploads/`, re-parses immediately, and returns item/character/build counts; enables hosting the app for others to test without server-side ESO path access
+- **First-run setup screen** — when no data is loaded the app shows a centered card with a "Select Files…" button linking to the upload modal, replacing the blank error state
+- **Upload modal** — accessible via "⬆ Upload" header button or the setup screen; drag-and-drop or click-to-select inputs for `iasync.lua` (inventory) and `WizardsWardrobe.lua` (optional builds); shows parse results and closes on success
+- **Folder watcher (Chrome/Edge)** — "Auto-Watch Folder" section in the upload modal uses the File System Access API (`showDirectoryPicker`) to select the SavedVariables directory; polls every 5 s, re-uploads any file whose `lastModified` has changed, and toasts on update
+- **IndexedDB persistence** — the selected `FileSystemDirectoryHandle` is stored in `indexedDB` (`eso-armory/kv`); permission is re-verified on page load without a user gesture and the watcher resumes automatically if still granted
+- **Refresh button** — "↻ Refresh" in the header checks for updates on demand: with a folder handle it compares file `lastModified`; without one it calls `/api/status` and compares server-side mtime against the last fetched ETag; toasts "Data updated ✓" or "No updates"
+- **Watching indicator** — a gold dot and folder name appear in the header when the folder watcher is active
+- `python-multipart>=0.0.9` dependency added (required by FastAPI for multipart upload)
+
+## [0.1.0-beta.12] - 2026-05-21
+
+### Fixed
+- **TTC tooltip price display diagnostics** — missing `/api/ttc_price` route responses now surface as explicit HTTP errors in the tooltip, making stale server processes obvious; restart the server after route changes so the price endpoint is registered.
+
+## [0.1.0-beta.11] - 2026-05-21
+
+### Changed
+- **Character detail inventory panel polish** — character drill-down pages now lay out as Current Build → Character Inventory → WW Saved Builds, compact the character inventory filters into a dedicated search row plus short dropdown labels, hide item icons in the character-scoped table to save width, and height-match the Inventory and WW panels to the Current Build panel on wide screens
+
+## [0.1.0-beta.10] - 2026-05-21
+
+### Added
+- **TTC price tooltips for Collections pieces** — individual stickerbook pieces now fetch local Tamriel Trade Centre price data on hover, showing lowest/average/highest prices, listing counts, TTC table timestamp, ESO Armory fetch time, and TTC attribution while preserving click-through search links
+
+### Fixed
+- **TTC tooltip error visibility** — failed `/api/ttc_price` requests now display the HTTP/error status in the tooltip instead of leaving the price area blank
+
+## [0.1.0-beta.9] - 2026-05-21
+
+### Fixed
+- **Theme consistency — Collections progress bars** — stickerbook category nav bars, summary total bar, per-category grid bars, set card progress bars (all 3 card views: search, direct, subcategorized), and the stickerbook set tooltip bar all now use `var(--t-progress)` via inline style instead of `bg-eso-gold` Tailwind classes; complete vs incomplete sets distinguished by `opacity:1` vs `opacity:0.5`; matches the achievements tab's existing pattern
+
+## [0.1.0-beta.8] - 2026-05-21
+
+### Added
+- **Character detail inventory panel** — character drill-down pages now include a character-scoped inventory panel alongside Current Build and WW Saved Builds, with search, quality/type/location/trait filters, Transmuted and Crafted toggles, Group by Set, sorting, tooltips, and set links
+
+### Changed
+- Character detail inventory filters are more compact: search now sits on its own row, dropdown labels are shortened, quality/Transmuted/Crafted live in a single dropdown, item icons are hidden in the character-scoped table, and Group by Set remains a visible toggle; the inventory and WW build panels are height-matched on wide screens with internal scrolling
+
+### Fixed
+- **Mythic set tooltip** — `_fetch_set_bonuses` now stops after the first (1-piece) bonus instead of continuing into related sets listed lower on the eso-sets.com page; previously all 4–5 bonus lines from an adjacent regular set were shown
+- **Set bonus tooltip for mythic items** — `fetchSetBonus` and the tooltip template no longer require a non-zero `set_id`; when `set_id=0` the name slug is used as the cache key so the fetch fires and the bonuses section renders correctly
+- **Server-side set bonus cache collision** — `_set_bonus_cache` now keys by `slug` instead of `0` when `set_id=0`, preventing all mythic items from sharing one cache slot
+
+## [0.1.0-beta.7] - 2026-05-21
+
+### Added
+- **Dark theme** — GitHub-dark-inspired palette: near-black navy background, blue accent (`#58a6ff`), cyan progress bars
+- **Light theme** — warm parchment palette: cream background, white cards, darkened amber accent readable on light backgrounds
+- **Synthwave theme** — deep purple background (`#0d001a`), electric violet accent (`#bf5fff`), neon cyan progress bars
+
+### Changed
+- Theme dropdown button always displays "Theme" rather than the active theme name
+- "ESO Classic" theme renamed to "Gold"; any saved `eso` value in localStorage migrated automatically
+- Dropdown emoji removed; theme list order: Gold → Light → Dark → Synthwave → Outrun
+
+## [0.1.0-beta.6] - 2026-05-21
+
+### Added
+- **Color themes** — swappable UI color palettes with a "Theme" dropdown in the header; selection persists to `localStorage`
+  - **Gold** — the original amber/gold-on-dark palette (default, formerly "ESO Classic")
+  - **Outrun** — deep navy background, hot-pink primary accent, cyan progress bars
+- **Theme architecture** — all UI chrome colors converted to CSS custom properties (`--t-*`); theme-specific overrides injected as a `<style>` block at runtime so Tailwind CDN class names respond correctly; FOUC prevented by a pre-Alpine inline script
+
 ## [0.1.0-beta.5] - 2026-05-20
 
 ### Added

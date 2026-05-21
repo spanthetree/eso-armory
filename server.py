@@ -7,18 +7,19 @@ import platform
 import re
 import sys
 import time
+import urllib.parse
 import urllib.request
 from contextlib import asynccontextmanager
 from html.parser import HTMLParser
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, File, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
-from lua_parser import parse_lua_variable
+from lua_parser import LuaParser, parse_lua_variable
 from data_processor import process_iasync, process_iasync_builds, process_iasync_achievements, process_iasync_stickerbook, process_ww_builds
 
 
@@ -58,10 +59,31 @@ def _eso_sv_path(filename: str) -> str:
     return ""
 
 
-CONFIG_PATH = Path("config.json")
+def _eso_addon_path(*parts: str) -> str:
+    """Return the platform-appropriate path inside the ESO AddOns folder."""
+    eso_rel = Path("Elder Scrolls Online") / "live" / "AddOns" / Path(*parts)
+    if sys.platform == "win32":
+        return str(Path.home() / "Documents" / eso_rel)
+    if "microsoft" in platform.uname().release.lower():
+        skip = {"Public", "Default", "Default User", "All Users"}
+        users = Path("/mnt/c/Users")
+        if users.exists():
+            for u in sorted(users.iterdir()):
+                if u.is_dir() and u.name not in skip:
+                    candidate = u / "Documents" / eso_rel
+                    if candidate.parent.exists():
+                        return str(candidate)
+    return ""
+
+
+CONFIG_PATH  = Path("config.json")
+UPLOADS_DIR  = Path("uploads")
 DEFAULT_CONFIG = {
     "iasync_lua_path": _eso_sv_path("iasync.lua"),
     "ww_lua_path":     _eso_sv_path("WizardsWardrobe.lua"),
+    "ttc_addon_path":  _eso_addon_path("TamrielTradeCentre"),
+    "ttc_lookup_table_path": _eso_addon_path("TamrielTradeCentre", "ItemLookUpTable_EN.lua"),
+    "ttc_price_table_path":  "",
     "port": 5000,
     "server": "NA",
     "poll_interval_seconds": 5,
@@ -85,6 +107,8 @@ _sse_queues: set[asyncio.Queue] = set()
 _ability_icon_map: dict = {}
 _set_bonus_cache: dict  = {}  # set_id  -> {bonuses, url} or {bonuses, url, error}
 _skill_info_cache: dict = {}  # slug    -> {cast_time, cost, type, location, description, ...}
+_ttc_tables: dict = {"lookup": None, "price": None, "lookup_mtime": None, "price_mtime": None, "price_path": None}
+_ttc_price_cache: dict = {}
 
 
 def _build_ability_icon_map() -> dict:
@@ -157,9 +181,9 @@ def _fetch_set_bonuses(slug: str) -> list[dict]:
     lines = [l for l in extractor.get_text().split('\n') if l.strip()]
 
     bonuses: list[dict] = []
-    last_pieces = 0
-    cur_pieces: int | None = None
-    cur_parts:  list[str] = []
+    last_pieces  = 0
+    cur_pieces:   int | None = None
+    cur_parts:    list[str]  = []
 
     def _flush():
         nonlocal cur_pieces, cur_parts
@@ -175,7 +199,7 @@ def _fetch_set_bonuses(slug: str) -> list[dict]:
             pieces = int(bm.group(1))
             if pieces <= last_pieces:
                 break  # piece count reset → entered a new set's section
-            cur_pieces = pieces
+            cur_pieces  = pieces
             last_pieces = pieces
             text = bm.group(2).strip()
             if text:
@@ -183,6 +207,10 @@ def _fetch_set_bonuses(slug: str) -> list[dict]:
         elif cur_pieces is not None:
             if _META_LINE.match(line):
                 _flush()
+                # A meta line after collecting bonuses means we've crossed into a
+                # related set's section (common on mythic pages); stop here.
+                if bonuses:
+                    break
             else:
                 cur_parts.append(line)
 
@@ -242,6 +270,167 @@ def _fetch_skill_info(slug: str) -> dict:
 
         i += 1
 
+    return result
+
+
+def _parse_lua_assignment(path: Path, lhs: str) -> dict:
+    text = path.read_text(encoding="utf-8", errors="replace")
+    marker = f"{lhs}="
+    idx = text.find(marker)
+    if idx == -1:
+        marker = f"{lhs} ="
+        idx = text.find(marker)
+    if idx == -1:
+        raise ValueError(f"Lua assignment {lhs!r} not found in {path}")
+    parser = LuaParser(text)
+    parser.pos = idx + len(marker)
+    return parser._parse_value()
+
+
+def _ttc_price_table_path() -> Path:
+    configured = _config.get("ttc_price_table_path") or ""
+    if configured:
+        p = Path(configured)
+        if p.exists():
+            return p
+    region = "EU" if str(_config.get("server", "NA")).upper() == "EU" else "NA"
+    addon = Path(_config.get("ttc_addon_path") or "")
+    return addon / f"PriceTable{region}.lua"
+
+
+def _ttc_search_url(name: str) -> str:
+    region = "eu" if str(_config.get("server", "NA")).upper() == "EU" else "us"
+    return f"https://{region}.tamrieltradecentre.com/pc/Trade/SearchResult?ItemNamePattern={urllib.parse.quote(name)}"
+
+
+def _ensure_ttc_tables() -> tuple[dict, dict, int | None, Path]:
+    lookup_path = Path(_config.get("ttc_lookup_table_path") or "")
+    price_path = _ttc_price_table_path()
+    lookup_mtime = os.path.getmtime(lookup_path)
+    price_mtime = os.path.getmtime(price_path)
+
+    if (
+        _ttc_tables["lookup"] is not None
+        and _ttc_tables["price"] is not None
+        and _ttc_tables["lookup_mtime"] == lookup_mtime
+        and _ttc_tables["price_mtime"] == price_mtime
+        and _ttc_tables["price_path"] == str(price_path)
+    ):
+        price_time = _ttc_tables["price"].get("TimeStamp") if isinstance(_ttc_tables["price"], dict) else None
+        return _ttc_tables["lookup"], _ttc_tables["price"], price_time, price_path
+
+    t0 = time.monotonic()
+    lookup = _parse_lua_assignment(lookup_path, "self.ItemLookUpTable")
+    price = _parse_lua_assignment(price_path, "self.PriceTable")
+    _ttc_tables.update({
+        "lookup": lookup,
+        "price": price,
+        "lookup_mtime": lookup_mtime,
+        "price_mtime": price_mtime,
+        "price_path": str(price_path),
+    })
+    _ttc_price_cache.clear()
+    logger.info("TTC tables loaded from {} in {:.2f}s", price_path.name, time.monotonic() - t0)
+    return lookup, price, price.get("TimeStamp"), price_path
+
+
+def _first_ttc_item_id(item_ids_by_specialized_type: dict) -> int | None:
+    for item_id in item_ids_by_specialized_type.values():
+        if isinstance(item_id, int):
+            return item_id
+    return None
+
+
+def _first_ttc_price_dict(node, trail: list[int | str] | None = None) -> tuple[dict | None, list[int | str]]:
+    trail = trail or []
+    if isinstance(node, dict):
+        if any(k in node for k in ("A", "Avg")):
+            return node, trail
+        for key, value in node.items():
+            found, found_trail = _first_ttc_price_dict(value, trail + [key])
+            if found is not None:
+                return found, found_trail
+    return None, trail
+
+
+def _fmt_ttc_time(ts) -> str | None:
+    if not isinstance(ts, (int, float)):
+        return None
+    try:
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts))
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
+def _fetch_ttc_price(name: str) -> dict:
+    clean_name = re.sub(r"\s+", " ", name or "").strip()
+    url = _ttc_search_url(clean_name)
+    if not clean_name:
+        return {"name": clean_name, "url": url, "error": "name is required"}
+
+    cache_key = clean_name.lower()
+    if cache_key in _ttc_price_cache:
+        return _ttc_price_cache[cache_key]
+
+    fetched_at = int(time.time())
+    lookup, price_table, price_time, price_path = _ensure_ttc_tables()
+    item_ids = lookup.get(cache_key)
+    if not isinstance(item_ids, dict):
+        result = {
+            "name": clean_name,
+            "fetchedAt": fetched_at,
+            "fetchedAtText": _fmt_ttc_time(fetched_at),
+            "priceTableTime": price_time,
+            "priceTableTimeText": _fmt_ttc_time(price_time),
+            "source": "TTC local PriceTable",
+            "attribution": "Data from Tamriel Trade Centre",
+            "url": url,
+            "error": "No TTC item match",
+        }
+        _ttc_price_cache[cache_key] = result
+        return result
+
+    item_id = _first_ttc_item_id(item_ids)
+    item_node = (price_table.get("Data") or {}).get(item_id) if item_id is not None else None
+    price, trail = _first_ttc_price_dict(item_node)
+    if not price:
+        result = {
+            "name": clean_name,
+            "itemId": item_id,
+            "fetchedAt": fetched_at,
+            "fetchedAtText": _fmt_ttc_time(fetched_at),
+            "priceTableTime": price_time,
+            "priceTableTimeText": _fmt_ttc_time(price_time),
+            "source": "TTC local PriceTable",
+            "attribution": "Data from Tamriel Trade Centre",
+            "url": url,
+            "error": "No TTC price data",
+        }
+        _ttc_price_cache[cache_key] = result
+        return result
+
+    result = {
+        "name": clean_name,
+        "itemId": item_id,
+        "avg": price.get("Avg", price.get("A")),
+        "min": price.get("Min", price.get("N")),
+        "max": price.get("Max", price.get("X")),
+        "entryCount": price.get("EntryCount", price.get("EC")),
+        "amountCount": price.get("AmountCount", price.get("AC")),
+        "suggestedPrice": price.get("SuggestedPrice", price.get("S")),
+        "saleAvg": price.get("SaleAvg", price.get("SA")),
+        "saleEntryCount": price.get("SaleEntryCount", price.get("SE")),
+        "saleAmountCount": price.get("SaleAmountCount", price.get("SAC")),
+        "variantPath": trail,
+        "priceTableTime": price_time,
+        "priceTableTimeText": _fmt_ttc_time(price_time),
+        "fetchedAt": fetched_at,
+        "fetchedAtText": _fmt_ttc_time(fetched_at),
+        "source": f"TTC local {price_path.name}",
+        "attribution": "Data from Tamriel Trade Centre",
+        "url": url,
+    }
+    _ttc_price_cache[cache_key] = result
     return result
 
 
@@ -351,6 +540,7 @@ async def _file_watcher():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _setup_logging()
+    UPLOADS_DIR.mkdir(exist_ok=True)
     _load_config()
     _parse_iasync()
     _parse_ww()
@@ -451,11 +641,61 @@ async def api_status():
     }
 
 
+@app.post("/api/upload")
+async def api_upload(
+    iasync: UploadFile | None = File(None),
+    ww:     UploadFile | None = File(None),
+):
+    """Accept uploaded iasync.lua and/or WizardsWardrobe.lua files."""
+    loop = asyncio.get_event_loop()
+    results = {}
+
+    if iasync and iasync.filename:
+        dest = UPLOADS_DIR / "iasync.lua"
+        data = await iasync.read()
+        dest.write_bytes(data)
+        _config["iasync_lua_path"] = str(dest)
+        # Reset mtime so _parse_iasync re-parses
+        _cache["mtime"] = None
+        await loop.run_in_executor(None, _parse_iasync)
+        if _cache["error"]:
+            results["iasync"] = {"ok": False, "error": _cache["error"]}
+        else:
+            meta = json.loads(_cache["data_bytes"])["meta"]
+            results["iasync"] = {"ok": True, "items": meta["item_count"], "chars": meta["character_count"]}
+            for q in list(_sse_queues):
+                try:
+                    q.put_nowait("reload")
+                except asyncio.QueueFull:
+                    pass
+        logger.info("Uploaded iasync.lua ({} bytes) → {}", len(data), dest)
+
+    if ww and ww.filename:
+        dest = UPLOADS_DIR / "WizardsWardrobe.lua"
+        data = await ww.read()
+        dest.write_bytes(data)
+        _config["ww_lua_path"] = str(dest)
+        _ww_cache["mtime"] = None
+        await loop.run_in_executor(None, _parse_ww)
+        if _ww_cache["error"]:
+            results["ww"] = {"ok": False, "error": _ww_cache["error"]}
+        else:
+            builds = json.loads(_ww_cache["ww_builds_bytes"])
+            n = sum(len(v) for v in builds["builds"].values())
+            results["ww"] = {"ok": True, "builds": n}
+        logger.info("Uploaded WizardsWardrobe.lua ({} bytes) → {}", len(data), dest)
+
+    if not results:
+        return JSONResponse({"error": "No files received"}, status_code=400)
+    return JSONResponse(results)
+
+
 @app.get("/api/set_bonus")
 async def api_set_bonus(set_id: int, set_name: str):
-    if set_id in _set_bonus_cache:
-        return JSONResponse(_set_bonus_cache[set_id])
     slug = _set_name_to_slug(set_name)
+    cache_key = set_id if set_id else slug
+    if cache_key in _set_bonus_cache:
+        return JSONResponse(_set_bonus_cache[cache_key])
     url = f"https://eso-sets.com/set/{slug}"
     try:
         loop = asyncio.get_event_loop()
@@ -465,7 +705,7 @@ async def api_set_bonus(set_id: int, set_name: str):
     except Exception as exc:
         result = {"bonuses": [], "url": url, "error": str(exc)}
         logger.warning("Set bonus fetch failed: {} — {}", set_name, exc)
-    _set_bonus_cache[set_id] = result
+    _set_bonus_cache[cache_key] = result
     return JSONResponse(result)
 
 
@@ -484,6 +724,26 @@ async def api_skill_info(name: str):
         result = {"url": url, "error": str(exc)}
         logger.warning("Skill info fetch failed: {} — {}", name, exc)
     _skill_info_cache[slug] = result
+    return JSONResponse(result)
+
+
+@app.get("/api/ttc_price")
+async def api_ttc_price(name: str):
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, lambda: _fetch_ttc_price(name))
+        logger.info("TTC price: {} → {}", name, "ok" if not result.get("error") else result.get("error"))
+    except Exception as exc:
+        result = {
+            "name": name,
+            "fetchedAt": int(time.time()),
+            "fetchedAtText": _fmt_ttc_time(int(time.time())),
+            "source": "TTC",
+            "attribution": "Data from Tamriel Trade Centre",
+            "url": _ttc_search_url(name),
+            "error": str(exc),
+        }
+        logger.warning("TTC price fetch failed: {} — {}", name, exc)
     return JSONResponse(result)
 
 

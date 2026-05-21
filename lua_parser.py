@@ -61,8 +61,14 @@ class LuaParser:
             self.pos += 1
             while self.pos < self.n and self.text[self.pos].isdigit():
                 self.pos += 1
+        if self.pos < self.n and self.text[self.pos] in ('e', 'E'):
+            self.pos += 1
+            if self.pos < self.n and self.text[self.pos] in ('+', '-'):
+                self.pos += 1
+            while self.pos < self.n and self.text[self.pos].isdigit():
+                self.pos += 1
         s = self.text[start:self.pos]
-        return float(s) if '.' in s else int(s)
+        return float(s) if ('.' in s or 'e' in s.lower()) else int(s)
 
     def _parse_value(self):
         c = self._peek()

@@ -9,6 +9,9 @@ Local web app that reads ESO SavedVariables and presents inventory, equipment, a
 - **Lua parser**: Custom recursive-descent in `lua_parser.py` (stdlib only, no lupa/lark)
 - **Start**: `uv run server.py` → http://localhost:5000 (or `python server.py` if a virtualenv is active via `uv sync --active`)
 
+## Approval Preference
+Before making code or file changes, ask for explicit approval unless the user has already clearly requested implementation in the current turn. Read-only inspection, searches, and non-mutating checks are fine without approval.
+
 ## Key Files
 | File | Purpose |
 |------|---------|
@@ -18,7 +21,7 @@ Local web app that reads ESO SavedVariables and presents inventory, equipment, a
 | `item_link_decoder.py` | Decodes ESO `\|H1:item:...\|h` links → trait/style/enchant fields |
 | `config.json` | Paths to Lua files, port, server region, poll interval |
 | `iasync/iasync.lua` | ESO addon (symlinked to Windows AddOns folder) |
-| `static/index.html` | Full SPA (Characters, Inventory, Locations, Achievements tabs) |
+| `static/index.html` | Full SPA (Characters, Inventory, Achievements, Collections tabs) |
 
 ## Data Sources
 Two SavedVariables files are parsed:
@@ -128,8 +131,10 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 | `GET /api/ww_builds` | `{builds: {charId: [build, ...]}}` from WizardsWardrobe |
 | `GET /api/set_bonus?set_id=&set_name=` | Fetches set bonuses from eso-sets.com (cached in memory) |
 | `GET /api/skill_info?name=` | Fetches skill details from eso-skillbook.com (cached in memory) |
+| `GET /api/ttc_price?name=` | Looks up TTC price data for a stickerbook piece from local Tamriel Trade Centre price tables |
 | `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/...png"}` — scanned at startup |
 | `GET /api/status` | `{ok, item_count, character_count, last_modified, error}` |
+| `POST /api/upload` | Accepts `iasync` and/or `ww` multipart file fields; writes to `uploads/`, re-parses, returns `{iasync: {ok, items, chars}, ww: {ok, builds}}` |
 | `GET /events` | SSE stream; sends `"reload"` when iasync file changes |
 
 ## Server Caches (server.py)
@@ -137,10 +142,27 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 _cache           = {data_bytes, builds_bytes, achievements_bytes, stickerbook_bytes, mtime, error}  # iasync
 _ww_cache        = {ww_builds_bytes, mtime, error}    # WizardsWardrobe
 _ability_icon_map: dict                                # built at startup, static
-_set_bonus_cache: dict                                 # set_id → {bonuses, url}; populated on demand
+_set_bonus_cache: dict                                 # (set_id or name_slug) → {bonuses, url}; populated on demand; mythic items have set_id=0 so slug is used as key
 _skill_info_cache: dict                                # slug → {details}; populated on demand
+_ttc_tables      = {lookup, price, lookup_mtime, price_mtime, price_path}  # local TTC Lua tables, lazy-loaded
+_ttc_price_cache: dict                                 # normalized piece name → TTC price result/error
 ```
 `_ability_icon_map` is built by `_build_ability_icon_map()` at startup — scans `assets/abilities/**/*.png`, normalizes stems to keys.
+
+### Tamriel Trade Centre Price Lookup
+Optional local TTC integration powers Collections piece-price tooltips. Config keys:
+```json
+{
+  "ttc_addon_path": "path/to/AddOns/TamrielTradeCentre",
+  "ttc_lookup_table_path": "path/to/AddOns/TamrielTradeCentre/ItemLookUpTable_EN.lua",
+  "ttc_price_table_path": ""
+}
+```
+Leave `ttc_price_table_path` empty to select `PriceTableNA.lua` or `PriceTableEU.lua` from `ttc_addon_path` using `server`.
+
+`/api/ttc_price?name=` resolves a lowercased piece name through `ItemLookUpTable_EN.lua`, uses the first/default TTC item id, then returns the first available price row from the local price table: `avg`, `min`, `max`, listing counts, suggested/sale values when present, `priceTableTimeText`, `fetchedAtText`, `source`, `attribution`, and the TTC search `url`. TTC website scraping is intentionally avoided because search pages are undocumented and CAPTCHA-prone. Restart the server after changing TTC config paths or adding the endpoint; a stale running process returns 404 for new routes.
+
+If Collections piece tooltips render but price rows are missing, check `/api/ttc_price?name=<piece>` and `logs/armory.log`. A `404` means the running server has not been restarted with the route registered; frontend fetch handling should display the HTTP status instead of a blank price area.
 
 ## Assets System
 All icons are served via `app.mount("/assets", StaticFiles(directory="assets"))`.
@@ -195,6 +217,22 @@ charMaps     // {charId: {slot: gearItem}} — equipped gear per char, built fro
 itemIdMap    // {itemId: item} — for WW gear name lookups (WW links lack embedded names)
 selectedChar // currently expanded character object
 tab          // 'characters' | 'inventory' | 'achievements' | 'stickerbook'
+theme        // 'gold' | 'light' | 'dark' | 'synthwave' | 'outrun' — persisted to localStorage under 'eso-theme'
+themes       // {gold|light|dark|synthwave|outrun: {label, bgR, cardR, borderR, goldR, textR, mutedR, hoverR}}
+             //   *R fields are RGB triplets ('r,g,b') for rgba() math in Tailwind overrides
+// Upload / folder watcher
+uploading, uploadOpen, uploadStatus, uploadIasyncName, uploadWWName
+dirHandle        // FileSystemDirectoryHandle | null — active folder watcher handle
+watchInterval    // setInterval ID | null
+iasyncLastMod    // last seen lastModified for iasync.lua (0 = never checked)
+wwLastMod        // last seen lastModified for WizardsWardrobe.lua
+refreshing       // bool — true while manualRefresh() is in flight
+lastKnownMtime   // float parsed from ETag header of last /api/data response
+hasDirectoryPicker // bool — true if window.showDirectoryPicker is available (Chrome/Edge)
+// Character detail inventory panel
+charInvSearch, charInvQuality, charInvTypes, charInvLocTypes, charInvTraits
+charInvTransmuted, charInvCrafted, charInvGroupBySet
+detailPanelHeight // measured current-build panel height for wide-screen panel matching
 ```
 
 ### Key JS Methods
@@ -220,8 +258,38 @@ sbSubcategories(catName)     // → sorted subcategory name[] within a top-level
 sbSetsInSubcat(catName, sub) // → set[] for a specific subcategory
 setEsoSetsUrl(setName)       // → https://eso-sets.com/set/<slug>
 ttcUrl(pieceName)            // → TTC search URL (us/eu from data.meta.server)
+fetchTtcPrice(name)          // → caches /api/ttc_price response by normalized name
 tipShowSbSet(s, evt)         // shows set tooltip with bonuses from eso-sets.com
+tipShowSbPiece(name, evt)    // shows TTC piece-price tooltip; displays HTTP/error status on failure
+// Upload / folder watcher
+uploadFiles()                // reads $refs.iasyncInput / $refs.wwInput, POSTs to /api/upload, refreshes data
+openFolderPicker()           // showDirectoryPicker() → persists handle to IDB, checkDirForChanges(true), startDirWatch()
+restoreDirHandle()           // on init: loads handle from IDB, queryPermission check (no gesture needed), resumes watch
+startDirWatch()              // setInterval(5s) calling checkDirForChanges(false); toasts on change
+stopDirWatch()               // clearInterval
+clearDirHandle()             // stopDirWatch + null + _idbDel('dirHandle')
+checkDirForChanges(force)    // reads iasync.lua + WW.lua via FSAPI, skips if lastModified unchanged (unless force),
+                             //   uploads changed files, updates iasyncLastMod/wwLastMod; deduped by _uploadInProgress
+manualRefresh()              // with dirHandle: checkDirForChanges(false) + toast; without: /api/status mtime compare
+_idbOp/Get/Set/Del           // thin IndexedDB wrappers (DB: 'eso-armory', store: 'kv')
+// Theme
+setTheme(name)               // sets data-theme on <html>, persists to localStorage, calls _applyThemeTailwind
+_applyThemeTailwind(name)    // injects <style id="theme-tw"> with !important overrides for all eso-* Tailwind classes
+                             //   uses themes[name].*R RGB triplets for rgba() math; no-op (clears tag) for 'gold'
 ```
+
+### Theme System
+All UI chrome colors are CSS custom properties (`--t-*`) on `:root` (Gold palette defaults); per-theme blocks in `[data-theme="name"]` override them. A small pre-Alpine inline `<script>` reads `localStorage` and sets `data-theme` before Alpine boots (prevents FOUC). At runtime `setTheme()` also injects `<style id="theme-tw">` with `!important` overrides for all Tailwind CDN `eso-*` classes. Key `eso-theme` in localStorage; legacy value `'eso'` is migrated to `'gold'` automatically.
+
+**Current themes (in dropdown order):** `gold` (warm amber, default), `light` (parchment/cream, dark amber accent), `dark` (GitHub-dark navy, blue accent), `synthwave` (deep purple, violet + cyan), `outrun` (deep navy, hot pink + cyan)
+
+**Color vars:** `--t-bg`, `--t-card`, `--t-border`, `--t-border-subtle` (30% α), `--t-border-line` (70% α), `--t-border-ghost` (90% α), `--t-gold`, `--t-gold-dark`, `--t-gold-dim` (33% α), `--t-gold-faint` (50% α), `--t-text`, `--t-muted`, `--t-muted-dim`, `--t-hover`, `--t-header-bg`, `--t-tip-bg` (gradient), `--t-tip-border`, `--t-tip-inset`, `--t-achiev-bg`, `--t-progress`
+
+**Game data colors (NOT themed):** Quality colors (fine `#2dc50e`, superior `#5199ff`, epic `#a02ee4`, etc.), magicka/stamina/health resource colors — these come from game data and stay hardcoded.
+
+**Progress bar rule:** All progress bars across every tab use `style="background:var(--t-progress);width:X%"` inline (never `bg-eso-gold` Tailwind on a progress fill). Complete vs incomplete state is expressed via `opacity:1` vs `opacity:0.5` on the fill element.
+
+**Adding a new theme:** (1) Add `[data-theme="name"]` CSS var block in `<style>`; (2) Add entry to `themes` object in `armory()` with `label` + all `*R` RGB triplet fields (`bgR`, `cardR`, `borderR`, `goldR`, `textR`, `mutedR`, `hoverR`).
 
 ### CSS Classes
 ```css
@@ -300,6 +368,39 @@ toggleFilter(arr, val) {
 }
 ```
 
+## Character Detail Inventory Panel (`static/index.html`)
+
+The character drill-down view is ordered Current Build → Character Inventory → WW Saved Builds. On `2xl` screens this is a three-column grid; below that, panels stack/wrap naturally.
+
+### Character-Scoped Inventory State
+The panel has its own filter state so it does not disturb the global Inventory tab:
+```javascript
+charInvSearch: '',
+charInvQuality: '',
+charInvTypes: [],
+charInvLocTypes: [],     // bag ids as strings: '0'=Equipped, '1'=Backpack
+charInvTraits: [],
+charInvTransmuted: false,
+charInvCrafted: false,
+charInvGroupBySet: false,
+detailPanelHeight: 0,
+```
+
+### Computed Getters / Helpers
+- `charInventoryItems` — starts from `data.items`, keeps only locations where `location_type === 'character'` and `location_key === selectedChar.id`, then rewrites `locations`, `total_quantity`, and `key` for the selected character scope.
+- `charFilteredItems` — applies the character panel filters to `charInventoryItems`.
+- `charGroupedItems` / `charDisplayItems` — mirror the main Inventory tab group-by-set sentinel row pattern.
+- `charInvTypeLabel`, `charInvLocLabel`, `charInvTraitLabel`, `charInvExtraFilterLabel` — compact labels for the character panel controls.
+- `charItemLocations(item)` — returns the already-scoped `item.locations` for rendering.
+- `clearCharInvFilters()` — resets only character-panel filters.
+- `syncDetailPanelHeights()` — measures `x-ref="currentBuildPanel"` and sets `detailPanelHeight` only at `2xl` widths (`>=1536px`). Character Inventory and WW Saved Builds use `detailPanelHeightStyle` and internal scrolling so their bottoms align with Current Build.
+
+### Rendering Notes
+- Search gets its own full-width row; Type, Slots, Traits, More, Group by Set, and Clear share the second row.
+- `More` contains quality pills plus Transmuted/Crafted toggles. `Group by Set` remains a visible button.
+- The character-scoped inventory table intentionally omits the icon column to preserve width; the main Inventory tab still renders icons.
+- The table still uses `tipShow(row.item, $event)` and set-name click-through behavior from the main Inventory tab.
+
 ## Item Link Decoder (`item_link_decoder.py`)
 
 ### Standard 21-field format
@@ -324,6 +425,8 @@ Both operations set bit 11 in the flags field. There is **no bit-level distincti
 
 ## Known Quirks / Gotchas
 - **WW mythic key**: `gear` dict has a `"mythic"` string key alongside integer slot keys — `process_ww_builds` skips non-integer keys with `int(slot_raw)` in a try/except.
+- **Mythic items have `set_id=0`**: ESO doesn't populate `setId` for single-piece mythic sets. `fetchSetBonus` and the tooltip template use `set_id || _slugify(set_name)` as the cache key so mythics still get bonuses fetched. `_fetch_set_bonuses` on the server tracks `first_pieces` and breaks on the second bonus line when `first_pieces==1` — eso-sets.com pages for mythics list related multi-piece sets below the fold whose `(2-5 item)` lines would otherwise bleed through the `pieces <= last_pieces` guard.
+- **`getBonusEntry(item)`** (frontend helper): looks up `setBonusCache` by `set_id || slug`; use this instead of `setBonusCache[item.set_id]` everywhere in templates to handle the mythic `set_id=0` case.
 - **WW pages index 0**: `pages[zone][0]` is a char→pageNum mapping dict, not a page with a name — `page_info.get("name", f"Page {page_num}")` handles this.
 - **Bank currency**: `GetCurrencyAmount(..., CURRENCY_LOCATION_BANK)` returns `nil` when called outside bank context — always guard with `or prevValue` in Lua.
 - **Ability names keyed two ways**: iasync_data has both `abilityNames` and `$abilityNames` — `process_iasync_builds` merges both.

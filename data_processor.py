@@ -353,19 +353,23 @@ def process_iasync_achievements(raw: dict) -> dict:
         for sidx in sorted(subcats_raw.keys(), key=lambda x: (int(x) if isinstance(x, int) else x)):
             s = subcats_raw[sidx]
             subcats.append({
-                "name":      s.get("name", ""),
-                "total":     int(s.get("total", 0)),
-                "complete":  int(s.get("complete", 0)),
-                "totalPts":  int(s.get("totalPts", 0)),
-                "earnedPts": int(s.get("earnedPts", 0)),
+                "name":           s.get("name", ""),
+                "total":          int(s.get("total", 0)),
+                "complete":       int(s.get("complete", 0)),
+                "totalPts":       int(s.get("totalPts", 0)),
+                "earnedPts":      int(s.get("earnedPts", 0)),
+                "numAchievements": int(s.get("numAchievements", 0)),
+                "hidesUnearned":  bool(s.get("hidesUnearned", False)),
             })
         categories.append({
-            "name":      cat.get("name", ""),
-            "total":     int(cat.get("total", 0)),
-            "complete":  int(cat.get("complete", 0)),
-            "totalPts":  int(cat.get("totalPts", 0)),
-            "earnedPts": int(cat.get("earnedPts", 0)),
-            "subcats":   subcats,
+            "name":           cat.get("name", ""),
+            "total":          int(cat.get("total", 0)),
+            "complete":       int(cat.get("complete", 0)),
+            "totalPts":       int(cat.get("totalPts", 0)),
+            "earnedPts":      int(cat.get("earnedPts", 0)),
+            "numAchievements": int(cat.get("numAchievements", 0)),
+            "hidesUnearned":  bool(cat.get("hidesUnearned", False)),
+            "subcats":        subcats,
         })
 
     # ── Individual achievements — kept per-character ─────────────────────────────
@@ -397,8 +401,27 @@ def process_iasync_achievements(raw: dict) -> dict:
             "complete":            bool(a.get("complete", False)),
             "completionTimestamp": int(a.get("completionTimestamp", 0)),
             "completionDate":      a.get("completionDate", ""),
+            "persistenceLevel":    int(a.get("persistenceLevel", 0)),
+            "lineBaseId":          int(a.get("lineBaseId", aid)),
+            "linePreviousId":      int(a.get("linePreviousId", 0)),
+            "lineNextId":          int(a.get("lineNextId", 0)),
+            "completedByCharId":   a.get("completedByCharId", ""),
+            "completedByCharName": a.get("completedByCharName", ""),
             "criteria":            criteria,
+            "rewards":             [r for r in a.get("rewards", []) if isinstance(r, dict)],
         }
+
+    account_items: list[dict] = []
+    account_raw = achiev_raw.get("account", {})
+    for achiev_id, a in account_raw.items():
+        if not isinstance(a, dict):
+            continue
+        aid = int(achiev_id)
+        item = _parse_achiev(a, aid)
+        account_items.append(item)
+        if aid not in seen_ids:
+            seen_ids.add(aid)
+            all_achiev.append(item)
 
     for char_id, char_data in chars_raw.items():
         if not isinstance(char_data, dict):
@@ -435,6 +458,7 @@ def process_iasync_achievements(raw: dict) -> dict:
         "earnedPts":     int(achiev_raw.get("earnedPts", 0)),
         "lastUpdate":    int(achiev_raw.get("lastUpdate", 0)),
         "categories":    categories,
+        "account_items": account_items,
         "items_by_char": items_by_char,
         "chars":         chars_with_achiev,
         "recent":        recent,
