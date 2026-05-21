@@ -131,11 +131,14 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 | `GET /api/ww_builds` | `{builds: {charId: [build, ...]}}` from WizardsWardrobe |
 | `GET /api/set_bonus?set_id=&set_name=` | Fetches set bonuses from eso-sets.com (cached in memory) |
 | `GET /api/skill_info?name=` | Fetches skill details from eso-skillbook.com (cached in memory) |
-| `GET /api/ttc_price?name=&session=` | Looks up TTC price data for a stickerbook piece from uploaded session TTC tables or configured local Tamriel Trade Centre price tables |
+| `GET /api/ttc_price?name=&session=&share=` | Looks up TTC price data for a stickerbook piece from uploaded session TTC tables or configured local Tamriel Trade Centre price tables |
+| `GET /api/share?session=&share=` | Returns the current pairing code for a workspace if one exists |
+| `POST /api/share?session=&share=` | Creates a pairing code for the resolved workspace if none exists yet |
+| `POST /api/share/join?session=&code=` | Validates a pairing code and binds the browser to the shared workspace |
 | `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/...png"}` — scanned at startup |
-| `GET /api/status` | `{ok, item_count, character_count, last_modified, error}` |
-| `POST /api/upload?session=` | Accepts `iasync`, `ww`, `ttc_lookup`, and `ttc_price` multipart file fields; requires valid UUID session; writes to `uploads/<session_id>/`, re-parses into session cache, notifies session SSE queue; returns `{iasync: {ok, items, chars}, ww: {ok, builds}, ttc_lookup: {ok}, ttc_price: {ok}}` |
-| `GET /events?session=` | SSE stream; joins session queue if session has data, else global queue; sends `"reload"` on data change |
+| `GET /api/status?session=&share=` | `{ok, item_count, character_count, last_modified, error}` |
+| `POST /api/upload?session=&share=` | Accepts `iasync`, `ww`, `ttc_lookup`, and `ttc_price` multipart file fields; requires valid UUID session; writes to `uploads/<session_id>/`, re-parses into session cache, notifies session SSE queue; returns `{iasync: {ok, items, chars}, ww: {ok, builds}, ttc_lookup: {ok}, ttc_price: {ok}}` |
+| `GET /events?session=&share=` | SSE stream; joins the shared workspace queue when `share` resolves, otherwise the browser's own session queue if it has data, else global queue; sends `"reload"` on data change |
 
 ## Server Caches (server.py)
 ```python
@@ -155,7 +158,10 @@ _ttc_price_cache: dict                                 # normalized piece name �
 `_ability_icon_map` is built by `_build_ability_icon_map()` at startup — scans `assets/abilities/**/*.png`, normalizes stems to keys.
 
 ### Session isolation
-`_resolve_cache(session_id)` / `_resolve_ww_cache(session_id)` return the session's cache if it has data, else the global cache — local users with `config.json` paths are transparent to this. `_SESSION_RE` validates UUIDs before using them as filesystem paths (`uploads/<session_id>/`). `_session_cleanup()` background task (5 min interval) evicts sessions idle > 2 hours and `shutil.rmtree`s their upload directory. Parse functions refactored: `_parse_iasync_into(path, cache)` / `_parse_ww_into(path, cache)` take explicit targets; `_parse_iasync()` / `_parse_ww()` are thin wrappers for the global case.
+`_resolve_cache(session_id, share)` / `_resolve_ww_cache(session_id, share)` return the shared workspace cache when `share` resolves to a canonical session, otherwise the browser's own session cache if it has data, else the global cache. `_SESSION_RE` validates UUIDs before using them as filesystem paths (`uploads/<session_id>/`). Pairing codes live in `uploads/share_registry.json` and map short share codes back to the canonical session id. Shared sessions are treated as persistent workspaces and are skipped by the idle cleanup task; private sessions still expire after 2 hours. Parse functions refactored: `_parse_iasync_into(path, cache)` / `_parse_ww_into(path, cache)` take explicit targets; `_parse_iasync()` / `_parse_ww()` are thin wrappers for the global case.
+
+### Workspace sharing
+The header Share button is the entry point for cross-device reuse. `POST /api/share` creates a pairing code for the canonical session, `POST /api/share/join` validates and binds a browser to that code, and the client stores the code in `localStorage` as `eso-share-code`. All workspace-scoped fetches and SSE use `?share=` when present so the same uploaded data appears on another device without a re-upload. The share code is a convenience token, not strong authentication.
 
 ### Tamriel Trade Centre Price Lookup
 Optional local TTC integration powers Collections piece-price tooltips. Config keys:

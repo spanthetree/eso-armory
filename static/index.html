@@ -716,6 +716,87 @@
     </div>
   </div>
 
+  <!-- Share modal -->
+  <div x-show="shareOpen" x-cloak
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    style="background:rgba(0,0,0,0.7)"
+    @keydown.escape.window="shareOpen = false">
+    <div class="w-full max-w-md rounded-xl p-7 relative"
+      style="background:var(--t-card);border:1px solid var(--t-border)"
+      @click.stop>
+      <button @click="shareOpen = false"
+        class="absolute top-4 right-4 text-lg leading-none"
+        style="color:var(--t-muted)">&times;</button>
+
+      <h2 class="font-cinzel font-bold text-lg mb-1" style="color:var(--t-gold)">Share Workspace</h2>
+      <p class="text-xs mb-5" style="color:var(--t-muted)">
+        Pair another browser or device to this uploaded data. Anyone with the code can access the same workspace.
+      </p>
+
+      <template x-if="shareCode">
+        <div class="mb-4 rounded-lg p-4" style="background:var(--t-bg);border:1px solid var(--t-border)">
+          <div class="text-xs uppercase tracking-wide mb-2"
+            style="color:var(--t-gold);font-family:'Cinzel',serif">Current Code</div>
+          <div class="flex items-center gap-2">
+            <code class="flex-1 rounded px-2 py-1 text-sm"
+              style="background:var(--t-card);color:var(--t-text)" x-text="shareCode"></code>
+            <button @click="copyShareCode()"
+              class="rounded px-3 py-1.5 text-xs border transition-colors"
+              style="border-color:var(--t-border);background:var(--t-card);color:var(--t-muted)">
+              Copy Code
+            </button>
+          </div>
+          <p class="mt-2 text-[10px] break-all" style="color:var(--t-muted)" x-text="shareLink()"></p>
+          <div class="mt-3 flex items-center gap-2">
+            <button @click="copyShareLink()"
+              class="rounded px-3 py-1.5 text-xs border transition-colors"
+              style="border-color:var(--t-border);background:var(--t-card);color:var(--t-muted)">
+              Copy Share Link
+            </button>
+            <button @click="clearShareCode(); shareStatus = null"
+              class="rounded px-3 py-1.5 text-xs border transition-colors"
+              style="border-color:var(--t-border);background:var(--t-card);color:var(--t-muted)">
+              Unlink This Browser
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <div class="mb-4">
+        <div class="text-xs font-semibold mb-1.5 uppercase tracking-wide"
+          style="color:var(--t-gold);font-family:'Cinzel',serif">Pair a Code</div>
+        <div class="flex gap-2">
+          <input x-model.trim="shareJoinCode"
+            class="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
+            style="background:var(--t-bg);border:1px solid var(--t-border);color:var(--t-text)"
+            placeholder="ABCD-EFGH" />
+          <button @click="joinShareCode()"
+            class="rounded-lg px-4 py-2 text-sm border transition-colors"
+            :disabled="shareBusy"
+            :style="shareBusy ? 'border-color:var(--t-border);background:var(--t-bg);color:var(--t-muted);cursor:not-allowed' : 'border-color:var(--t-gold);background:var(--t-gold);color:var(--t-bg)'">
+            <span x-show="!shareBusy">Join</span>
+            <span x-show="shareBusy" class="animate-pulse">Joining…</span>
+          </button>
+        </div>
+      </div>
+
+      <button @click="createShareCode()"
+        class="w-full py-2.5 rounded-lg font-cinzel font-semibold text-sm"
+        :disabled="shareBusy"
+        :style="shareBusy ? 'background:var(--t-border);color:var(--t-muted);cursor:not-allowed' : 'background:var(--t-gold);color:var(--t-bg)'">
+        <span x-show="!shareBusy">Create Share Code</span>
+        <span x-show="shareBusy" class="animate-pulse">Working…</span>
+      </button>
+
+      <template x-if="shareStatus">
+        <div class="mt-4 text-sm">
+          <p x-show="shareStatus.ok" class="text-green-400" x-text="shareStatus.message"></p>
+          <p x-show="!shareStatus.ok" class="text-red-400" x-text="shareStatus.error"></p>
+        </div>
+      </template>
+    </div>
+  </div>
+
   <!-- Toast notification -->
   <div class="toast" :class="{ show: toastVisible }" x-text="toastMsg"></div>
 
@@ -763,6 +844,20 @@
           style="background:var(--t-bg);border-color:var(--t-border);color:var(--t-muted)"
           title="Upload data files">
           <span>⬆ Upload</span>
+        </button>
+        <template x-if="shareCode">
+          <span class="flex items-center gap-1 border rounded px-2 py-1 text-xs"
+            style="background:var(--t-bg);border-color:var(--t-border);color:var(--t-gold)"
+            :title="'Shared workspace ' + shareCode">
+            <span>🔗</span>
+            <span x-text="shareCode"></span>
+          </span>
+        </template>
+        <button @click="shareJoinCode = shareCode || ''; shareOpen = true; shareStatus = null"
+          class="flex items-center gap-1.5 border rounded px-2 py-1 text-xs transition-colors focus:outline-none"
+          style="background:var(--t-bg);border-color:var(--t-border);color:var(--t-muted)"
+          title="Create or join a shared workspace">
+          <span>Share</span>
         </button>
         <!-- Theme selector -->
         <div class="relative" x-data="{ tOpen: false }" @click.outside="tOpen = false">
@@ -2327,6 +2422,14 @@ function armory() {
     hasDirectoryPicker: false,
     _uploadInProgress: false,
     _sessionId: null,
+    shareCode: '',
+    shareJoinCode: '',
+    shareOpen: false,
+    shareStatus: null,
+    shareBusy: false,
+    _sse: null,
+    _sseGeneration: 0,
+    _sseRetryTimer: null,
     toastVisible: false,
     toastMsg: '',
 
@@ -2464,17 +2567,30 @@ function armory() {
         localStorage.setItem('eso-session-id', id);
         return id;
       })();
+      const urlShare = new URLSearchParams(window.location.search).get('share');
+      this.shareCode = this._normalizeShareCode(urlShare || localStorage.getItem('eso-share-code') || '');
+      if (this.shareCode) localStorage.setItem('eso-share-code', this.shareCode);
       this.hasDirectoryPicker = typeof window.showDirectoryPicker === 'function';
       this._applyThemeTailwind(this.theme);
       // Poll until the server is up (handles Render free-tier cold starts returning 503).
       while (true) {
         try {
-          const probe = await fetch(`/api/status?session=${this._sessionId}`,
+          const probe = await fetch(this.apiUrl('/api/status', {}, false),
             { signal: AbortSignal.timeout(6000) });
           if (probe.status !== 503) { this.serverWaking = false; break; }
         } catch(_) {}
         this.serverWaking = true;
         await new Promise(res => setTimeout(res, 3000));
+      }
+      if (this.shareCode) {
+        try {
+          const validated = await this.validateShareCode(this.shareCode);
+          if (!validated) {
+            this.clearShareCode({ quiet: true, removeUrl: Boolean(urlShare) });
+          }
+        } catch(_) {
+          this.clearShareCode({ quiet: true, removeUrl: Boolean(urlShare) });
+        }
       }
       await Promise.all([
         this.fetchData(),
@@ -2489,11 +2605,140 @@ function armory() {
       await this.restoreDirHandle();
     },
 
+    _normalizeShareCode(code) {
+      const raw = (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (raw.length !== 8) return '';
+      return `${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
+    },
+
+    apiUrl(path, params = {}, includeShare = true) {
+      const qp = new URLSearchParams();
+      qp.set('session', this._sessionId);
+      if (includeShare && this.shareCode) qp.set('share', this.shareCode);
+      for (const [key, value] of Object.entries(params)) {
+        if (value === undefined || value === null || value === '') continue;
+        qp.set(key, value);
+      }
+      return `${path}?${qp.toString()}`;
+    },
+
+    shareLink(code = this.shareCode) {
+      const normalized = this._normalizeShareCode(code);
+      if (!normalized) return '';
+      const url = new URL(window.location.href);
+      url.searchParams.set('share', normalized);
+      return url.toString();
+    },
+
+    async validateShareCode(code) {
+      const normalized = this._normalizeShareCode(code);
+      if (!normalized) return '';
+      const r = await fetch(this.apiUrl('/api/share/join', { code: normalized }, false), { method: 'POST' });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.error || `HTTP ${r.status}`);
+      }
+      const d = await r.json();
+      const joined = this._normalizeShareCode(d.code || normalized);
+      if (joined) {
+        this.shareCode = joined;
+        localStorage.setItem('eso-share-code', joined);
+      }
+      return joined;
+    },
+
+    async createShareCode() {
+      if (this.shareBusy) return;
+      this.shareBusy = true;
+      this.shareStatus = null;
+      try {
+        const r = await fetch(this.apiUrl('/api/share', {}, true), { method: 'POST' });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+        const code = this._normalizeShareCode(d.code);
+        if (!code) throw new Error('Share code unavailable');
+        this.shareCode = code;
+        localStorage.setItem('eso-share-code', code);
+        this.shareJoinCode = code;
+        this.shareStatus = { ok: true, message: 'Share code created.' };
+        this.connectSSE();
+        this.showToast('Workspace shared ✓');
+      } catch(e) {
+        this.shareStatus = { ok: false, error: e.message };
+      } finally {
+        this.shareBusy = false;
+      }
+    },
+
+    async joinShareCode() {
+      if (this.shareBusy) return;
+      const code = this._normalizeShareCode(this.shareJoinCode);
+      if (!code) {
+        this.shareStatus = { ok: false, error: 'Enter a valid pairing code' };
+        return;
+      }
+      this.shareBusy = true;
+      this.shareStatus = null;
+      try {
+        const validated = await this.validateShareCode(code);
+        if (!validated) throw new Error('Pairing code unavailable');
+        this.shareJoinCode = validated;
+        this.shareStatus = { ok: true, message: 'Joined shared workspace.' };
+        this.connectSSE();
+        await Promise.all([
+          this.fetchData(true),
+          this.fetchBuilds(),
+          this.fetchWWBuilds(),
+          this.fetchAchievements(),
+          this.fetchStickerbook(),
+        ]);
+        this.showToast('Shared workspace connected ✓');
+      } catch(e) {
+        this.shareStatus = { ok: false, error: e.message };
+      } finally {
+        this.shareBusy = false;
+      }
+    },
+
+    async copyShareLink() {
+      const link = this.shareLink();
+      if (!link) return;
+      try {
+        await navigator.clipboard.writeText(link);
+        this.showToast('Share link copied');
+      } catch(_) {
+        this.showToast('Copy failed');
+      }
+    },
+
+    async copyShareCode() {
+      const code = this._normalizeShareCode(this.shareCode);
+      if (!code) return;
+      try {
+        await navigator.clipboard.writeText(code);
+        this.showToast('Share code copied');
+      } catch(_) {
+        this.showToast('Copy failed');
+      }
+    },
+
+    clearShareCode({ quiet = false, removeUrl = false } = {}) {
+      this.shareCode = '';
+      localStorage.removeItem('eso-share-code');
+      if (removeUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('share');
+        history.replaceState({}, '', url.toString());
+      }
+      if (this.ready) this.connectSSE();
+      if (!quiet) this.showToast('Workspace sharing cleared');
+    },
+
     async fetchData(silent = false) {
       if (!silent) this.loading = true;
       this.error = null;
       try {
-        const r = await fetch(`/api/data?session=${this._sessionId}`);
+        const r = await fetch(this.apiUrl('/api/data'));
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const etag = r.headers.get('ETag');
         if (etag) this.lastKnownMtime = parseFloat(etag);
@@ -2510,7 +2755,7 @@ function armory() {
 
     async fetchBuilds() {
       try {
-        const r = await fetch(`/api/builds?session=${this._sessionId}`);
+        const r = await fetch(this.apiUrl('/api/builds'));
         if (!r.ok) { this.buildsError = `HTTP ${r.status}`; return; }
         const d = await r.json();
         if (d.error) { this.buildsError = d.error; return; }
@@ -2522,7 +2767,7 @@ function armory() {
 
     async fetchWWBuilds() {
       try {
-        const r = await fetch(`/api/ww_builds?session=${this._sessionId}`);
+        const r = await fetch(this.apiUrl('/api/ww_builds'));
         if (!r.ok) return;
         const d = await r.json();
         if (d.error) return;
@@ -2532,7 +2777,7 @@ function armory() {
 
     async fetchAchievements() {
       try {
-        const r = await fetch(`/api/achievements?session=${this._sessionId}`);
+        const r = await fetch(this.apiUrl('/api/achievements'));
         if (!r.ok) return;
         const d = await r.json();
         if (d.error) return;
@@ -2561,7 +2806,7 @@ function armory() {
 
     async fetchStickerbook() {
       try {
-        const r = await fetch(`/api/stickerbook?session=${this._sessionId}`);
+        const r = await fetch(this.apiUrl('/api/stickerbook'));
         if (!r.ok) return;
         const d = await r.json();
         if (d.error) return;
@@ -2717,7 +2962,7 @@ function armory() {
       this.uploading = true;
       this.uploadStatus = null;
       try {
-        const r = await fetch(`/api/upload?session=${this._sessionId}`, { method: 'POST', body: fd });
+        const r = await fetch(this.apiUrl('/api/upload'), { method: 'POST', body: fd });
         const d = await r.json();
         this.uploadStatus = d;
         const tasks = [];
@@ -2728,6 +2973,7 @@ function armory() {
           await Promise.all(tasks);
           if (d.iasync?.ok) {
             this.uploadOpen = false;
+            this.shareOpen = false;
             this.showToast('Armory loaded ✓');
           }
         }
@@ -2849,7 +3095,7 @@ function armory() {
       }
 
       try {
-        const r = await fetch(`/api/upload?session=${this._sessionId}`, { method: 'POST', body: fd });
+        const r = await fetch(this.apiUrl('/api/upload'), { method: 'POST', body: fd });
         const d = await r.json();
         const tasks = [];
         if (d.iasync?.ok && iasyncFile) {
@@ -2886,7 +3132,7 @@ function armory() {
           const changed = await this.checkDirForChanges(false);
           this.showToast(changed ? 'Data updated ✓' : 'No updates');
         } else {
-          const r = await fetch(`/api/status?session=${this._sessionId}`);
+          const r = await fetch(this.apiUrl('/api/status'));
           const status = await r.json();
           if (status.ok && status.last_modified && status.last_modified !== this.lastKnownMtime) {
             await Promise.all([this.fetchData(true), this.fetchAchievements(), this.fetchStickerbook()]);
@@ -2903,14 +3149,23 @@ function armory() {
     },
 
     connectSSE() {
-      const es = new EventSource(`/events?session=${this._sessionId}`);
+      if (this._sse) { try { this._sse.close(); } catch(_) {} }
+      if (this._sseRetryTimer) { clearTimeout(this._sseRetryTimer); this._sseRetryTimer = null; }
+      const gen = ++this._sseGeneration;
+      const es = new EventSource(this.apiUrl('/events'));
+      this._sse = es;
       es.onmessage = e => {
         if (e.data === 'reload') {
           Promise.all([this.fetchData(true), this.fetchAchievements(), this.fetchStickerbook()])
             .then(() => this.showToast('Data updated ✓'));
         }
       };
-      es.onerror = () => setTimeout(() => this.connectSSE(), 5000);
+      es.onerror = () => {
+        if (this._sse === es) this._sse = null;
+        this._sseRetryTimer = setTimeout(() => {
+          if (this._sseGeneration === gen) this.connectSSE();
+        }, 5000);
+      };
     },
 
     showToast(msg) {
@@ -3014,7 +3269,7 @@ function armory() {
       if (!key || this.ttcPriceCache[key] !== undefined) return;
       this.ttcPriceCache[key] = { loading: true };
       try {
-        const r = await fetch(`/api/ttc_price?session=${this._sessionId}&name=${encodeURIComponent(name)}`);
+        const r = await fetch(this.apiUrl('/api/ttc_price', { name }));
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         this.ttcPriceCache[key] = await r.json();
       } catch(e) {

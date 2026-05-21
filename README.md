@@ -1,6 +1,6 @@
 # ESO Armory
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.18-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.20-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -18,9 +18,11 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 - **Color themes** — five palettes (Gold, Light, Dark, Synthwave, Outrun) switchable via a "Theme" dropdown in the header; selection persists across sessions
 - **Live reload** — watches SavedVariables files and updates the browser automatically via SSE
 - **File upload / remote use** — upload `iasync.lua`, `WizardsWardrobe.lua`, and optional Tamriel Trade Centre tables directly via the browser instead of relying on local file paths; hosted users can seed TTC pricing manually even without a live watcher
+- **Workspace sharing** — create a pairing code or share link from the header so another browser or device can join the same uploaded workspace later; private sessions remain the default
+- **Shared workspace persistence** — pairing codes are backed by a small server-side registry so the same uploaded data can be reopened on another browser later without re-uploading
 - **Folder watcher** (Chrome/Edge) — select your ESO `live` folder once and the app polls for changes every 5 s, re-uploading `SavedVariables/` and Tamriel Trade Centre tables from `AddOns/TamrielTradeCentre/` automatically; directory handle persists across sessions via IndexedDB
 - **Refresh button** — manually check for updated data at any time; toasts "Data updated ✓" or "No updates"
-- **Session isolation** — each browser gets a UUID stored in `localStorage`; multiple users on the same hosted instance see only their own uploaded data; sessions expire after 2 hours of inactivity
+- **Session isolation** — each browser gets a UUID stored in `localStorage`; multiple users on the same hosted instance see only their own uploaded data by default, but a browser can opt into a shared workspace with a pairing code; private sessions still expire after 2 hours of inactivity
 
 ## Requirements
 

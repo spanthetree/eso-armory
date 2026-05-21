@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.20] - 2026-05-21
+
+### Fixed
+- **Workspace sharing docs and release metadata** — README, AGENTS, changelog, and package version now reflect the pairing-code shared workspace flow
+
+## [0.1.0-beta.19] - 2026-05-21
+
+### Added
+- **Workspace pairing codes** — hosted browsers can now create or join a shared workspace from the header, copy a share link, or enter a pairing code so the same uploaded ESO data is available on a second browser or device later
+
+### Changed
+- **Shared workspace resolution** — `/api/data`, `/api/builds`, `/api/achievements`, `/api/stickerbook`, `/api/ww_builds`, `/api/upload`, `/api/status`, `/events`, and `/api/ttc_price` now resolve through a canonical shared workspace when a pairing code is present, while private browser sessions remain the default
+
 ## [0.1.0-beta.18] - 2026-05-21
 
 ### Changed

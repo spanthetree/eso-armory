@@ -8,6 +8,7 @@ import re
 import shutil
 import sys
 import time
+import secrets
 import urllib.parse
 import urllib.request
 from contextlib import asynccontextmanager
@@ -79,6 +80,7 @@ def _eso_addon_path(*parts: str) -> str:
 
 CONFIG_PATH  = Path("config.json")
 UPLOADS_DIR  = Path("uploads")
+SHARE_REGISTRY_PATH = UPLOADS_DIR / "share_registry.json"
 DEFAULT_CONFIG = {
     "iasync_lua_path": _eso_sv_path("iasync.lua"),
     "ww_lua_path":     _eso_sv_path("WizardsWardrobe.lua"),
@@ -110,6 +112,7 @@ _sse_queues: set[asyncio.Queue] = set()
 _SESSION_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 _SESSION_TTL = 7200  # seconds before an idle session is evicted
 _sessions: dict[str, dict] = {}
+_share_registry: dict = {"codes": {}}
 
 _ability_icon_map: dict = {}
 _set_bonus_cache: dict  = {}  # set_id  -> {bonuses, url} or {bonuses, url, error}
@@ -122,6 +125,129 @@ _ttc_tables: dict = {
     "lookup_path": None,
     "price_path": None,
 }
+
+_SHARE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+_SHARE_CODE_LEN = 8
+
+
+def _load_share_registry() -> None:
+    global _share_registry
+    if not SHARE_REGISTRY_PATH.exists():
+        _share_registry = {"codes": {}}
+        return
+    try:
+        data = json.loads(SHARE_REGISTRY_PATH.read_text(encoding="utf-8"))
+        codes = data.get("codes") if isinstance(data, dict) else {}
+        if not isinstance(codes, dict):
+            raise ValueError("share registry missing codes map")
+        _share_registry = {"codes": codes}
+    except Exception as exc:
+        logger.warning("Share registry load failed: {}", exc)
+        _share_registry = {"codes": {}}
+
+
+def _save_share_registry() -> None:
+    SHARE_REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    tmp = SHARE_REGISTRY_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(_share_registry, indent=2, sort_keys=True), encoding="utf-8")
+    tmp.replace(SHARE_REGISTRY_PATH)
+
+
+def _normalize_share_code(code: str | None) -> str | None:
+    raw = re.sub(r"[^A-Za-z0-9]", "", code or "").upper()
+    if len(raw) != _SHARE_CODE_LEN:
+        return None
+    return f"{raw[:4]}-{raw[4:]}"
+
+
+def _generate_share_code() -> str:
+    while True:
+        raw = "".join(secrets.choice(_SHARE_CODE_ALPHABET) for _ in range(_SHARE_CODE_LEN))
+        code = f"{raw[:4]}-{raw[4:]}"
+        if code not in _share_registry["codes"]:
+            return code
+
+
+def _session_share_code(session_id: str) -> str | None:
+    for code, entry in _share_registry["codes"].items():
+        if entry.get("session_id") == session_id:
+            return code
+    return None
+
+
+def _resolve_shared_session_id(share_code: str | None) -> str | None:
+    code = _normalize_share_code(share_code)
+    if not code:
+        return None
+    entry = _share_registry["codes"].get(code)
+    if not isinstance(entry, dict):
+        return None
+    return _valid_session(entry.get("session_id"))
+
+
+def _session_is_shared(session_id: str) -> bool:
+    return _session_share_code(session_id) is not None
+
+
+def _share_url(code: str | None) -> str:
+    code = _normalize_share_code(code)
+    return f"/?share={code}" if code else ""
+
+
+def _rehydrate_session_from_disk(session_id: str, sess: dict) -> None:
+    upload_dir: Path = sess["upload_dir"]
+    s_cache = sess["cache"]
+    s_ww_cache = sess["ww_cache"]
+    s_ttc_cache = sess["ttc_cache"]
+
+    iasync_path = upload_dir / "SavedVariables" / "iasync.lua"
+    if iasync_path.exists():
+        _parse_iasync_into(str(iasync_path), s_cache)
+
+    ww_path = upload_dir / "SavedVariables" / "WizardsWardrobe.lua"
+    if ww_path.exists():
+        _parse_ww_into(str(ww_path), s_ww_cache)
+
+    lookup_path = upload_dir / "AddOns" / "TamrielTradeCentre" / "ItemLookUpTable_EN.lua"
+    if lookup_path.exists():
+        try:
+            s_ttc_cache["lookup"] = _parse_lua_assignment(lookup_path, "self.ItemLookUpTable")
+            s_ttc_cache["lookup_mtime"] = os.path.getmtime(lookup_path)
+            s_ttc_cache["lookup_path"] = str(lookup_path)
+            s_ttc_cache["error"] = None
+        except Exception as exc:
+            s_ttc_cache["error"] = str(exc)
+
+    price_path = upload_dir / "AddOns" / "TamrielTradeCentre" / (
+        "PriceTableEU.lua" if str(_config.get("server", "NA")).upper() == "EU" else "PriceTableNA.lua"
+    )
+    if not price_path.exists():
+        alt = upload_dir / "AddOns" / "TamrielTradeCentre" / (
+            "PriceTableNA.lua" if str(_config.get("server", "NA")).upper() == "EU" else "PriceTableEU.lua"
+        )
+        if alt.exists():
+            price_path = alt
+    if price_path.exists():
+        try:
+            s_ttc_cache["price"] = _parse_lua_assignment(price_path, "self.PriceTable")
+            s_ttc_cache["price_mtime"] = os.path.getmtime(price_path)
+            s_ttc_cache["price_path"] = str(price_path)
+            s_ttc_cache["error"] = None
+        except Exception as exc:
+            s_ttc_cache["error"] = str(exc)
+
+
+def _resolve_session_context(session_id: str | None, share_code: str | None = None) -> tuple[str | None, str | None]:
+    sid = _valid_session(session_id)
+    code = _normalize_share_code(share_code)
+    if share_code and not code:
+        return None, "invalid share code"
+    if code:
+        shared_sid = _resolve_shared_session_id(code)
+        if not shared_sid:
+            return None, "share code not found"
+        return shared_sid, None
+    return sid, None
 
 
 def _build_ability_icon_map() -> dict:
@@ -405,8 +531,8 @@ def _fmt_ttc_time(ts) -> str | None:
 
 def _resolve_ttc_cache(session_id: str | None) -> tuple[dict, Path | None]:
     sid = _valid_session(session_id)
-    if sid and sid in _sessions:
-        sess = _sessions[sid]
+    if sid:
+        sess = _get_or_create_session(sid)
         ttc_cache = sess["ttc_cache"]
         if ttc_cache["lookup"] is not None and ttc_cache["price"] is not None:
             return ttc_cache, sess["upload_dir"]
@@ -595,26 +721,35 @@ def _get_or_create_session(session_id: str) -> dict:
         }
         (UPLOADS_DIR / session_id).mkdir(parents=True, exist_ok=True)
         logger.info("Session created: {}", session_id[:8])
-    else:
-        _sessions[session_id]["last_active"] = time.time()
-    return _sessions[session_id]
+    sess = _sessions[session_id]
+    sess["last_active"] = time.time()
+    if sess["cache"]["data_bytes"] is None and sess["upload_dir"].exists():
+        _rehydrate_session_from_disk(session_id, sess)
+    return sess
 
 
-def _resolve_cache(session_id: str | None) -> dict:
-    sid = _valid_session(session_id)
-    if sid and sid in _sessions:
-        _sessions[sid]["last_active"] = time.time()
-        if _sessions[sid]["cache"]["data_bytes"] is not None:
-            return _sessions[sid]["cache"]
+def _resolve_cache(session_id: str | None, share_code: str | None = None) -> dict:
+    sid, err = _resolve_session_context(session_id, share_code)
+    if err:
+        return {"data_bytes": None, "builds_bytes": None, "achievements_bytes": None,
+                "stickerbook_bytes": None, "mtime": None, "error": err}
+    if sid:
+        sess = _get_or_create_session(sid)
+        sess["last_active"] = time.time()
+        if sess["cache"]["data_bytes"] is not None:
+            return sess["cache"]
     return _cache
 
 
-def _resolve_ww_cache(session_id: str | None) -> dict:
-    sid = _valid_session(session_id)
-    if sid and sid in _sessions:
-        _sessions[sid]["last_active"] = time.time()
-        if _sessions[sid]["ww_cache"]["ww_builds_bytes"] is not None:
-            return _sessions[sid]["ww_cache"]
+def _resolve_ww_cache(session_id: str | None, share_code: str | None = None) -> dict:
+    sid, err = _resolve_session_context(session_id, share_code)
+    if err:
+        return {"ww_builds_bytes": None, "mtime": None, "error": err}
+    if sid:
+        sess = _get_or_create_session(sid)
+        sess["last_active"] = time.time()
+        if sess["ww_cache"]["ww_builds_bytes"] is not None:
+            return sess["ww_cache"]
     return _ww_cache
 
 
@@ -622,7 +757,7 @@ async def _session_cleanup():
     while True:
         await asyncio.sleep(300)
         cutoff = time.time() - _SESSION_TTL
-        expired = [sid for sid, s in list(_sessions.items()) if s["last_active"] < cutoff]
+        expired = [sid for sid, s in list(_sessions.items()) if s["last_active"] < cutoff and not _session_is_shared(sid)]
         for sid in expired:
             sess = _sessions.pop(sid, None)
             if sess:
@@ -666,6 +801,7 @@ async def lifespan(app: FastAPI):
     _setup_logging()
     UPLOADS_DIR.mkdir(exist_ok=True)
     _load_config()
+    _load_share_registry()
     _parse_iasync()
     _parse_ww()
     _ability_icon_map.update(_build_ability_icon_map())
@@ -697,8 +833,8 @@ async def root():
 
 
 @app.get("/api/data")
-async def api_data(session: str | None = Query(None)):
-    cache = _resolve_cache(session)
+async def api_data(session: str | None = Query(None), share: str | None = Query(None)):
+    cache = _resolve_cache(session, share)
     if cache["data_bytes"] is None:
         return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
     return Response(
@@ -709,8 +845,8 @@ async def api_data(session: str | None = Query(None)):
 
 
 @app.get("/api/builds")
-async def api_builds(session: str | None = Query(None)):
-    cache = _resolve_cache(session)
+async def api_builds(session: str | None = Query(None), share: str | None = Query(None)):
+    cache = _resolve_cache(session, share)
     if cache["builds_bytes"] is None:
         return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
     return Response(
@@ -721,8 +857,8 @@ async def api_builds(session: str | None = Query(None)):
 
 
 @app.get("/api/achievements")
-async def api_achievements(session: str | None = Query(None)):
-    cache = _resolve_cache(session)
+async def api_achievements(session: str | None = Query(None), share: str | None = Query(None)):
+    cache = _resolve_cache(session, share)
     if cache["achievements_bytes"] is None:
         return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
     return Response(
@@ -733,8 +869,8 @@ async def api_achievements(session: str | None = Query(None)):
 
 
 @app.get("/api/stickerbook")
-async def api_stickerbook(session: str | None = Query(None)):
-    cache = _resolve_cache(session)
+async def api_stickerbook(session: str | None = Query(None), share: str | None = Query(None)):
+    cache = _resolve_cache(session, share)
     if cache["stickerbook_bytes"] is None:
         return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
     return Response(
@@ -745,8 +881,8 @@ async def api_stickerbook(session: str | None = Query(None)):
 
 
 @app.get("/api/ww_builds")
-async def api_ww_builds(session: str | None = Query(None)):
-    ww = _resolve_ww_cache(session)
+async def api_ww_builds(session: str | None = Query(None), share: str | None = Query(None)):
+    ww = _resolve_ww_cache(session, share)
     if ww["ww_builds_bytes"] is None:
         return JSONResponse({"error": ww.get("error", "No WW data loaded")}, status_code=503)
     return Response(
@@ -757,8 +893,8 @@ async def api_ww_builds(session: str | None = Query(None)):
 
 
 @app.get("/api/status")
-async def api_status(session: str | None = Query(None)):
-    cache = _resolve_cache(session)
+async def api_status(session: str | None = Query(None), share: str | None = Query(None)):
+    cache = _resolve_cache(session, share)
     if cache["data_bytes"] is None:
         return {"ok": False, "item_count": 0, "character_count": 0,
                 "last_modified": None, "error": cache.get("error")}
@@ -779,9 +915,12 @@ async def api_upload(
     ttc_lookup: UploadFile | None = File(None),
     ttc_price: UploadFile | None = File(None),
     session: str | None = Query(None),
+    share: str | None = Query(None),
 ):
     """Accept uploaded live-folder files for iasync, WW, and TTC tables."""
-    sid = _valid_session(session)
+    sid, err = _resolve_session_context(session, share)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
 
@@ -871,6 +1010,74 @@ async def api_upload(
     return JSONResponse(results)
 
 
+@app.get("/api/share")
+async def api_share(session: str | None = Query(None), share: str | None = Query(None)):
+    sid, err = _resolve_session_context(session, share)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    sess = _get_or_create_session(sid)
+    code = _session_share_code(sid)
+    return JSONResponse({
+        "code": code,
+        "shareUrl": _share_url(code),
+        "shared": bool(code),
+        "session": sid,
+        "sharedSession": sid if code else None,
+    })
+
+
+@app.post("/api/share")
+async def api_share_create(session: str | None = Query(None), share: str | None = Query(None)):
+    sid, err = _resolve_session_context(session, share)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    sess = _get_or_create_session(sid)
+    code = _session_share_code(sid)
+    if not code:
+        code = _generate_share_code()
+        _share_registry["codes"][code] = {
+            "session_id": sid,
+            "created_at": int(time.time()),
+            "updated_at": int(time.time()),
+        }
+        _save_share_registry()
+        logger.info("Share code created for session {}: {}", sid[:8], code)
+    sess["last_active"] = time.time()
+    return JSONResponse({
+        "code": code,
+        "shareUrl": _share_url(code),
+        "shared": True,
+        "session": sid,
+        "sharedSession": sid,
+    })
+
+
+@app.post("/api/share/join")
+async def api_share_join(session: str | None = Query(None), code: str | None = Query(None)):
+    sid = _valid_session(session)
+    normalized = _normalize_share_code(code)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    if not normalized:
+        return JSONResponse({"error": "valid pairing code required"}, status_code=400)
+    shared_sid = _resolve_shared_session_id(normalized)
+    if not shared_sid:
+        return JSONResponse({"error": "pairing code not found"}, status_code=404)
+    sess = _get_or_create_session(shared_sid)
+    sess["last_active"] = time.time()
+    return JSONResponse({
+        "code": normalized,
+        "shareUrl": _share_url(normalized),
+        "shared": True,
+        "session": sid,
+        "sharedSession": shared_sid,
+    })
+
+
 @app.get("/api/set_bonus")
 async def api_set_bonus(set_id: int, set_name: str):
     slug = _set_name_to_slug(set_name)
@@ -909,10 +1116,13 @@ async def api_skill_info(name: str):
 
 
 @app.get("/api/ttc_price")
-async def api_ttc_price(name: str, session: str | None = Query(None)):
+async def api_ttc_price(name: str, session: str | None = Query(None), share: str | None = Query(None)):
     try:
+        sid, err = _resolve_session_context(session, share)
+        if err:
+            return JSONResponse({"error": err}, status_code=400)
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, lambda: _fetch_ttc_price(name, session))
+        result = await loop.run_in_executor(None, lambda: _fetch_ttc_price(name, sid))
         logger.info("TTC price: {} → {}", name, "ok" if not result.get("error") else result.get("error"))
     except Exception as exc:
         result = {
@@ -938,11 +1148,13 @@ async def api_ability_icons():
 
 
 @app.get("/events")
-async def sse(request: Request, session: str | None = Query(None)):
+async def sse(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
     client = request.client.host if request.client else "unknown"
     q: asyncio.Queue = asyncio.Queue(maxsize=10)
 
-    sid = _valid_session(session)
+    sid, err = _resolve_session_context(session, share)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
     if sid and sid in _sessions and _sessions[sid]["cache"]["data_bytes"] is not None:
         target: set = _sessions[sid]["sse_queues"]
     else:
