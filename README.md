@@ -1,6 +1,6 @@
 # ESO Armory
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.13-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.14-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -20,6 +20,7 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 - **File upload / remote use** — upload `iasync.lua` and `WizardsWardrobe.lua` directly via the browser instead of relying on local file paths; makes it easy to share a hosted instance for others to test
 - **Folder watcher** (Chrome/Edge) — select your SavedVariables folder once and the app polls for changes every 5 s, re-uploading automatically; directory handle persists across sessions via IndexedDB
 - **Refresh button** — manually check for updated data at any time; toasts "Data updated ✓" or "No updates"
+- **Session isolation** — each browser gets a UUID stored in `localStorage`; multiple users on the same hosted instance see only their own uploaded data; sessions expire after 2 hours of inactivity
 
 ## Requirements
 

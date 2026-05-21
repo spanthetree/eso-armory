@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.14] - 2026-05-21
+
+### Added
+- **Per-browser session isolation** — each browser generates a UUID on first load (`crypto.randomUUID()`) persisted to `localStorage` as `eso-session-id`; all data, upload, status, and SSE requests include `?session=<uuid>` so multiple users on the same hosted instance see only their own data
+- **Per-session server storage** — uploaded files go to `uploads/<session_id>/` and parsed data is held in a per-session in-memory cache; sessions without uploads fall back to the global cache transparently (local users running against `config.json` paths are unaffected)
+- **Session SSE isolation** — `/events?session=<id>` connects to a session-specific queue; upload reload events notify only the uploading session's connected browsers
+- **Session cleanup** — background task runs every 5 minutes and evicts sessions idle for more than 2 hours, deleting their `uploads/<session_id>/` directory
+- **UUID path-traversal guard** — session IDs are validated against a strict UUID regex before use as filesystem paths; invalid values fall back to the global cache
+
+### Changed
+- `_parse_iasync()` and `_parse_ww()` refactored into `_parse_iasync_into(path, cache)` / `_parse_ww_into(path, cache)` that accept explicit path and cache targets; the original functions are now thin wrappers around the global config and cache — enables per-session parsing without code duplication
+
 ## [0.1.0-beta.13] - 2026-05-21
 
 ### Added

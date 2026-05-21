@@ -5,6 +5,7 @@ import json
 import os
 import platform
 import re
+import shutil
 import sys
 import time
 import urllib.parse
@@ -14,7 +15,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, File, Request, UploadFile
+from fastapi import FastAPI, File, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
@@ -104,6 +105,12 @@ _ww_cache: dict = {
     "error":           None,
 }
 _sse_queues: set[asyncio.Queue] = set()
+
+# Per-browser-session state (keyed by UUID from localStorage)
+_SESSION_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+_SESSION_TTL = 7200  # seconds before an idle session is evicted
+_sessions: dict[str, dict] = {}
+
 _ability_icon_map: dict = {}
 _set_bonus_cache: dict  = {}  # set_id  -> {bonuses, url} or {bonuses, url, error}
 _skill_info_cache: dict = {}  # slug    -> {cast_time, cost, type, location, description, ...}
@@ -446,14 +453,14 @@ def _load_config():
         _config.setdefault(k, v)
 
 
-def _parse_iasync():
-    path = _config.get("iasync_lua_path", "")
+def _parse_iasync_into(path: str, cache: dict) -> None:
+    """Parse iasync.lua at *path* and populate *cache* in-place."""
     if not path:
-        _cache["error"] = "iasync_lua_path not configured"
+        cache["error"] = "iasync_lua_path not configured"
         return
     try:
         mtime = os.path.getmtime(path)
-        if _cache["mtime"] == mtime:
+        if cache["mtime"] == mtime:
             return
         logger.debug("Parsing iasync: {}", path)
         t0 = time.monotonic()
@@ -464,46 +471,108 @@ def _parse_iasync():
         stickerbook  = process_iasync_stickerbook(raw)
         elapsed = time.monotonic() - t0
         data["meta"]["parse_ms"] = int(elapsed * 1000)
-        _cache["data_bytes"]          = json.dumps(data).encode()
-        _cache["builds_bytes"]        = json.dumps(builds).encode()
-        _cache["achievements_bytes"]  = json.dumps(achievements).encode()
-        _cache["stickerbook_bytes"]   = json.dumps(stickerbook).encode()
-        _cache["mtime"]              = mtime
-        _cache["error"]              = None
-        n = data["meta"]["item_count"]
-        c = data["meta"]["character_count"]
-        logger.info("iasync: {} items, {} chars in {:.2f}s", n, c, elapsed)
+        cache["data_bytes"]         = json.dumps(data).encode()
+        cache["builds_bytes"]       = json.dumps(builds).encode()
+        cache["achievements_bytes"] = json.dumps(achievements).encode()
+        cache["stickerbook_bytes"]  = json.dumps(stickerbook).encode()
+        cache["mtime"]              = mtime
+        cache["error"]              = None
+        logger.info("iasync: {} items, {} chars in {:.2f}s",
+                    data["meta"]["item_count"], data["meta"]["character_count"], elapsed)
     except FileNotFoundError:
-        _cache["error"] = f"iasync.lua not found: {path}"
+        cache["error"] = f"iasync.lua not found: {path}"
         logger.error("iasync.lua not found: {}", path)
     except Exception as exc:
-        _cache["error"] = str(exc)
+        cache["error"] = str(exc)
         logger.error("iasync parse error: {}", exc)
 
 
-def _parse_ww():
-    path = _config.get("ww_lua_path", "")
+def _parse_iasync():
+    _parse_iasync_into(_config.get("iasync_lua_path", ""), _cache)
+
+
+def _parse_ww_into(path: str, cache: dict) -> None:
+    """Parse WizardsWardrobe.lua at *path* and populate *cache* in-place."""
     if not path:
-        _ww_cache["error"] = "ww_lua_path not configured"
+        cache["error"] = "ww_lua_path not configured"
         return
     try:
         mtime = os.path.getmtime(path)
-        if _ww_cache["mtime"] == mtime:
+        if cache["mtime"] == mtime:
             return
         logger.debug("Parsing WW: {}", path)
         raw    = parse_lua_variable(path, "WizardsWardrobeSV")
         builds = process_ww_builds(raw)
-        _ww_cache["ww_builds_bytes"] = json.dumps(builds).encode()
-        _ww_cache["mtime"]           = mtime
-        _ww_cache["error"]           = None
+        cache["ww_builds_bytes"] = json.dumps(builds).encode()
+        cache["mtime"]           = mtime
+        cache["error"]           = None
         n = sum(len(v) for v in builds["builds"].values())
         logger.info("WW: {} builds", n)
     except FileNotFoundError:
-        _ww_cache["error"] = f"WizardsWardrobe.lua not found: {path}"
+        cache["error"] = f"WizardsWardrobe.lua not found: {path}"
         logger.error("WizardsWardrobe.lua not found: {}", path)
     except Exception as exc:
-        _ww_cache["error"] = str(exc)
+        cache["error"] = str(exc)
         logger.error("WW parse error: {}", exc)
+
+
+def _parse_ww():
+    _parse_ww_into(_config.get("ww_lua_path", ""), _ww_cache)
+
+
+def _valid_session(session_id: str | None) -> str | None:
+    """Return session_id if it looks like a UUID, else None."""
+    if session_id and _SESSION_RE.match(session_id):
+        return session_id
+    return None
+
+
+def _get_or_create_session(session_id: str) -> dict:
+    if session_id not in _sessions:
+        _sessions[session_id] = {
+            "cache": {"data_bytes": None, "builds_bytes": None,
+                      "achievements_bytes": None, "stickerbook_bytes": None,
+                      "mtime": None, "error": None},
+            "ww_cache": {"ww_builds_bytes": None, "mtime": None, "error": None},
+            "upload_dir": UPLOADS_DIR / session_id,
+            "sse_queues": set(),
+            "last_active": time.time(),
+        }
+        (UPLOADS_DIR / session_id).mkdir(parents=True, exist_ok=True)
+        logger.info("Session created: {}", session_id[:8])
+    else:
+        _sessions[session_id]["last_active"] = time.time()
+    return _sessions[session_id]
+
+
+def _resolve_cache(session_id: str | None) -> dict:
+    sid = _valid_session(session_id)
+    if sid and sid in _sessions:
+        _sessions[sid]["last_active"] = time.time()
+        if _sessions[sid]["cache"]["data_bytes"] is not None:
+            return _sessions[sid]["cache"]
+    return _cache
+
+
+def _resolve_ww_cache(session_id: str | None) -> dict:
+    sid = _valid_session(session_id)
+    if sid and sid in _sessions:
+        _sessions[sid]["last_active"] = time.time()
+        if _sessions[sid]["ww_cache"]["ww_builds_bytes"] is not None:
+            return _sessions[sid]["ww_cache"]
+    return _ww_cache
+
+
+async def _session_cleanup():
+    while True:
+        await asyncio.sleep(300)
+        cutoff = time.time() - _SESSION_TTL
+        expired = [sid for sid, s in list(_sessions.items()) if s["last_active"] < cutoff]
+        for sid in expired:
+            sess = _sessions.pop(sid, None)
+            if sess:
+                shutil.rmtree(sess["upload_dir"], ignore_errors=True)
+                logger.info("Session expired + cleaned: {}", sid[:8])
 
 
 async def _file_watcher():
@@ -547,6 +616,7 @@ async def lifespan(app: FastAPI):
     _ability_icon_map.update(_build_ability_icon_map())
     logger.info("Ability icons: {} loaded", len(_ability_icon_map))
     asyncio.create_task(_file_watcher())
+    asyncio.create_task(_session_cleanup())
     yield
 
 
@@ -572,71 +642,77 @@ async def root():
 
 
 @app.get("/api/data")
-async def api_data():
-    if _cache["data_bytes"] is None:
-        return JSONResponse({"error": _cache.get("error", "No data loaded")}, status_code=503)
+async def api_data(session: str | None = Query(None)):
+    cache = _resolve_cache(session)
+    if cache["data_bytes"] is None:
+        return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
     return Response(
-        content=_cache["data_bytes"],
+        content=cache["data_bytes"],
         media_type="application/json",
-        headers={"ETag": str(_cache["mtime"]), "Cache-Control": "no-store"},
+        headers={"ETag": str(cache["mtime"]), "Cache-Control": "no-store"},
     )
 
 
 @app.get("/api/builds")
-async def api_builds():
-    if _cache["builds_bytes"] is None:
-        return JSONResponse({"error": _cache.get("error", "No data loaded")}, status_code=503)
+async def api_builds(session: str | None = Query(None)):
+    cache = _resolve_cache(session)
+    if cache["builds_bytes"] is None:
+        return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
     return Response(
-        content=_cache["builds_bytes"],
+        content=cache["builds_bytes"],
         media_type="application/json",
         headers={"Cache-Control": "no-store"},
     )
 
 
 @app.get("/api/achievements")
-async def api_achievements():
-    if _cache["achievements_bytes"] is None:
-        return JSONResponse({"error": _cache.get("error", "No data loaded")}, status_code=503)
+async def api_achievements(session: str | None = Query(None)):
+    cache = _resolve_cache(session)
+    if cache["achievements_bytes"] is None:
+        return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
     return Response(
-        content=_cache["achievements_bytes"],
+        content=cache["achievements_bytes"],
         media_type="application/json",
         headers={"Cache-Control": "no-store"},
     )
 
 
 @app.get("/api/stickerbook")
-async def api_stickerbook():
-    if _cache["stickerbook_bytes"] is None:
-        return JSONResponse({"error": _cache.get("error", "No data loaded")}, status_code=503)
+async def api_stickerbook(session: str | None = Query(None)):
+    cache = _resolve_cache(session)
+    if cache["stickerbook_bytes"] is None:
+        return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
     return Response(
-        content=_cache["stickerbook_bytes"],
+        content=cache["stickerbook_bytes"],
         media_type="application/json",
         headers={"Cache-Control": "no-store"},
     )
 
 
 @app.get("/api/ww_builds")
-async def api_ww_builds():
-    if _ww_cache["ww_builds_bytes"] is None:
-        return JSONResponse({"error": _ww_cache.get("error", "No WW data loaded")}, status_code=503)
+async def api_ww_builds(session: str | None = Query(None)):
+    ww = _resolve_ww_cache(session)
+    if ww["ww_builds_bytes"] is None:
+        return JSONResponse({"error": ww.get("error", "No WW data loaded")}, status_code=503)
     return Response(
-        content=_ww_cache["ww_builds_bytes"],
+        content=ww["ww_builds_bytes"],
         media_type="application/json",
         headers={"Cache-Control": "no-store"},
     )
 
 
 @app.get("/api/status")
-async def api_status():
-    if _cache["data_bytes"] is None:
+async def api_status(session: str | None = Query(None)):
+    cache = _resolve_cache(session)
+    if cache["data_bytes"] is None:
         return {"ok": False, "item_count": 0, "character_count": 0,
-                "last_modified": None, "error": _cache.get("error")}
-    meta = json.loads(_cache["data_bytes"])["meta"]
+                "last_modified": None, "error": cache.get("error")}
+    meta = json.loads(cache["data_bytes"])["meta"]
     return {
         "ok":              True,
         "item_count":      meta["item_count"],
         "character_count": meta["character_count"],
-        "last_modified":   _cache["mtime"],
+        "last_modified":   cache["mtime"],
         "error":           None,
     }
 
@@ -645,45 +721,54 @@ async def api_status():
 async def api_upload(
     iasync: UploadFile | None = File(None),
     ww:     UploadFile | None = File(None),
+    session: str | None = Query(None),
 ):
     """Accept uploaded iasync.lua and/or WizardsWardrobe.lua files."""
+    sid = _valid_session(session)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+
+    sess = _get_or_create_session(sid)
+    upload_dir: Path = sess["upload_dir"]
+    s_cache    = sess["cache"]
+    s_ww_cache = sess["ww_cache"]
+
     loop = asyncio.get_event_loop()
     results = {}
 
     if iasync and iasync.filename:
-        dest = UPLOADS_DIR / "iasync.lua"
+        dest = upload_dir / "iasync.lua"
         data = await iasync.read()
         dest.write_bytes(data)
-        _config["iasync_lua_path"] = str(dest)
-        # Reset mtime so _parse_iasync re-parses
-        _cache["mtime"] = None
-        await loop.run_in_executor(None, _parse_iasync)
-        if _cache["error"]:
-            results["iasync"] = {"ok": False, "error": _cache["error"]}
+        s_cache["mtime"] = None
+        iasync_path = str(dest)
+        await loop.run_in_executor(None, lambda: _parse_iasync_into(iasync_path, s_cache))
+        if s_cache["error"]:
+            results["iasync"] = {"ok": False, "error": s_cache["error"]}
         else:
-            meta = json.loads(_cache["data_bytes"])["meta"]
+            meta = json.loads(s_cache["data_bytes"])["meta"]
             results["iasync"] = {"ok": True, "items": meta["item_count"], "chars": meta["character_count"]}
-            for q in list(_sse_queues):
+            for q in list(sess["sse_queues"]):
                 try:
                     q.put_nowait("reload")
                 except asyncio.QueueFull:
                     pass
-        logger.info("Uploaded iasync.lua ({} bytes) → {}", len(data), dest)
+        logger.info("Session {} uploaded iasync.lua ({} bytes)", sid[:8], len(data))
 
     if ww and ww.filename:
-        dest = UPLOADS_DIR / "WizardsWardrobe.lua"
+        dest = upload_dir / "WizardsWardrobe.lua"
         data = await ww.read()
         dest.write_bytes(data)
-        _config["ww_lua_path"] = str(dest)
-        _ww_cache["mtime"] = None
-        await loop.run_in_executor(None, _parse_ww)
-        if _ww_cache["error"]:
-            results["ww"] = {"ok": False, "error": _ww_cache["error"]}
+        s_ww_cache["mtime"] = None
+        ww_path = str(dest)
+        await loop.run_in_executor(None, lambda: _parse_ww_into(ww_path, s_ww_cache))
+        if s_ww_cache["error"]:
+            results["ww"] = {"ok": False, "error": s_ww_cache["error"]}
         else:
-            builds = json.loads(_ww_cache["ww_builds_bytes"])
+            builds = json.loads(s_ww_cache["ww_builds_bytes"])
             n = sum(len(v) for v in builds["builds"].values())
             results["ww"] = {"ok": True, "builds": n}
-        logger.info("Uploaded WizardsWardrobe.lua ({} bytes) → {}", len(data), dest)
+        logger.info("Session {} uploaded WizardsWardrobe.lua ({} bytes)", sid[:8], len(data))
 
     if not results:
         return JSONResponse({"error": "No files received"}, status_code=400)
@@ -757,11 +842,17 @@ async def api_ability_icons():
 
 
 @app.get("/events")
-async def sse(request: Request):
+async def sse(request: Request, session: str | None = Query(None)):
     client = request.client.host if request.client else "unknown"
     q: asyncio.Queue = asyncio.Queue(maxsize=10)
-    _sse_queues.add(q)
-    logger.info("SSE connect: {}", client)
+
+    sid = _valid_session(session)
+    if sid and sid in _sessions and _sessions[sid]["cache"]["data_bytes"] is not None:
+        target: set = _sessions[sid]["sse_queues"]
+    else:
+        target = _sse_queues
+    target.add(q)
+    logger.info("SSE connect: {} (session={})", client, sid[:8] if sid else "global")
 
     async def stream():
         try:
@@ -775,8 +866,8 @@ async def sse(request: Request):
                 except asyncio.TimeoutError:
                     yield ": keepalive\n\n"
         finally:
-            _sse_queues.discard(q)
-            logger.info("SSE disconnect: {}", client)
+            target.discard(q)
+            logger.info("SSE disconnect: {} (session={})", client, sid[:8] if sid else "global")
 
     return StreamingResponse(
         stream(),

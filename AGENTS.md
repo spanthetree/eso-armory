@@ -134,13 +134,16 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 | `GET /api/ttc_price?name=` | Looks up TTC price data for a stickerbook piece from local Tamriel Trade Centre price tables |
 | `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/...png"}` — scanned at startup |
 | `GET /api/status` | `{ok, item_count, character_count, last_modified, error}` |
-| `POST /api/upload` | Accepts `iasync` and/or `ww` multipart file fields; writes to `uploads/`, re-parses, returns `{iasync: {ok, items, chars}, ww: {ok, builds}}` |
-| `GET /events` | SSE stream; sends `"reload"` when iasync file changes |
+| `POST /api/upload?session=` | Accepts `iasync` and/or `ww` multipart file fields; requires valid UUID session; writes to `uploads/<session_id>/`, re-parses into session cache, notifies session SSE queue; returns `{iasync: {ok, items, chars}, ww: {ok, builds}}` |
+| `GET /events?session=` | SSE stream; joins session queue if session has data, else global queue; sends `"reload"` on data change |
 
 ## Server Caches (server.py)
 ```python
-_cache           = {data_bytes, builds_bytes, achievements_bytes, stickerbook_bytes, mtime, error}  # iasync
-_ww_cache        = {ww_builds_bytes, mtime, error}    # WizardsWardrobe
+_cache           = {data_bytes, builds_bytes, achievements_bytes, stickerbook_bytes, mtime, error}  # global iasync (local users)
+_ww_cache        = {ww_builds_bytes, mtime, error}    # global WizardsWardrobe (local users)
+_sessions: dict[str, dict]                             # per-browser-session state (keyed by UUID)
+  # session = {cache, ww_cache, upload_dir: Path, sse_queues: set, last_active: float}
+  # cache / ww_cache have same shape as global _cache / _ww_cache
 _ability_icon_map: dict                                # built at startup, static
 _set_bonus_cache: dict                                 # (set_id or name_slug) → {bonuses, url}; populated on demand; mythic items have set_id=0 so slug is used as key
 _skill_info_cache: dict                                # slug → {details}; populated on demand
@@ -148,6 +151,9 @@ _ttc_tables      = {lookup, price, lookup_mtime, price_mtime, price_path}  # loc
 _ttc_price_cache: dict                                 # normalized piece name → TTC price result/error
 ```
 `_ability_icon_map` is built by `_build_ability_icon_map()` at startup — scans `assets/abilities/**/*.png`, normalizes stems to keys.
+
+### Session isolation
+`_resolve_cache(session_id)` / `_resolve_ww_cache(session_id)` return the session's cache if it has data, else the global cache — local users with `config.json` paths are transparent to this. `_SESSION_RE` validates UUIDs before using them as filesystem paths (`uploads/<session_id>/`). `_session_cleanup()` background task (5 min interval) evicts sessions idle > 2 hours and `shutil.rmtree`s their upload directory. Parse functions refactored: `_parse_iasync_into(path, cache)` / `_parse_ww_into(path, cache)` take explicit targets; `_parse_iasync()` / `_parse_ww()` are thin wrappers for the global case.
 
 ### Tamriel Trade Centre Price Lookup
 Optional local TTC integration powers Collections piece-price tooltips. Config keys:
@@ -220,6 +226,11 @@ tab          // 'characters' | 'inventory' | 'achievements' | 'stickerbook'
 theme        // 'gold' | 'light' | 'dark' | 'synthwave' | 'outrun' — persisted to localStorage under 'eso-theme'
 themes       // {gold|light|dark|synthwave|outrun: {label, bgR, cardR, borderR, goldR, textR, mutedR, hoverR}}
              //   *R fields are RGB triplets ('r,g,b') for rgba() math in Tailwind overrides
+// Session
+_sessionId       // UUID string from localStorage('eso-session-id'); generated via crypto.randomUUID() on first load
+                 // appended as ?session= to: /api/data, /api/builds, /api/ww_builds, /api/achievements,
+                 // /api/stickerbook, /api/upload, /api/status, /events
+                 // NOT sent to: /api/ability_icons, /api/set_bonus, /api/skill_info, /api/ttc_price (global caches)
 // Upload / folder watcher
 uploading, uploadOpen, uploadStatus, uploadIasyncName, uploadWWName
 dirHandle        // FileSystemDirectoryHandle | null — active folder watcher handle
