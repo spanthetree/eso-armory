@@ -126,7 +126,7 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 |----------|---------|
 | `GET /api/data` | `{meta, characters, bank, house_chests, items}` from iasync |
 | `GET /api/builds` | `{builds, abilityNames, cpNames}` from iasync |
-| `GET /api/achievements` | `{totalPts, earnedPts, categories, items_by_char, chars, recent}` from iasync |
+| `GET /api/achievements` | `{totalPts, earnedPts, categories, account_items, items_by_char, chars, recent}` from iasync |
 | `GET /api/stickerbook` | `{sets: [{setId, name, category, subcategory, numCollected, numTotal, complete, pieces: [{filterType, filterName, collected, name}]}], lastUpdate}` |
 | `GET /api/ww_builds` | `{builds: {charId: [build, ...]}}` from WizardsWardrobe |
 | `GET /api/set_bonus?set_id=&set_name=` | Fetches set bonuses from eso-sets.com (cached in memory) |
@@ -215,7 +215,7 @@ data         // /api/data response
 builds       // /api/builds response  (abilityNames, cpNames, per-char build bars)
 wwBuilds     // /api/ww_builds response
 abilityIcons // /api/ability_icons response
-achievData   // /api/achievements response
+achievData   // /api/achievements response, including account_items + per-character items_by_char
 sbData       // /api/stickerbook response
 sbCat        // selected top-level category string; null = summary view
 sbSearch     // search string; when non-empty overrides sbCat view with global results
@@ -411,6 +411,15 @@ detailPanelHeight: 0,
 - `More` contains quality pills plus Transmuted/Crafted toggles. `Group by Set` remains a visible button.
 - The character-scoped inventory table intentionally omits the icon column to preserve width; the main Inventory tab still renders icons.
 - The table still uses `tipShow(row.item, $event)` and set-name click-through behavior from the main Inventory tab.
+
+## Achievements Tab (`static/index.html`)
+
+`/api/achievements` carries mixed-persistence data:
+- `account_items` — account-wide achievements
+- `items_by_char` — character-persistent achievements keyed by `charId`
+- `categories`, `earnedPts`, `totalPts` — account-level summary data
+
+The character selector only changes the drill-down rows. `achievItemsByCatSubcat(catName, subcatName)` must merge the account bucket with the selected character bucket and dedupe by achievement id so mixed-persistence achievements render correctly for the active character.
 
 ## Item Link Decoder (`item_link_decoder.py`)
 

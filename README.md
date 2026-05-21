@@ -1,6 +1,6 @@
 # ESO Armory
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.14-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.15-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -12,7 +12,7 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 - **Characters tab** — all characters at a glance with equipped gear paper-doll using slot-specific gear icons; click any character to see current build details, character-scoped inventory, and WizardsWardrobe builds
 - **Builds** — gear, skills (primary + backup bars), Champion Points, and food for each WW setup
 - **Inventory tab** — full cross-character inventory with search, multiselect quality/type/trait/location/character filters, Transmuted and Crafted toggle buttons, Group by Set view, and sortable columns; items show weapon-type and armor-weight tags and slot-specific gear icons
-- **Achievements tab** — account-wide achievement summary with category/subcategory drill-down, per-character filtering, progress bars, recent completions, and completion attribution
+- **Achievements tab** — account-wide achievement summary with category/subcategory drill-down, a character selector that merges account-wide and character-specific completions, progress bars, recent completions, and completion attribution
 - **Collections tab** — stickerbook set drill-down with TTC links for individual pieces; if Tamriel Trade Centre is installed locally, piece hovers show TTC price data with attribution and timestamps
 - **Currency totals** — gold, AP, Telvar Stones, and Writ Vouchers across all characters + bank in the header
 - **Color themes** — five palettes (Gold, Light, Dark, Synthwave, Outrun) switchable via a "Theme" dropdown in the header; selection persists across sessions

@@ -2225,6 +2225,7 @@ function armory() {
     achievView: 'summary',
     achievCat: null,
     achievCharId: null,
+    _achievIndexByAccount: {},
     _achievIndexByChar: {},
     sbData: null,
     sbCat: null,
@@ -2449,6 +2450,13 @@ function armory() {
         const d = await r.json();
         if (d.error) return;
         this.achievData = d;
+        const accountIdx = {};
+        for (const a of (d.account_items || [])) {
+          const key = (a.cat || '') + '||' + (a.subcat || '');
+          if (!accountIdx[key]) accountIdx[key] = [];
+          accountIdx[key].push(a);
+        }
+        this._achievIndexByAccount = accountIdx;
         const byChar = {};
         for (const [charId, items] of Object.entries(d.items_by_char || {})) {
           const idx = {};
@@ -2534,8 +2542,16 @@ function armory() {
 
     achievItemsByCatSubcat(catName, subcatName) {
       const key = (catName || '') + '||' + (subcatName || '');
+      const accountItems = this._achievIndexByAccount[key] || [];
       const idx = this._achievIndexByChar[this.achievCharId];
-      return idx ? (idx[key] || []) : [];
+      const charItems = idx ? (idx[key] || []) : [];
+      if (!accountItems.length) return charItems;
+      if (!charItems.length) return accountItems;
+
+      const merged = new Map();
+      for (const a of accountItems) merged.set(a.id, a);
+      for (const a of charItems) merged.set(a.id, a);
+      return [...merged.values()];
     },
 
     achievIconUrl(icon) {

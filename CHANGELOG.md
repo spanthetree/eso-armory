@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.15] - 2026-05-21
+
+### Fixed
+- **Achievements character selector** — the drill-down now merges `account_items` with the selected character's `items_by_char` slice, so mixed-persistence achievements render correctly for the chosen character instead of showing only the per-character subset
+
 ## [0.1.0-beta.14] - 2026-05-21
 
 ### Added
