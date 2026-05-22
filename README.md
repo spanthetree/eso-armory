@@ -35,9 +35,8 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 
 - Python 3.12+ and [uv](https://docs.astral.sh/uv/)
 - Elder Scrolls Online with the following addons installed:
-  - [Inventory Insight from Scratch (IIfA)](https://www.esoui.com/downloads/info2486-InventoryInsightfromScratch.html)
   - [WizardsWardrobe](https://www.esoui.com/downloads/info3432-WizardsWardrobe.html)
-  - **iasync** — included in this repo (see setup below)
+  - [iasync](https://github.com/spanthetree/iasync)
   - Optional: [Tamriel Trade Centre](https://www.tamrieltradecentre.com/) for Collections tab piece-price tooltips
 
 ## Setup
@@ -56,16 +55,15 @@ uv sync --active
 
 ### 2. Install the iasync addon
 
-iasync is a companion addon that exports in-game data that IIfA doesn't persist to disk: ability names, Champion Point names, bank currency, weapon types, armor weights, achievement progress, completion attribution, and stickerbook collection state.
+`iasync` is a separate addon repo used by ESO Armory. It exports the SavedVariables data this app reads directly: inventory, equipped gear, live build data, ability names, Champion Point names, bank currency, weapon types, armor weights, achievement progress, completion attribution, and stickerbook collection state.
 
-The `iasync/` directory in this repo is symlinked to your ESO AddOns folder. If the symlink is missing or broken:
+Clone or install it from [github.com/spanthetree/iasync](https://github.com/spanthetree/iasync).
 
-```bash
-# WSL2 / Linux
-ln -s "/mnt/c/Users/<you>/Documents/Elder Scrolls Online/live/AddOns/iasync" iasync
+Then place the addon in your ESO AddOns directory, for example:
+
+```text
+C:\Users\<you>\Documents\Elder Scrolls Online\live\AddOns\iasync\
 ```
-
-Or on Windows, copy the `iasync/` folder directly into your AddOns directory.
 
 ### 3. Configure paths (optional)
 
@@ -73,16 +71,15 @@ On first run a `config.json` is created automatically with paths detected for yo
 
 ```json
 {
-  "lua_path":        "path/to/IIfA.lua",
-  "ww_lua_path":     "path/to/WizardsWardrobe.lua",
-  "iasync_lua_path": "path/to/iasync.lua",
+  "iasync_lua_path": "path/to/SavedVariables/iasync.lua",
+  "ww_lua_path":     "path/to/SavedVariables/WizardsWardrobe.lua",
   "ttc_addon_path":  "path/to/AddOns/TamrielTradeCentre",
   "ttc_lookup_table_path": "path/to/AddOns/TamrielTradeCentre/ItemLookUpTable_EN.lua",
   "ttc_price_table_path": "",
+  "database_url": "sqlite:///uploads/armory.db",
   "port": 5000,
   "server": "NA",
-  "poll_interval_seconds": 5,
-  "database_url": "sqlite:///uploads/armory.db"
+  "poll_interval_seconds": 5
 }
 ```
 
@@ -166,7 +163,6 @@ static/vendor/         # Vendored browser runtimes, including Alpine.js
 header.svg             # Project header artwork for README/release surfaces
 assets/gear/           # Slot-specific gear icons (weapon/armor/jewelry)
 assets/abilities/      # Skill icons used by current builds and WW saved builds
-iasync/                # Companion ESO addon (symlink to AddOns folder)
 config.json            # Auto-generated on first run
 uploads/armory.db      # Default SQLite database for uploaded account workspaces
 ```
@@ -174,7 +170,7 @@ uploads/armory.db      # Default SQLite database for uploaded account workspaces
 ## Notes
 
 - SavedVariables are only written to disk on `/reloadui` or character logout. The web app shows whatever was last flushed.
-- Bank currency (gold, AP, Telvar, Writ Vouchers) is not saved by IIfA — iasync captures it separately.
+- Bank currency, build metadata, achievements, and stickerbook state come from `iasync.lua`.
 - Ability and CP names in build cards require iasync to have run at least once in-game.
 - Uploaded/browser-backed workspaces now read from SQLite after ingest. Uploading newer files for the same ESO account rewrites that account's stored raw SavedVariables and processed payloads in the DB.
 - If you upload a different ESO account into a session that already has one loaded, it is stored as the session's shadow workspace when available instead of replacing the primary workspace.

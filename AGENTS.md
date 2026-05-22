@@ -21,7 +21,7 @@ Before making code or file changes, ask for explicit approval unless the user ha
 | `data_processor.py` | `process_iasync()`, `process_iasync_builds()`, `process_iasync_achievements()`, `process_iasync_stickerbook()`, `process_ww_builds()` |
 | `item_link_decoder.py` | Decodes ESO `\|H1:item:...\|h` links → trait/style/enchant fields |
 | `config.json` | Paths to Lua files, port, server region, poll interval |
-| `iasync/iasync.lua` | ESO addon (symlinked to Windows AddOns folder) |
+| `iasync.lua` | SavedVariables output produced by the external `iasync` addon; primary live-data source for ESO Armory |
 | `static/index.html` | Full SPA (Characters, Inventory, Achievements, Collections tabs) |
 | `static/vendor/alpine.min.js` | Vendored Alpine.js runtime loaded by the app shell so CDN reachability does not block boot |
 | `header.svg` | README/release header artwork; ANSI-style SVG matching sibling addon headers |
@@ -52,8 +52,12 @@ Two SavedVariables files are parsed:
 
 The server polls both files every `poll_interval_seconds` (default 5s). mtime is used to detect changes — inotify doesn't work on WSL2 `/mnt/c` paths.
 
-## iasync Addon (`iasync/iasync.lua`)
-Lives at `iasync/iasync.lua`, symlinked to `C:\Users\<you>\Documents\Elder Scrolls Online\live\AddOns\iasync\`.
+## iasync Addon
+`iasync` is a separate ESO addon repo: `https://github.com/spanthetree/iasync`.
+
+ESO Armory does not vendor the addon source in this repo. The app consumes the SavedVariables file written by that addon:
+- `SavedVariables/iasync.lua` → `iasync_data`
+- configured in ESO Armory via `iasync_lua_path`
 
 **Triggers:**
 - `EVENT_ADD_ON_LOADED` — initializes `iasync_data` structure
@@ -421,6 +425,8 @@ The user handles all git actions (staging, committing, pushing) themselves. When
 3. Bump the version in `pyproject.toml`
 4. Draft a commit message and list the files to stage
 5. **Do not run any git commands** (`git add`, `git commit`, `git push`, etc.)
+
+If the user asks to create a commit, pull request, PR, or push changes, ensure the work is intended to live on a branch created from `master`, and that any pull request should target `master` on GitHub.
 
 ## Inventory Filter Architecture (`static/index.html`)
 
