@@ -154,9 +154,12 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 | `GET /api/share?session=&share=` | Returns the current pairing code for a workspace if one exists |
 | `POST /api/share?session=&share=` | Creates a pairing code for the resolved workspace if none exists yet |
 | `POST /api/share/join?session=&code=` | Validates a pairing code and binds the browser to the shared workspace |
+| `GET /api/workspace?session=&share=` | Returns `{primary, shadow, activeSlot, activeAccount}` for the current browser workspace |
+| `POST /api/workspace/slot?session=&slot=` | Switches the active browser workspace slot between `primary` and `shadow` |
+| `DELETE /api/workspace/shadow?session=` | Removes the browser session's shadow workspace; only deletes the canonical account row if it is no longer referenced elsewhere |
 | `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/...png|.webp"}` — scanned at startup |
 | `GET /api/status?session=&share=` | `{ok, item_count, character_count, last_modified, error}` |
-| `POST /api/upload?session=&share=` | Accepts `iasync`, `ww`, `ttc_lookup`, and `ttc_price` multipart file fields; requires valid UUID session; writes to `uploads/<session_id>/`, re-parses into session cache, notifies session SSE queue; returns `{iasync: {ok, items, chars}, ww: {ok, builds}, ttc_lookup: {ok}, ttc_price: {ok}}` |
+| `POST /api/upload?session=&share=` | Accepts `iasync`, `ww`, `ttc_lookup`, and `ttc_price` multipart file fields; requires valid UUID session; writes to `uploads/<session_id>/`, parses, persists raw source + processed payloads into SQLite by ESO `accountName`, updates the session's `primary` or `shadow` slot, and returns upload status including `slot_updated` for armory files |
 | `GET /events?session=&share=` | SSE stream; joins the shared workspace queue when `share` resolves, otherwise the browser's own session queue if it has data, else global queue; sends `"reload"` on data change |
 
 ### Static serving expectations
@@ -179,8 +182,24 @@ _ttc_price_cache: dict                                 # normalized piece name �
 ```
 `_ability_icon_map` is built by `_build_ability_icon_map()` at startup — scans `assets/abilities/**/*.{png,webp}`, normalizes stems to keys.
 
+### DB-backed uploaded workspaces
+Uploaded/browser workspaces are now canonicalized into `uploads/armory.db`:
+- `account_states` stores one canonical row per ESO `accountName`
+- raw `iasync.lua` / `WizardsWardrobe.lua` contents are stored in `raw_iasync_lua` / `raw_ww_lua`
+- processed API payload blobs (`data_bytes`, `builds_bytes`, `achievements_bytes`, `stickerbook_bytes`, `ww_builds_bytes`) are stored alongside source metadata
+- `workspace_sessions` maps a browser UUID to `primary_account_id`, optional `shadow_account_id`, and `active_slot`
+
+For uploaded workspaces, `/api/data`, `/api/builds`, `/api/achievements`, `/api/stickerbook`, and `/api/ww_builds` should resolve from the DB-backed account row. The copied account-scoped files under `uploads/accounts/<account>/...` are mirrors/metadata, not the primary read path.
+
 ### Session isolation
 `_resolve_cache(session_id, share)` / `_resolve_ww_cache(session_id, share)` return the shared workspace cache when `share` resolves to a canonical session, otherwise the browser's own session cache if it has data, else the global cache. `_SESSION_RE` validates UUIDs before using them as filesystem paths (`uploads/<session_id>/`). Pairing codes live in `uploads/share_registry.json` and map short share codes back to the canonical session id. Shared sessions are treated as persistent workspaces and are skipped by the idle cleanup task; private sessions still expire after 2 hours. Parse functions refactored: `_parse_iasync_into(path, cache)` / `_parse_ww_into(path, cache)` take explicit targets; `_parse_iasync()` / `_parse_ww()` are thin wrappers for the global case.
+
+### Primary/shadow workspace behavior
+- A browser session now has one `primary` armory slot and one optional `shadow` slot.
+- Uploading an armory file for the current primary account updates `primary`.
+- Uploading a different ESO account fills `shadow` when empty instead of replacing `primary`.
+- If both slots are already occupied and a third unmatched account is uploaded, the upload returns a conflict instead of silently replacing existing workspace state.
+- The active slot is switchable from the header, and only the shadow slot is deletable from the UI.
 
 ### Workspace sharing
 The header Share button is the entry point for cross-device reuse. `POST /api/share` creates a pairing code for the canonical session, `POST /api/share/join` validates and binds a browser to that code, and the client stores the code in `localStorage` as `eso-share-code`. All workspace-scoped fetches and SSE use `?share=` when present so the same uploaded data appears on another device without a re-upload. The share code is a convenience token, not strong authentication.
@@ -268,6 +287,7 @@ _sessionId       // UUID string from localStorage('eso-session-id'); generated v
                  // appended as ?session= to: /api/data, /api/builds, /api/ww_builds, /api/achievements,
                  // /api/stickerbook, /api/upload, /api/status, /events
                  // NOT sent to: /api/ability_icons, /api/set_bonus, /api/skill_info, /api/ttc_price (global caches)
+workspace        // {primary:{account}, shadow:{account}, activeSlot, activeAccount}; sourced from /api/workspace
 // Upload / folder watcher
 uploading, uploadOpen, uploadStatus, uploadIasyncName, uploadWWName
 dirHandle        // FileSystemDirectoryHandle | null — active folder watcher handle
@@ -311,6 +331,9 @@ tipShowSbSet(s, evt)         // shows set tooltip with bonuses from eso-sets.com
 tipShowSbPiece(name, evt)    // shows TTC piece-price tooltip; displays HTTP/error status on failure
 // Upload / folder watcher
 uploadFiles()                // reads $refs.iasyncInput / $refs.wwInput, POSTs to /api/upload, refreshes data
+fetchWorkspace()             // refreshes primary/shadow slot metadata from /api/workspace
+switchWorkspaceSlot(slot)    // POST /api/workspace/slot, reloads all workspace-scoped data
+deleteShadowWorkspace()      // DELETE /api/workspace/shadow, reloads all workspace-scoped data
 openFolderPicker()           // showDirectoryPicker() → persists handle to IDB, checkDirForChanges(true), startDirWatch()
 restoreDirHandle()           // on init: loads handle from IDB, queryPermission check (no gesture needed), resumes watch
 startDirWatch()              // setInterval(5s) calling checkDirForChanges(false); toasts on change

@@ -21,11 +21,14 @@ def fresh_cache() -> dict:
         "stickerbook_bytes": None,
         "mtime": None,
         "error": None,
+        "meta": None,
+        "source_path": None,
+        "source_bytes": None,
     }
 
 
 def fresh_ww_cache() -> dict:
-    return {"ww_builds_bytes": None, "mtime": None, "error": None}
+    return {"ww_builds_bytes": None, "mtime": None, "error": None, "source_path": None, "source_bytes": None}
 
 
 @pytest.fixture
@@ -36,24 +39,30 @@ def fixtures_dir() -> Path:
 @pytest.fixture
 def isolated_server(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     uploads = tmp_path / "uploads"
+    database_url = f"sqlite:///{(tmp_path / 'armory.db').as_posix()}"
     monkeypatch.setattr(server, "UPLOADS_DIR", uploads)
     monkeypatch.setattr(server, "SHARE_REGISTRY_PATH", uploads / "share_registry.json")
     monkeypatch.setattr(server, "CONFIG_PATH", tmp_path / "config.json")
-    monkeypatch.setattr(server, "_config", {"server": "NA", "poll_interval_seconds": 3600})
+    monkeypatch.setattr(server, "_config", {"server": "NA", "poll_interval_seconds": 3600, "database_url": database_url})
     monkeypatch.setattr(server, "_cache", fresh_cache())
     monkeypatch.setattr(server, "_ww_cache", fresh_ww_cache())
     server._sessions.clear()
     server._share_registry.clear()
     server._share_registry.update({"codes": {}})
     server._ttc_tables.update({
-        "lookup": None,
-        "price": None,
         "lookup_mtime": None,
         "price_mtime": None,
         "lookup_path": None,
         "price_path": None,
+        "db_path": None,
+        "db_ready": False,
+        "price_time": None,
         "price_cache": {},
     })
+    import db
+    db._ENGINE = None
+    db._SESSION_MAKER = None
+    db.init_db(database_url)
     uploads.mkdir(parents=True, exist_ok=True)
     return server
 

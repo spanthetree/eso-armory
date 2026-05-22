@@ -388,6 +388,7 @@ def process_iasync_achievements(raw: dict) -> dict:
     chars_with_achiev: list[dict] = []
     seen_ids: set[int] = set()
     all_achiev: list[dict] = []
+    recent_candidates: list[tuple[int, dict]] = []
 
     def _parse_achiev(a: dict, aid: int) -> dict:
         criteria = []
@@ -409,16 +410,9 @@ def process_iasync_achievements(raw: dict) -> dict:
             "points":              int(a.get("points", 0)),
             "icon":                a.get("icon", ""),
             "complete":            bool(a.get("complete", False)),
-            "completionTimestamp": int(a.get("completionTimestamp", 0)),
             "completionDate":      a.get("completionDate", ""),
-            "persistenceLevel":    int(a.get("persistenceLevel", 0)),
-            "lineBaseId":          int(a.get("lineBaseId", aid)),
-            "linePreviousId":      int(a.get("linePreviousId", 0)),
-            "lineNextId":          int(a.get("lineNextId", 0)),
-            "completedByCharId":   a.get("completedByCharId", ""),
             "completedByCharName": a.get("completedByCharName", ""),
             "criteria":            criteria,
-            "rewards":             [r for r in a.get("rewards", []) if isinstance(r, dict)],
         }
 
     account_items: list[dict] = []
@@ -429,6 +423,8 @@ def process_iasync_achievements(raw: dict) -> dict:
         aid = int(achiev_id)
         item = _parse_achiev(a, aid)
         account_items.append(item)
+        if item["complete"]:
+            recent_candidates.append((int(a.get("completionTimestamp", 0)), item))
         if aid not in seen_ids:
             seen_ids.add(aid)
             all_achiev.append(item)
@@ -446,6 +442,8 @@ def process_iasync_achievements(raw: dict) -> dict:
             aid = int(achiev_id)
             item = _parse_achiev(a, aid)
             char_items.append(item)
+            if item["complete"]:
+                recent_candidates.append((int(a.get("completionTimestamp", 0)), item))
             if aid not in seen_ids:
                 seen_ids.add(aid)
                 all_achiev.append(item)
@@ -457,11 +455,7 @@ def process_iasync_achievements(raw: dict) -> dict:
             })
 
     # Recent = completed across all chars, sorted newest-first
-    recent = sorted(
-        (a for a in all_achiev if a["complete"]),
-        key=lambda x: x["completionTimestamp"],
-        reverse=True,
-    )[:10]
+    recent = sorted(recent_candidates, key=lambda x: x[0], reverse=True)[:10]
 
     return {
         "totalPts":      int(achiev_raw.get("totalPts", 0)),
@@ -471,7 +465,7 @@ def process_iasync_achievements(raw: dict) -> dict:
         "account_items": account_items,
         "items_by_char": items_by_char,
         "chars":         chars_with_achiev,
-        "recent":        recent,
+        "recent":        [a for _, a in recent],
     }
 
 

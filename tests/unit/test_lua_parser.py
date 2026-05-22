@@ -50,6 +50,16 @@ def test_parse_lua_assignment_with_spaces(tmp_path: Path):
 
 
 @pytest.mark.unit
+def test_parse_variable_without_space_before_equals(tmp_path: Path):
+    path = tmp_path / "sample.lua"
+    path.write_text('WizardsWardrobeSV={["Default"]={}}', encoding="utf-8")
+
+    data = parse_lua_variable(str(path), "WizardsWardrobeSV")
+
+    assert data["Default"] == {}
+
+
+@pytest.mark.unit
 def test_parse_missing_variable_raises_value_error(tmp_path: Path):
     path = tmp_path / "sample.lua"
     path.write_text("other = {}", encoding="utf-8")

@@ -682,7 +682,7 @@
           <template x-if="uploadStatus.iasync">
             <div :class="uploadStatus.iasync.ok ? 'text-green-400' : 'text-red-400'">
               <span x-show="uploadStatus.iasync.ok"
-                x-text="`✓ iasync — ${uploadStatus.iasync.chars} characters, ${uploadStatus.iasync.items.toLocaleString()} items`"></span>
+                x-text="`✓ iasync — ${uploadStatus.iasync.chars} characters, ${uploadStatus.iasync.items.toLocaleString()} items → ${uploadStatus.iasync.slot_updated || 'primary'}`"></span>
               <span x-show="!uploadStatus.iasync.ok"
                 x-text="`✗ iasync — ${uploadStatus.iasync.error}`"></span>
             </div>
@@ -690,7 +690,7 @@
           <template x-if="uploadStatus.ww">
             <div :class="uploadStatus.ww.ok ? 'text-green-400' : 'text-red-400'">
               <span x-show="uploadStatus.ww.ok"
-                x-text="`✓ WizardsWardrobe — ${uploadStatus.ww.builds} builds`"></span>
+                x-text="`✓ WizardsWardrobe — ${uploadStatus.ww.builds} builds → ${uploadStatus.ww.slot_updated || workspace.activeSlot}`"></span>
               <span x-show="!uploadStatus.ww.ok"
                 x-text="`✗ WizardsWardrobe — ${uploadStatus.ww.error}`"></span>
             </div>
@@ -810,6 +810,32 @@
           <h1 class="font-cinzel font-bold text-eso-gold text-xl leading-none">ESO Armory</h1>
           <p class="text-eso-muted text-xs mt-0.5" x-show="data"
             x-text="data ? `${data.meta.account} · ${data.meta.server} · ${data.meta.item_count.toLocaleString()} items` : ''"></p>
+          <div x-show="workspace.primary.account || workspace.shadow.account"
+            class="mt-1.5 flex items-center gap-1 rounded border px-1.5 py-1 text-[11px] w-fit"
+            style="background:var(--t-bg);border-color:var(--t-border)">
+            <button @click="switchWorkspaceSlot('primary')"
+              class="rounded px-2 py-0.5 transition-colors"
+              :style="workspace.activeSlot==='primary'
+                ? 'background:var(--t-gold);color:var(--t-bg)'
+                : 'color:var(--t-muted)'">
+              <span x-text="workspace.primary.account ? 'Primary' : 'Primary · empty'"></span>
+            </button>
+            <button @click="switchWorkspaceSlot('shadow')"
+              class="rounded px-2 py-0.5 transition-colors"
+              :disabled="!workspace.shadow.account"
+              :style="workspace.activeSlot==='shadow'
+                ? 'background:var(--t-gold);color:var(--t-bg)'
+                : (!workspace.shadow.account ? 'color:var(--t-muted);opacity:0.45;cursor:not-allowed' : 'color:var(--t-muted)')">
+              <span x-text="workspace.shadow.account ? 'Shadow' : 'Shadow · empty'"></span>
+            </button>
+            <button x-show="workspace.activeSlot==='shadow' && workspace.shadow.account"
+              @click="deleteShadowWorkspace()"
+              class="flex items-center justify-center rounded px-1.5 py-0.5 text-sm leading-none transition-colors"
+              style="color:var(--t-muted);min-width:1.75rem;min-height:1.5rem"
+              title="Delete shadow workspace">
+              🗑
+            </button>
+          </div>
         </div>
       </div>
       <div class="flex items-center gap-4">
@@ -956,7 +982,7 @@
             <template x-if="uploadStatus.iasync">
               <div :class="uploadStatus.iasync.ok ? 'text-green-400' : 'text-red-400'">
                 <span x-show="uploadStatus.iasync.ok"
-                  x-text="`✓ iasync — ${uploadStatus.iasync.chars} characters, ${uploadStatus.iasync.items.toLocaleString()} items`"></span>
+                  x-text="`✓ iasync — ${uploadStatus.iasync.chars} characters, ${uploadStatus.iasync.items.toLocaleString()} items → ${uploadStatus.iasync.slot_updated || 'primary'}`"></span>
                 <span x-show="!uploadStatus.iasync.ok"
                   x-text="`✗ iasync — ${uploadStatus.iasync.error}`"></span>
               </div>
@@ -964,7 +990,7 @@
             <template x-if="uploadStatus.ww">
               <div :class="uploadStatus.ww.ok ? 'text-green-400' : 'text-red-400'">
                 <span x-show="uploadStatus.ww.ok"
-                  x-text="`✓ WizardsWardrobe — ${uploadStatus.ww.builds} builds`"></span>
+                  x-text="`✓ WizardsWardrobe — ${uploadStatus.ww.builds} builds → ${uploadStatus.ww.slot_updated || workspace.activeSlot}`"></span>
                 <span x-show="!uploadStatus.ww.ok"
                   x-text="`✗ WizardsWardrobe — ${uploadStatus.ww.error}`"></span>
               </div>
@@ -2427,6 +2453,7 @@ function armory() {
     shareOpen: false,
     shareStatus: null,
     shareBusy: false,
+    workspace: { primary: { account: null }, shadow: { account: null }, activeSlot: 'primary', activeAccount: null },
     _sse: null,
     _sseGeneration: 0,
     _sseRetryTimer: null,
@@ -2593,6 +2620,7 @@ function armory() {
         }
       }
       await Promise.all([
+        this.fetchWorkspace(),
         this.fetchData(),
         this.fetchBuilds(),
         this.fetchWWBuilds(),
@@ -2765,6 +2793,7 @@ function armory() {
         if (etag) this.lastKnownMtime = parseFloat(etag);
         this.data = await r.json();
         if (this.data.error) throw new Error(this.data.error);
+        if (this.data?.meta?.account) this.workspace.activeAccount = this.data.meta.account;
         this.buildCharMaps();
         this.buildItemIdMap();
       } catch(e) {
@@ -2833,6 +2862,69 @@ function armory() {
         if (d.error) return;
         this.sbData = d;
       } catch(e) {}
+    },
+
+    async fetchWorkspace() {
+      try {
+        const r = await fetch(this.apiUrl('/api/workspace'));
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.error) return;
+        this.workspace = {
+          primary: d.primary || { account: null },
+          shadow: d.shadow || { account: null },
+          activeSlot: d.activeSlot || 'primary',
+          activeAccount: d.activeAccount || null,
+        };
+      } catch(e) {}
+    },
+
+    async switchWorkspaceSlot(slot) {
+      if (slot === this.workspace.activeSlot) return;
+      try {
+        const r = await fetch(this.apiUrl('/api/workspace/slot', { slot }, false), { method: 'POST' });
+        const d = await this.readJsonResponse(r, 'Workspace switch');
+        this.workspace = {
+          primary: d.primary || { account: null },
+          shadow: d.shadow || { account: null },
+          activeSlot: d.activeSlot || 'primary',
+          activeAccount: d.activeAccount || null,
+        };
+        await Promise.all([
+          this.fetchData(true),
+          this.fetchBuilds(),
+          this.fetchWWBuilds(),
+          this.fetchAchievements(),
+          this.fetchStickerbook(),
+        ]);
+        this.showToast(`Viewing ${slot} workspace ✓`);
+      } catch(e) {
+        this.showToast(e.message || 'Workspace switch failed');
+      }
+    },
+
+    async deleteShadowWorkspace() {
+      if (!this.workspace.shadow.account) return;
+      try {
+        const r = await fetch(this.apiUrl('/api/workspace/shadow', {}, false), { method: 'DELETE' });
+        const d = await this.readJsonResponse(r, 'Delete shadow');
+        this.workspace = {
+          primary: d.primary || { account: null },
+          shadow: d.shadow || { account: null },
+          activeSlot: d.activeSlot || 'primary',
+          activeAccount: d.activeAccount || null,
+        };
+        await Promise.all([
+          this.fetchData(true),
+          this.fetchBuilds(),
+          this.fetchWWBuilds(),
+          this.fetchAchievements(),
+          this.fetchStickerbook(),
+        ]);
+        this.showToast('Shadow workspace deleted');
+      } catch(e) {
+        this.showToast(e.message || 'Delete failed');
+      }
     },
 
     sbCategories() {
@@ -2986,6 +3078,7 @@ function armory() {
         const r = await fetch(this.apiUrl('/api/upload'), { method: 'POST', body: fd });
         const d = await this.readJsonResponse(r, 'Upload');
         this.uploadStatus = d;
+        await this.fetchWorkspace();
         const tasks = [];
         if (d.iasync?.ok) tasks.push(this.fetchData(), this.fetchBuilds(), this.fetchAchievements(), this.fetchStickerbook());
         if (d.ww?.ok)     tasks.push(this.fetchWWBuilds());
@@ -2995,7 +3088,7 @@ function armory() {
           if (d.iasync?.ok) {
             this.uploadOpen = false;
             this.shareOpen = false;
-            this.showToast('Armory loaded ✓');
+            this.showToast(`Armory loaded into ${d.iasync.slot_updated || this.workspace.activeSlot} ✓`);
           }
         }
       } catch(e) {
@@ -3118,6 +3211,7 @@ function armory() {
       try {
         const r = await fetch(this.apiUrl('/api/upload'), { method: 'POST', body: fd });
         const d = await this.readJsonResponse(r, 'Folder upload');
+        await this.fetchWorkspace();
         const tasks = [];
         if (d.iasync?.ok && iasyncFile) {
           this.iasyncLastMod = iasyncFile.lastModified;

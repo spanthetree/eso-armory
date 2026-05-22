@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.26] - 2026-05-22
+
+### Added
+- **SQLite-backed uploaded workspaces** — uploaded `iasync.lua` and `WizardsWardrobe.lua` raw source plus processed API payloads are now persisted in `uploads/armory.db`, so uploaded account workspaces can be reopened directly from the database
+- **Workspace slot controls** — the header now includes a primary/shadow workspace selector beneath the account name, plus an inline shadow-delete control when the shadow slot is active
+
+### Changed
+- **Uploaded workspace routing** — browser sessions now track one primary account and one optional shadow account; a second distinct uploaded ESO account fills the shadow slot instead of replacing the primary workspace
+- **Hosted read path** — uploaded `/api/data`, `/api/builds`, `/api/achievements`, `/api/stickerbook`, and `/api/ww_builds` requests now resolve from DB-backed account state rather than depending on copied uploaded SavedVariables files
+
+### Fixed
+- **WizardsWardrobe parser compatibility** — `WizardsWardrobeSV={` assignments without a space before `=` are now accepted, avoiding false parse failures for valid SavedVariables files
+
 ## [0.1.0-beta.25] - 2026-05-22
 
 ### Fixed

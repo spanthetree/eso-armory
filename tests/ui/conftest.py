@@ -22,9 +22,10 @@ def _free_port() -> int:
 @pytest.fixture
 def app_url(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     uploads = tmp_path / "uploads"
+    database_url = f"sqlite:///{(tmp_path / 'armory.db').as_posix()}"
     config_path = tmp_path / "config.json"
     config_path.write_text(
-        """{
+        f"""{{
   "iasync_lua_path": "",
   "ww_lua_path": "",
   "ttc_addon_path": "",
@@ -32,8 +33,9 @@ def app_url(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
   "ttc_price_table_path": "",
   "port": 0,
   "server": "NA",
-  "poll_interval_seconds": 3600
-}""",
+  "poll_interval_seconds": 3600,
+  "database_url": "{database_url}"
+}}""",
         encoding="utf-8",
     )
     monkeypatch.setattr(server, "UPLOADS_DIR", uploads)
@@ -44,6 +46,9 @@ def app_url(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     server._sessions.clear()
     server._share_registry.clear()
     server._share_registry.update({"codes": {}})
+    import db
+    db._ENGINE = None
+    db._SESSION_MAKER = None
     uploads.mkdir(parents=True, exist_ok=True)
 
     port = _free_port()

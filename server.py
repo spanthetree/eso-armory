@@ -1,16 +1,20 @@
 """ESO Armory — FastAPI server."""
 
 import asyncio
+import collections
 import json
 import os
 import platform
-import re
 import shutil
+import re
+import sqlite3
 import sys
+import threading
 import time
 import secrets
 import urllib.parse
 import urllib.request
+import gc
 from contextlib import asynccontextmanager
 from html.parser import HTMLParser
 from pathlib import Path
@@ -21,8 +25,26 @@ from fastapi.responses import FileResponse, JSONResponse, Response, StreamingRes
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
-from lua_parser import LuaParser, parse_lua_variable
+from lua_parser import LuaParser, parse_iasync_core, parse_iasync_core_text, parse_lua_text_variable, parse_lua_variable
 from data_processor import process_iasync, process_iasync_builds, process_iasync_achievements, process_iasync_stickerbook, process_ww_builds
+from db import (
+    AccountPayload,
+    bind_session as _db_bind_session,
+    delete_shadow_slot as _db_delete_shadow_slot,
+    find_share_code_for_account as _db_find_share_code_for_account,
+    find_session_for_account as _db_find_session_for_account,
+    get_account_state as _db_get_account_state,
+    get_account_state_for_session as _db_get_account_state_for_session,
+    get_or_create_share_code as _db_get_or_create_share_code,
+    get_workspace_binding as _db_get_workspace_binding,
+    init_db as _db_init,
+    resolve_account_for_share_code as _db_resolve_account_for_share_code,
+    session_slot_for_account as _db_session_slot_for_account,
+    set_active_slot as _db_set_active_slot,
+    touch_session as _db_touch_session,
+    update_account_blobs as _db_update_account_blobs,
+    upsert_account_payload as _db_upsert_account_payload,
+)
 
 
 def _setup_logging():
@@ -90,44 +112,87 @@ DEFAULT_CONFIG = {
     "port": 5000,
     "server": "NA",
     "poll_interval_seconds": 5,
+    "database_url": "sqlite:///uploads/armory.db",
 }
 
 _config: dict = {}
 _cache: dict = {
     "data_bytes":         None,
     "builds_bytes":       None,
-    "achievements_bytes":  None,
-    "stickerbook_bytes":   None,
-    "mtime":               None,
-    "error":               None,
+    "achievements_bytes": None,
+    "stickerbook_bytes":  None,
+    "mtime":              None,
+    "error":              None,
+    "meta":               None,
+    "source_path":        None,
 }
 _ww_cache: dict = {
     "ww_builds_bytes": None,
     "mtime":           None,
     "error":           None,
+    "source_path":     None,
 }
 _sse_queues: set[asyncio.Queue] = set()
 
 # Per-browser-session state (keyed by UUID from localStorage)
 _SESSION_RE = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 _SESSION_TTL = 7200  # seconds before an idle session is evicted
+_SESSION_MEMORY_TTL = 1800  # seconds before idle session memory is evicted
+_MAX_LOADED_SESSIONS = 2
 _sessions: dict[str, dict] = {}
 _share_registry: dict = {"codes": {}}
 
 _ability_icon_map: dict = {}
-_set_bonus_cache: dict  = {}  # set_id  -> {bonuses, url} or {bonuses, url, error}
-_skill_info_cache: dict = {}  # slug    -> {cast_time, cost, type, location, description, ...}
+_set_bonus_cache: collections.OrderedDict = collections.OrderedDict()  # set_id -> payload
+_skill_info_cache: collections.OrderedDict = collections.OrderedDict()  # slug -> payload
 _ttc_tables: dict = {
-    "lookup": None,
-    "price": None,
     "lookup_mtime": None,
     "price_mtime": None,
     "lookup_path": None,
     "price_path": None,
+    "db_path": None,
+    "db_ready": False,
+    "price_time": None,
+    "price_cache": collections.OrderedDict(),
 }
 
 _SHARE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 _SHARE_CODE_LEN = 8
+_EXTERNAL_CACHE_MAX = 256
+_TTC_PRICE_CACHE_MAX = 512
+_IASYNC_PARSE_LOCK = threading.Lock()
+_WW_PARSE_LOCK = threading.Lock()
+
+
+def _json_bytes(obj: dict) -> bytes:
+    return json.dumps(obj, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+
+def _lru_get(cache: collections.OrderedDict, key):
+    if key not in cache:
+        return None
+    cache.move_to_end(key)
+    return cache[key]
+
+
+def _lru_put(cache: collections.OrderedDict, key, value, limit: int) -> None:
+    cache[key] = value
+    cache.move_to_end(key)
+    while len(cache) > limit:
+        cache.popitem(last=False)
+
+
+def _account_fs_key(account_name: str) -> str:
+    key = re.sub(r"[^a-z0-9]+", "_", (account_name or "").lower()).strip("_")
+    return key or "unknown_account"
+
+
+def _account_upload_dir(account_name: str) -> Path:
+    return UPLOADS_DIR / "accounts" / _account_fs_key(account_name)
+
+
+def _account_file_path(account_name: str, *parts: str) -> Path:
+    return _account_upload_dir(account_name).joinpath(*parts)
 
 
 def _load_share_registry() -> None:
@@ -169,6 +234,11 @@ def _generate_share_code() -> str:
 
 
 def _session_share_code(session_id: str) -> str | None:
+    account = _db_get_account_state_for_session(session_id)
+    if account:
+        code = _db_find_share_code_for_account(account.account_name)
+        if code:
+            return code
     for code, entry in _share_registry["codes"].items():
         if entry.get("session_id") == session_id:
             return code
@@ -180,9 +250,14 @@ def _resolve_shared_session_id(share_code: str | None) -> str | None:
     if not code:
         return None
     entry = _share_registry["codes"].get(code)
-    if not isinstance(entry, dict):
-        return None
-    return _valid_session(entry.get("session_id"))
+    if isinstance(entry, dict):
+        sid = _valid_session(entry.get("session_id"))
+        if sid:
+            return sid
+    account_name = _db_resolve_account_for_share_code(code)
+    if account_name:
+        return _db_find_session_for_account(account_name)
+    return None
 
 
 def _session_is_shared(session_id: str) -> bool:
@@ -210,31 +285,13 @@ def _rehydrate_session_from_disk(session_id: str, sess: dict) -> None:
 
     lookup_path = upload_dir / "AddOns" / "TamrielTradeCentre" / "ItemLookUpTable_EN.lua"
     if lookup_path.exists():
-        try:
-            s_ttc_cache["lookup"] = _parse_lua_assignment(lookup_path, "self.ItemLookUpTable")
-            s_ttc_cache["lookup_mtime"] = os.path.getmtime(lookup_path)
-            s_ttc_cache["lookup_path"] = str(lookup_path)
-            s_ttc_cache["error"] = None
-        except Exception as exc:
-            s_ttc_cache["error"] = str(exc)
+        s_ttc_cache["lookup_mtime"] = os.path.getmtime(lookup_path)
+        s_ttc_cache["lookup_path"] = str(lookup_path)
 
-    price_path = upload_dir / "AddOns" / "TamrielTradeCentre" / (
-        "PriceTableEU.lua" if str(_config.get("server", "NA")).upper() == "EU" else "PriceTableNA.lua"
-    )
-    if not price_path.exists():
-        alt = upload_dir / "AddOns" / "TamrielTradeCentre" / (
-            "PriceTableNA.lua" if str(_config.get("server", "NA")).upper() == "EU" else "PriceTableEU.lua"
-        )
-        if alt.exists():
-            price_path = alt
+    price_path = _ttc_price_table_path(upload_dir)
     if price_path.exists():
-        try:
-            s_ttc_cache["price"] = _parse_lua_assignment(price_path, "self.PriceTable")
-            s_ttc_cache["price_mtime"] = os.path.getmtime(price_path)
-            s_ttc_cache["price_path"] = str(price_path)
-            s_ttc_cache["error"] = None
-        except Exception as exc:
-            s_ttc_cache["error"] = str(exc)
+        s_ttc_cache["price_mtime"] = os.path.getmtime(price_path)
+        s_ttc_cache["price_path"] = str(price_path)
 
 
 def _resolve_session_context(session_id: str | None, share_code: str | None = None) -> tuple[str | None, str | None]:
@@ -250,6 +307,77 @@ def _resolve_session_context(session_id: str | None, share_code: str | None = No
     return sid, None
 
 
+def _resolve_account_name(session_id: str | None, share_code: str | None = None) -> tuple[str | None, str | None]:
+    sid, err = _resolve_session_context(session_id, share_code)
+    if err:
+        return None, err
+    if not sid:
+        return None, None
+    state = _db_get_account_state_for_session(sid)
+    if state:
+        return state.account_name, None
+    return None, None
+
+
+def _workspace_info(session_id: str | None) -> dict:
+    sid = _valid_session(session_id)
+    if not sid:
+        return {"primary_account": None, "shadow_account": None, "active_slot": "primary"}
+    return _db_get_workspace_binding(sid)
+
+
+def _select_upload_slot(session_id: str, account_name: str) -> tuple[str | None, str | None]:
+    slot = _db_session_slot_for_account(session_id, account_name)
+    if slot:
+        return slot, None
+    workspace = _db_get_workspace_binding(session_id)
+    if not workspace["primary_account"]:
+        return "primary", None
+    if not workspace["shadow_account"]:
+        return "shadow", None
+    return None, f"Workspace already has primary {workspace['primary_account']} and shadow {workspace['shadow_account']}. Delete shadow or switch uploads."
+
+
+def _active_account_label(workspace: dict) -> str:
+    slot = workspace.get("active_slot") or "primary"
+    if slot == "shadow":
+        return workspace.get("shadow_account")
+    return workspace.get("primary_account")
+
+
+def _prune_share_registry_for_account(account_name: str) -> None:
+    stale = [code for code, entry in _share_registry["codes"].items() if entry.get("account_name") == account_name]
+    for code in stale:
+        _share_registry["codes"].pop(code, None)
+    if stale:
+        _save_share_registry()
+
+
+def _state_to_cache(state) -> dict:
+    return {
+        "data_bytes": state.data_bytes,
+        "builds_bytes": state.builds_bytes,
+        "achievements_bytes": state.achievements_bytes,
+        "stickerbook_bytes": state.stickerbook_bytes,
+        "mtime": state.data_mtime,
+        "error": state.last_error,
+        "meta": {
+            "account": state.account_name,
+            "server": state.server,
+            "item_count": state.item_count or 0,
+            "character_count": state.character_count or 0,
+            "parse_ms": state.parse_ms or 0,
+            "last_modified": state.source_last_update or 0,
+        },
+        "source_path": state.source_path,
+        "source_bytes": state.raw_iasync_lua,
+        "ww_builds_bytes": state.ww_builds_bytes,
+        "ww_source_path": state.ww_source_path,
+        "ww_source_bytes": state.raw_ww_lua,
+        "ww_mtime": state.ww_mtime,
+    }
+
+
 def _build_ability_icon_map() -> dict:
     abilities_dir = Path("assets/abilities")
     if not abilities_dir.exists():
@@ -262,6 +390,44 @@ def _build_ability_icon_map() -> dict:
         key = re.sub(r'[^a-z0-9]+', '_', icon.stem.lower()).strip('_')
         result[key] = "/" + icon.as_posix()
     return result
+
+
+def _empty_cache() -> dict:
+    return {
+        "data_bytes": None,
+        "builds_bytes": None,
+        "achievements_bytes": None,
+        "stickerbook_bytes": None,
+        "mtime": None,
+        "error": None,
+        "meta": None,
+        "source_path": None,
+        "source_bytes": None,
+    }
+
+
+def _empty_ww_cache() -> dict:
+    return {
+        "ww_builds_bytes": None,
+        "mtime": None,
+        "error": None,
+        "source_path": None,
+        "source_bytes": None,
+    }
+
+
+def _empty_ttc_cache() -> dict:
+    return {
+        "lookup_mtime": None,
+        "price_mtime": None,
+        "lookup_path": None,
+        "price_path": None,
+        "db_path": None,
+        "db_ready": False,
+        "price_time": None,
+        "price_cache": collections.OrderedDict(),
+        "error": None,
+    }
 
 
 class _TextExtractor(HTMLParser):
@@ -470,38 +636,133 @@ def _ttc_search_url(name: str) -> str:
     return f"https://{region}.tamrieltradecentre.com/pc/Trade/SearchResult?ItemNamePattern={urllib.parse.quote(name)}"
 
 
-def _ensure_ttc_tables(cache: dict | None = None, root: Path | None = None) -> tuple[dict, dict, int | None, Path]:
+def _ttc_db_path(root: Path | None = None) -> Path:
+    if root is not None:
+        return root / "AddOns" / "TamrielTradeCentre" / "ttc.sqlite3"
+    return UPLOADS_DIR / "ttc_local.sqlite3"
+
+
+def _ensure_ttc_db(cache: dict | None = None, root: Path | None = None) -> tuple[Path, int | None, Path]:
     cache = cache or _ttc_tables
     lookup_path = _ttc_lookup_table_path(root)
     price_path = _ttc_price_table_path(root)
     lookup_mtime = os.path.getmtime(lookup_path)
     price_mtime = os.path.getmtime(price_path)
+    db_path = _ttc_db_path(root)
 
     if (
-        cache["lookup"] is not None
-        and cache["price"] is not None
+        cache.get("db_ready")
+        and cache.get("db_path") == str(db_path)
+        and db_path.exists()
         and cache["lookup_mtime"] == lookup_mtime
         and cache["price_mtime"] == price_mtime
         and cache["lookup_path"] == str(lookup_path)
         and cache["price_path"] == str(price_path)
     ):
-        price_time = cache["price"].get("TimeStamp") if isinstance(cache["price"], dict) else None
-        return cache["lookup"], cache["price"], price_time, price_path
+        return db_path, cache.get("price_time"), price_path
 
     t0 = time.monotonic()
     lookup = _parse_lua_assignment(lookup_path, "self.ItemLookUpTable")
     price = _parse_lua_assignment(price_path, "self.PriceTable")
+    tmp_path = db_path.with_suffix(".tmp")
+    tmp_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(tmp_path)
+    try:
+        conn.executescript("""
+            PRAGMA journal_mode=OFF;
+            PRAGMA synchronous=OFF;
+            PRAGMA temp_store=MEMORY;
+            DROP TABLE IF EXISTS lookup;
+            DROP TABLE IF EXISTS prices;
+            DROP TABLE IF EXISTS meta;
+            CREATE TABLE lookup (
+                item_name TEXT PRIMARY KEY,
+                item_id INTEGER NOT NULL
+            );
+            CREATE TABLE prices (
+                item_id INTEGER PRIMARY KEY,
+                avg INTEGER,
+                min INTEGER,
+                max INTEGER,
+                entry_count INTEGER,
+                amount_count INTEGER,
+                suggested_price INTEGER,
+                sale_avg INTEGER,
+                sale_entry_count INTEGER,
+                sale_amount_count INTEGER,
+                variant_path TEXT
+            );
+            CREATE TABLE meta (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
+        """)
+
+        lookup_rows = []
+        for name, item_ids in lookup.items():
+            if not isinstance(item_ids, dict):
+                continue
+            item_id = _first_ttc_item_id(item_ids)
+            if item_id is not None:
+                lookup_rows.append((name, item_id))
+        conn.executemany("INSERT OR REPLACE INTO lookup(item_name, item_id) VALUES (?, ?)", lookup_rows)
+
+        price_rows = []
+        for item_id, item_node in (price.get("Data") or {}).items():
+            found, trail = _first_ttc_price_dict(item_node)
+            if found is None:
+                continue
+            try:
+                int_item_id = int(item_id)
+            except (TypeError, ValueError):
+                continue
+            price_rows.append((
+                int_item_id,
+                found.get("Avg", found.get("A")),
+                found.get("Min", found.get("N")),
+                found.get("Max", found.get("X")),
+                found.get("EntryCount", found.get("EC")),
+                found.get("AmountCount", found.get("AC")),
+                found.get("SuggestedPrice", found.get("S")),
+                found.get("SaleAvg", found.get("SA")),
+                found.get("SaleEntryCount", found.get("SE")),
+                found.get("SaleAmountCount", found.get("SAC")),
+                json.dumps(trail, separators=(",", ":")),
+            ))
+        conn.executemany("""
+            INSERT OR REPLACE INTO prices(
+                item_id, avg, min, max, entry_count, amount_count, suggested_price,
+                sale_avg, sale_entry_count, sale_amount_count, variant_path
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, price_rows)
+
+        price_time = price.get("TimeStamp")
+        conn.executemany(
+            "INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)",
+            [
+                ("price_time", str(price_time or "")),
+                ("lookup_path", str(lookup_path)),
+                ("price_path", str(price_path)),
+            ],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    tmp_path.replace(db_path)
     cache.update({
-        "lookup": lookup,
-        "price": price,
         "lookup_mtime": lookup_mtime,
         "price_mtime": price_mtime,
         "lookup_path": str(lookup_path),
         "price_path": str(price_path),
+        "db_path": str(db_path),
+        "db_ready": True,
+        "price_time": price.get("TimeStamp"),
+        "error": None,
     })
-    cache["price_cache"] = {}
-    logger.info("TTC tables loaded from {} in {:.2f}s", price_path.name, time.monotonic() - t0)
-    return lookup, price, price.get("TimeStamp"), price_path
+    cache["price_cache"] = collections.OrderedDict()
+    logger.info("TTC SQLite built from {} in {:.2f}s", price_path.name, time.monotonic() - t0)
+    return db_path, price.get("TimeStamp"), price_path
 
 
 def _first_ttc_item_id(item_ids_by_specialized_type: dict) -> int | None:
@@ -537,7 +798,7 @@ def _resolve_ttc_cache(session_id: str | None) -> tuple[dict, Path | None]:
     if sid:
         sess = _get_or_create_session(sid)
         ttc_cache = sess["ttc_cache"]
-        if ttc_cache["lookup"] is not None and ttc_cache["price"] is not None:
+        if ttc_cache.get("lookup_path") and ttc_cache.get("price_path"):
             return ttc_cache, sess["upload_dir"]
     return _ttc_tables, None
 
@@ -551,31 +812,40 @@ def _fetch_ttc_price(name: str, session_id: str | None = None) -> dict:
     cache_key = clean_name.lower()
     cache, root = _resolve_ttc_cache(session_id)
     price_cache = cache.setdefault("price_cache", {})
-    if cache_key in price_cache:
-        return price_cache[cache_key]
+    cached = _lru_get(price_cache, cache_key)
+    if cached is not None:
+        return cached
 
     fetched_at = int(time.time())
-    lookup, price_table, price_time, price_path = _ensure_ttc_tables(cache, root)
-    item_ids = lookup.get(cache_key)
-    if not isinstance(item_ids, dict):
-        result = {
-            "name": clean_name,
-            "fetchedAt": fetched_at,
-            "fetchedAtText": _fmt_ttc_time(fetched_at),
-            "priceTableTime": price_time,
-            "priceTableTimeText": _fmt_ttc_time(price_time),
-            "source": f"TTC {'uploaded' if root is not None else 'local'} PriceTable",
-            "attribution": "Data from Tamriel Trade Centre",
-            "url": url,
-            "error": "No TTC item match",
-        }
-        price_cache[cache_key] = result
-        return result
+    db_path, price_time, price_path = _ensure_ttc_db(cache, root)
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT item_id FROM lookup WHERE item_name = ?",
+            (cache_key,),
+        ).fetchone()
+        if row is None:
+            result = {
+                "name": clean_name,
+                "fetchedAt": fetched_at,
+                "fetchedAtText": _fmt_ttc_time(fetched_at),
+                "priceTableTime": price_time,
+                "priceTableTimeText": _fmt_ttc_time(price_time),
+                "source": f"TTC {'uploaded' if root is not None else 'local'} PriceTable",
+                "attribution": "Data from Tamriel Trade Centre",
+                "url": url,
+                "error": "No TTC item match",
+            }
+            _lru_put(price_cache, cache_key, result, _TTC_PRICE_CACHE_MAX)
+            return result
 
-    item_id = _first_ttc_item_id(item_ids)
-    item_node = (price_table.get("Data") or {}).get(item_id) if item_id is not None else None
-    price, trail = _first_ttc_price_dict(item_node)
-    if not price:
+        item_id = row[0]
+        price_row = conn.execute("""
+            SELECT avg, min, max, entry_count, amount_count, suggested_price,
+                   sale_avg, sale_entry_count, sale_amount_count, variant_path
+            FROM prices WHERE item_id = ?
+        """, (item_id,)).fetchone()
+
+    if price_row is None:
         result = {
             "name": clean_name,
             "itemId": item_id,
@@ -588,22 +858,22 @@ def _fetch_ttc_price(name: str, session_id: str | None = None) -> dict:
             "url": url,
             "error": "No TTC price data",
         }
-        price_cache[cache_key] = result
+        _lru_put(price_cache, cache_key, result, _TTC_PRICE_CACHE_MAX)
         return result
 
     result = {
         "name": clean_name,
         "itemId": item_id,
-        "avg": price.get("Avg", price.get("A")),
-        "min": price.get("Min", price.get("N")),
-        "max": price.get("Max", price.get("X")),
-        "entryCount": price.get("EntryCount", price.get("EC")),
-        "amountCount": price.get("AmountCount", price.get("AC")),
-        "suggestedPrice": price.get("SuggestedPrice", price.get("S")),
-        "saleAvg": price.get("SaleAvg", price.get("SA")),
-        "saleEntryCount": price.get("SaleEntryCount", price.get("SE")),
-        "saleAmountCount": price.get("SaleAmountCount", price.get("SAC")),
-        "variantPath": trail,
+        "avg": price_row[0],
+        "min": price_row[1],
+        "max": price_row[2],
+        "entryCount": price_row[3],
+        "amountCount": price_row[4],
+        "suggestedPrice": price_row[5],
+        "saleAvg": price_row[6],
+        "saleEntryCount": price_row[7],
+        "saleAmountCount": price_row[8],
+        "variantPath": json.loads(price_row[9]) if price_row[9] else [],
         "priceTableTime": price_time,
         "priceTableTimeText": _fmt_ttc_time(price_time),
         "fetchedAt": fetched_at,
@@ -612,7 +882,7 @@ def _fetch_ttc_price(name: str, session_id: str | None = None) -> dict:
         "attribution": "Data from Tamriel Trade Centre",
         "url": url,
     }
-    price_cache[cache_key] = result
+    _lru_put(price_cache, cache_key, result, _TTC_PRICE_CACHE_MAX)
     return result
 
 
@@ -628,38 +898,110 @@ def _load_config():
         _config.setdefault(k, v)
 
 
+def _reset_session_memory(sess: dict) -> None:
+    cache_path = sess["cache"].get("source_path")
+    cache_bytes = sess["cache"].get("source_bytes")
+    ww_path = sess["ww_cache"].get("source_path")
+    ww_bytes = sess["ww_cache"].get("source_bytes")
+    ttc = sess["ttc_cache"]
+    preserved_ttc = {
+        "lookup_mtime": ttc.get("lookup_mtime"),
+        "price_mtime": ttc.get("price_mtime"),
+        "lookup_path": ttc.get("lookup_path"),
+        "price_path": ttc.get("price_path"),
+        "db_path": ttc.get("db_path"),
+        "db_ready": ttc.get("db_ready", False),
+        "price_time": ttc.get("price_time"),
+        "error": ttc.get("error"),
+    }
+
+    sess["cache"] = _empty_cache()
+    sess["cache"]["source_path"] = cache_path
+    sess["cache"]["source_bytes"] = cache_bytes
+    sess["ww_cache"] = _empty_ww_cache()
+    sess["ww_cache"]["source_path"] = ww_path
+    sess["ww_cache"]["source_bytes"] = ww_bytes
+    sess["ttc_cache"] = _empty_ttc_cache()
+    sess["ttc_cache"].update(preserved_ttc)
+
+
+def _evict_idle_session_memory(force: bool = False) -> None:
+    cutoff = time.time() - _SESSION_MEMORY_TTL
+    loaded = []
+    for sid, sess in _sessions.items():
+        has_loaded = (
+            sess["cache"]["data_bytes"] is not None
+            or sess["ww_cache"]["ww_builds_bytes"] is not None
+            or sess["ttc_cache"].get("db_ready")
+            or sess["ttc_cache"].get("lookup_path")
+            or sess["ttc_cache"].get("price_path")
+        )
+        if has_loaded:
+            loaded.append((sid, sess))
+
+    for sid, sess in loaded:
+        if force or (sess["last_active"] < cutoff and not sess["sse_queues"]):
+            _reset_session_memory(sess)
+
+    loaded = [
+        (sid, sess) for sid, sess in _sessions.items()
+        if (
+            sess["cache"]["data_bytes"] is not None
+            or sess["ww_cache"]["ww_builds_bytes"] is not None
+            or sess["ttc_cache"].get("db_ready")
+            or sess["ttc_cache"].get("lookup_path")
+            or sess["ttc_cache"].get("price_path")
+        )
+    ]
+    if len(loaded) <= _MAX_LOADED_SESSIONS:
+        return
+
+    loaded.sort(key=lambda item: item[1]["last_active"])
+    for sid, sess in loaded[:-_MAX_LOADED_SESSIONS]:
+        if sess["sse_queues"]:
+            continue
+        _reset_session_memory(sess)
+
+
 def _parse_iasync_into(path: str, cache: dict) -> None:
     """Parse iasync.lua at *path* and populate *cache* in-place."""
     if not path:
         cache["error"] = "iasync_lua_path not configured"
         return
-    try:
-        mtime = os.path.getmtime(path)
-        if cache["mtime"] == mtime:
-            return
-        logger.debug("Parsing iasync: {}", path)
-        t0 = time.monotonic()
-        raw          = parse_lua_variable(path, "iasync_data")
-        data         = process_iasync(raw, server=_config.get("server", "NA"))
-        builds       = process_iasync_builds(raw)
-        achievements = process_iasync_achievements(raw)
-        stickerbook  = process_iasync_stickerbook(raw)
-        elapsed = time.monotonic() - t0
-        data["meta"]["parse_ms"] = int(elapsed * 1000)
-        cache["data_bytes"]         = json.dumps(data).encode()
-        cache["builds_bytes"]       = json.dumps(builds).encode()
-        cache["achievements_bytes"] = json.dumps(achievements).encode()
-        cache["stickerbook_bytes"]  = json.dumps(stickerbook).encode()
-        cache["mtime"]              = mtime
-        cache["error"]              = None
-        logger.info("iasync: {} items, {} chars in {:.2f}s",
-                    data["meta"]["item_count"], data["meta"]["character_count"], elapsed)
-    except FileNotFoundError:
-        cache["error"] = f"iasync.lua not found: {path}"
-        logger.error("iasync.lua not found: {}", path)
-    except Exception as exc:
-        cache["error"] = str(exc)
-        logger.error("iasync parse error: {}", exc)
+    with _IASYNC_PARSE_LOCK:
+        try:
+            mtime = os.path.getmtime(path)
+            if cache["mtime"] == mtime:
+                return
+            logger.debug("Parsing iasync: {}", path)
+            t0 = time.monotonic()
+            raw = _retry_lua_loader(lambda: parse_iasync_core(path))
+            data = process_iasync(raw, server=_config.get("server", "NA"))
+            builds = process_iasync_builds(raw)
+            del raw
+            gc.collect()
+            elapsed = time.monotonic() - t0
+            data["meta"]["parse_ms"] = int(elapsed * 1000)
+            cache["data_bytes"]         = _json_bytes(data)
+            cache["builds_bytes"]       = _json_bytes(builds)
+            cache["achievements_bytes"] = None
+            cache["stickerbook_bytes"]  = None
+            cache["mtime"]              = mtime
+            cache["error"]              = None
+            cache["meta"]               = data["meta"]
+            cache["source_path"]        = path
+            cache["source_bytes"]       = Path(path).read_bytes()
+            logger.info("iasync: {} items, {} chars in {:.2f}s",
+                        data["meta"]["item_count"], data["meta"]["character_count"], elapsed)
+        except FileNotFoundError:
+            cache["error"] = f"iasync.lua not found: {path}"
+            logger.error("iasync.lua not found: {}", path)
+        except Exception as exc:
+            if cache.get("data_bytes") is not None and _is_transient_lua_parse_error(exc, "iasync_data"):
+                logger.warning("iasync parse skipped during transient write: {}", exc)
+                return
+            cache["error"] = str(exc)
+            logger.error("iasync parse error: {}", exc)
 
 
 def _parse_iasync():
@@ -671,28 +1013,136 @@ def _parse_ww_into(path: str, cache: dict) -> None:
     if not path:
         cache["error"] = "ww_lua_path not configured"
         return
-    try:
-        mtime = os.path.getmtime(path)
-        if cache["mtime"] == mtime:
-            return
-        logger.debug("Parsing WW: {}", path)
-        raw    = parse_lua_variable(path, "WizardsWardrobeSV")
-        builds = process_ww_builds(raw)
-        cache["ww_builds_bytes"] = json.dumps(builds).encode()
-        cache["mtime"]           = mtime
-        cache["error"]           = None
-        n = sum(len(v) for v in builds["builds"].values())
-        logger.info("WW: {} builds", n)
-    except FileNotFoundError:
-        cache["error"] = f"WizardsWardrobe.lua not found: {path}"
-        logger.error("WizardsWardrobe.lua not found: {}", path)
-    except Exception as exc:
-        cache["error"] = str(exc)
-        logger.error("WW parse error: {}", exc)
+    with _WW_PARSE_LOCK:
+        try:
+            mtime = os.path.getmtime(path)
+            if cache["mtime"] == mtime:
+                return
+            logger.debug("Parsing WW: {}", path)
+            raw    = _parse_lua_variable_retry(path, "WizardsWardrobeSV")
+            builds = process_ww_builds(raw)
+            del raw
+            gc.collect()
+            cache["ww_builds_bytes"] = _json_bytes(builds)
+            cache["mtime"]           = mtime
+            cache["error"]           = None
+            cache["source_path"]     = path
+            cache["source_bytes"]    = Path(path).read_bytes()
+            n = sum(len(v) for v in builds["builds"].values())
+            logger.info("WW: {} builds", n)
+        except FileNotFoundError:
+            cache["error"] = f"WizardsWardrobe.lua not found: {path}"
+            logger.error("WizardsWardrobe.lua not found: {}", path)
+        except Exception as exc:
+            if cache.get("ww_builds_bytes") is not None and _is_transient_lua_parse_error(exc, "WizardsWardrobeSV"):
+                logger.warning("WW parse skipped during transient write: {}", exc)
+                return
+            cache["error"] = str(exc)
+            logger.error("WW parse error: {}", exc)
 
 
 def _parse_ww():
     _parse_ww_into(_config.get("ww_lua_path", ""), _ww_cache)
+
+
+def _build_iasync_derived_bytes(path: str, builder, variable_name: str = "iasync_data") -> bytes:
+    with _IASYNC_PARSE_LOCK:
+        raw = parse_lua_variable(path, variable_name)
+        result = _json_bytes(builder(raw))
+        del raw
+        gc.collect()
+        return result
+
+
+def _build_iasync_derived_bytes_from_source(source_bytes: bytes, builder, variable_name: str = "iasync_data") -> bytes:
+    with _IASYNC_PARSE_LOCK:
+        text = source_bytes.decode("utf-8", errors="replace")
+        raw = parse_lua_text_variable(text, variable_name)
+        result = _json_bytes(builder(raw))
+        del raw
+        gc.collect()
+        return result
+
+
+def _parse_lua_variable_retry(path: str, variable_name: str, attempts: int = 3, delay: float = 0.2) -> dict:
+    return _retry_lua_loader(lambda: parse_lua_variable(path, variable_name), attempts, delay)
+
+
+def _retry_lua_loader(loader, attempts: int = 3, delay: float = 0.2) -> dict:
+    last_exc = None
+    for attempt in range(attempts):
+        try:
+            return loader()
+        except (SyntaxError, ValueError) as exc:
+            last_exc = exc
+            # SavedVariables can be observed mid-write; retry briefly before failing.
+            if attempt + 1 < attempts:
+                time.sleep(delay)
+                continue
+            raise
+    raise last_exc  # pragma: no cover
+
+
+def _is_transient_lua_parse_error(exc: Exception, variable_name: str) -> bool:
+    msg = str(exc)
+    return (
+        isinstance(exc, (SyntaxError, ValueError))
+        and (
+            "Unexpected" in msg
+            or "Unterminated string" in msg
+            or f"Variable {variable_name!r} not found in file" in msg
+        )
+    )
+
+
+def _ensure_iasync_aux_bytes(cache: dict, which: str) -> None:
+    if cache.get(which) is not None:
+        return
+    source_bytes = cache.get("source_bytes")
+    if which == "achievements_bytes":
+        if source_bytes is not None:
+            cache[which] = _build_iasync_derived_bytes_from_source(source_bytes, process_iasync_achievements)
+            return
+        path = cache.get("source_path")
+        if not path:
+            raise FileNotFoundError("No iasync source available")
+        cache[which] = _build_iasync_derived_bytes(path, process_iasync_achievements)
+    elif which == "stickerbook_bytes":
+        if source_bytes is not None:
+            cache[which] = _build_iasync_derived_bytes_from_source(source_bytes, process_iasync_stickerbook)
+            return
+        path = cache.get("source_path")
+        if not path:
+            raise FileNotFoundError("No iasync source available")
+        cache[which] = _build_iasync_derived_bytes(path, process_iasync_stickerbook)
+    else:
+        raise ValueError(f"Unknown derived payload: {which}")
+
+
+def _extract_ww_account_name(path: str) -> str | None:
+    raw = _parse_lua_variable_retry(path, "WizardsWardrobeSV")
+    default = raw.get("Default", {})
+    for key in default:
+        if isinstance(key, str) and key.startswith("@"):
+            return key
+    return None
+
+
+def _extract_ww_account_name_from_bytes(source_bytes: bytes) -> str | None:
+    text = source_bytes.decode("utf-8", errors="replace")
+    raw = parse_lua_text_variable(text, "WizardsWardrobeSV")
+    default = raw.get("Default", {})
+    for key in default:
+        if isinstance(key, str) and key.startswith("@"):
+            return key
+    return None
+
+
+def _persist_account_source(account_name: str, source_path: Path, relative_parts: tuple[str, ...]) -> str:
+    dest = _account_file_path(account_name, *relative_parts)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_path, dest)
+    return str(dest)
 
 
 def _valid_session(session_id: str | None) -> str | None:
@@ -705,19 +1155,9 @@ def _valid_session(session_id: str | None) -> str | None:
 def _get_or_create_session(session_id: str) -> dict:
     if session_id not in _sessions:
         _sessions[session_id] = {
-            "cache": {"data_bytes": None, "builds_bytes": None,
-                      "achievements_bytes": None, "stickerbook_bytes": None,
-                      "mtime": None, "error": None},
-            "ww_cache": {"ww_builds_bytes": None, "mtime": None, "error": None},
-            "ttc_cache": {
-                "lookup": None,
-                "price": None,
-                "lookup_mtime": None,
-                "price_mtime": None,
-                "lookup_path": None,
-                "price_path": None,
-                "price_cache": {},
-            },
+            "cache": _empty_cache(),
+            "ww_cache": _empty_ww_cache(),
+            "ttc_cache": _empty_ttc_cache(),
             "upload_dir": UPLOADS_DIR / session_id,
             "sse_queues": set(),
             "last_active": time.time(),
@@ -726,12 +1166,24 @@ def _get_or_create_session(session_id: str) -> dict:
         logger.info("Session created: {}", session_id[:8])
     sess = _sessions[session_id]
     sess["last_active"] = time.time()
+    _db_touch_session(session_id)
     if sess["cache"]["data_bytes"] is None and sess["upload_dir"].exists():
         _rehydrate_session_from_disk(session_id, sess)
+        sess["cache"]["source_path"] = str(sess["upload_dir"] / "SavedVariables" / "iasync.lua")
+        sess["ww_cache"]["source_path"] = str(sess["upload_dir"] / "SavedVariables" / "WizardsWardrobe.lua")
+    _evict_idle_session_memory()
     return sess
 
 
 def _resolve_cache(session_id: str | None, share_code: str | None = None) -> dict:
+    account_name, account_err = _resolve_account_name(session_id, share_code)
+    if account_err:
+        return {"data_bytes": None, "builds_bytes": None, "achievements_bytes": None,
+                "stickerbook_bytes": None, "mtime": None, "error": account_err}
+    if account_name:
+        state = _db_get_account_state(account_name)
+        if state and state.data_bytes is not None:
+            return _state_to_cache(state)
     sid, err = _resolve_session_context(session_id, share_code)
     if err:
         return {"data_bytes": None, "builds_bytes": None, "achievements_bytes": None,
@@ -745,6 +1197,13 @@ def _resolve_cache(session_id: str | None, share_code: str | None = None) -> dic
 
 
 def _resolve_ww_cache(session_id: str | None, share_code: str | None = None) -> dict:
+    account_name, account_err = _resolve_account_name(session_id, share_code)
+    if account_err:
+        return {"ww_builds_bytes": None, "mtime": None, "error": account_err}
+    if account_name:
+        state = _db_get_account_state(account_name)
+        if state and state.ww_builds_bytes is not None:
+            return {"ww_builds_bytes": state.ww_builds_bytes, "mtime": state.ww_mtime, "error": state.last_error}
     sid, err = _resolve_session_context(session_id, share_code)
     if err:
         return {"ww_builds_bytes": None, "mtime": None, "error": err}
@@ -759,6 +1218,7 @@ def _resolve_ww_cache(session_id: str | None, share_code: str | None = None) -> 
 async def _session_cleanup():
     while True:
         await asyncio.sleep(300)
+        _evict_idle_session_memory()
         cutoff = time.time() - _SESSION_TTL
         expired = [sid for sid, s in list(_sessions.items()) if s["last_active"] < cutoff and not _session_is_shared(sid)]
         for sid in expired:
@@ -804,6 +1264,7 @@ async def lifespan(app: FastAPI):
     _setup_logging()
     UPLOADS_DIR.mkdir(exist_ok=True)
     _load_config()
+    _db_init(_config["database_url"])
     _load_share_registry()
     _parse_iasync()
     _parse_ww()
@@ -877,8 +1338,17 @@ async def api_builds(session: str | None = Query(None), share: str | None = Quer
 @app.get("/api/achievements")
 async def api_achievements(session: str | None = Query(None), share: str | None = Query(None)):
     cache = _resolve_cache(session, share)
-    if cache["achievements_bytes"] is None:
+    if cache["data_bytes"] is None:
         return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
+    if cache["achievements_bytes"] is None:
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, lambda: _ensure_iasync_aux_bytes(cache, "achievements_bytes"))
+            account_name, _ = _resolve_account_name(session, share)
+            if account_name and cache["achievements_bytes"] is not None:
+                _db_update_account_blobs(account_name, achievements_bytes=cache["achievements_bytes"])
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=500)
     return Response(
         content=cache["achievements_bytes"],
         media_type="application/json",
@@ -889,8 +1359,17 @@ async def api_achievements(session: str | None = Query(None), share: str | None 
 @app.get("/api/stickerbook")
 async def api_stickerbook(session: str | None = Query(None), share: str | None = Query(None)):
     cache = _resolve_cache(session, share)
-    if cache["stickerbook_bytes"] is None:
+    if cache["data_bytes"] is None:
         return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
+    if cache["stickerbook_bytes"] is None:
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, lambda: _ensure_iasync_aux_bytes(cache, "stickerbook_bytes"))
+            account_name, _ = _resolve_account_name(session, share)
+            if account_name and cache["stickerbook_bytes"] is not None:
+                _db_update_account_blobs(account_name, stickerbook_bytes=cache["stickerbook_bytes"])
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=500)
     return Response(
         content=cache["stickerbook_bytes"],
         media_type="application/json",
@@ -916,7 +1395,7 @@ async def api_status(session: str | None = Query(None), share: str | None = Quer
     if cache["data_bytes"] is None:
         return {"ok": False, "item_count": 0, "character_count": 0,
                 "last_modified": None, "error": cache.get("error")}
-    meta = json.loads(cache["data_bytes"])["meta"]
+    meta = cache.get("meta") or {}
     return {
         "ok":              True,
         "item_count":      meta["item_count"],
@@ -924,6 +1403,64 @@ async def api_status(session: str | None = Query(None), share: str | None = Quer
         "last_modified":   cache["mtime"],
         "error":           None,
     }
+
+
+@app.get("/api/workspace")
+async def api_workspace(session: str | None = Query(None), share: str | None = Query(None)):
+    sid, err = _resolve_session_context(session, share)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    workspace = _workspace_info(sid)
+    return JSONResponse({
+        "primary": {"account": workspace["primary_account"]},
+        "shadow": {"account": workspace["shadow_account"]},
+        "activeSlot": workspace["active_slot"],
+        "activeAccount": _active_account_label(workspace),
+    })
+
+
+@app.post("/api/workspace/slot")
+async def api_workspace_slot(session: str | None = Query(None), slot: str | None = Query(None)):
+    sid = _valid_session(session)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    if slot not in {"primary", "shadow"}:
+        return JSONResponse({"error": "valid slot required"}, status_code=400)
+    if not _db_set_active_slot(sid, slot):
+        return JSONResponse({"error": f"{slot} slot is empty"}, status_code=400)
+    workspace = _workspace_info(sid)
+    return JSONResponse({
+        "ok": True,
+        "primary": {"account": workspace["primary_account"]},
+        "shadow": {"account": workspace["shadow_account"]},
+        "activeSlot": workspace["active_slot"],
+        "activeAccount": _active_account_label(workspace),
+    })
+
+
+@app.delete("/api/workspace/shadow")
+async def api_workspace_delete_shadow(session: str | None = Query(None)):
+    sid = _valid_session(session)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    account_name, deleted = _db_delete_shadow_slot(sid)
+    if not account_name:
+        return JSONResponse({"error": "shadow slot is empty"}, status_code=400)
+    if deleted:
+        shutil.rmtree(_account_upload_dir(account_name), ignore_errors=True)
+        _prune_share_registry_for_account(account_name)
+    workspace = _workspace_info(sid)
+    return JSONResponse({
+        "ok": True,
+        "deletedAccount": account_name,
+        "deletedCanonical": deleted,
+        "primary": {"account": workspace["primary_account"]},
+        "shadow": {"account": workspace["shadow_account"]},
+        "activeSlot": workspace["active_slot"],
+        "activeAccount": _active_account_label(workspace),
+    })
 
 
 @app.post("/api/upload")
@@ -947,81 +1484,145 @@ async def api_upload(
     s_cache    = sess["cache"]
     s_ww_cache = sess["ww_cache"]
     s_ttc_cache = sess["ttc_cache"]
+    workspace = _workspace_info(sid)
+    active_account = _active_account_label(workspace)
 
     loop = asyncio.get_event_loop()
     results = {}
 
-    def _write_upload(dest: Path, data: bytes) -> None:
+    def _write_upload_chunk(dest: Path, chunk: bytes) -> None:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(data)
+        with dest.open("ab") as fh:
+            fh.write(chunk)
+
+    async def _stream_to_path(upload: UploadFile, dest: Path) -> int:
+        if dest.exists():
+            dest.unlink()
+        total = 0
+        while True:
+            chunk = await upload.read(1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            _write_upload_chunk(dest, chunk)
+        await upload.seek(0)
+        return total
 
     if iasync and iasync.filename:
         dest = upload_dir / "SavedVariables" / "iasync.lua"
-        data = await iasync.read()
-        _write_upload(dest, data)
+        size = await _stream_to_path(iasync, dest)
+        iasync_bytes = dest.read_bytes()
         s_cache["mtime"] = None
         iasync_path = str(dest)
         await loop.run_in_executor(None, lambda: _parse_iasync_into(iasync_path, s_cache))
         if s_cache["error"]:
             results["iasync"] = {"ok": False, "error": s_cache["error"]}
         else:
-            meta = json.loads(s_cache["data_bytes"])["meta"]
-            results["iasync"] = {"ok": True, "items": meta["item_count"], "chars": meta["character_count"]}
-            for q in list(sess["sse_queues"]):
-                try:
-                    q.put_nowait("reload")
-                except asyncio.QueueFull:
-                    pass
-        logger.info("Session {} uploaded iasync.lua ({} bytes)", sid[:8], len(data))
+            meta = s_cache.get("meta") or {}
+            account_name = meta.get("account") or active_account
+            if account_name:
+                slot, conflict = _select_upload_slot(sid, account_name)
+                if not slot:
+                    results["iasync"] = {"ok": False, "error": conflict, "conflict": True, "account_name": account_name}
+                else:
+                    persisted_path = _persist_account_source(account_name, dest, ("SavedVariables", "iasync.lua"))
+                    s_cache["source_path"] = persisted_path
+                    s_cache["source_bytes"] = iasync_bytes
+                    _db_upsert_account_payload(AccountPayload(
+                        account_name=account_name,
+                        server=str(meta.get("server") or _config.get("server", "NA")),
+                        data_bytes=s_cache["data_bytes"],
+                        builds_bytes=s_cache["builds_bytes"],
+                        data_mtime=s_cache["mtime"],
+                        item_count=meta.get("item_count"),
+                        character_count=meta.get("character_count"),
+                        parse_ms=meta.get("parse_ms"),
+                        source_last_update=meta.get("last_modified"),
+                        source_path=persisted_path,
+                        raw_iasync_lua=iasync_bytes,
+                    ))
+                    _db_bind_session(sid, account_name, slot, make_active=True)
+                    workspace = _workspace_info(sid)
+                    active_account = _active_account_label(workspace)
+                    results["iasync"] = {
+                        "ok": True,
+                        "items": meta["item_count"],
+                        "chars": meta["character_count"],
+                        "account_name": account_name,
+                        "slot_updated": slot,
+                    }
+                    for q in list(sess["sse_queues"]):
+                        try:
+                            q.put_nowait("reload")
+                        except asyncio.QueueFull:
+                            pass
+            else:
+                results["iasync"] = {"ok": False, "error": "account name missing from upload"}
+        logger.info("Session {} uploaded iasync.lua ({} bytes)", sid[:8], size)
 
     if ww and ww.filename:
         dest = upload_dir / "SavedVariables" / "WizardsWardrobe.lua"
-        data = await ww.read()
-        _write_upload(dest, data)
+        size = await _stream_to_path(ww, dest)
+        ww_bytes = dest.read_bytes()
         s_ww_cache["mtime"] = None
         ww_path = str(dest)
         await loop.run_in_executor(None, lambda: _parse_ww_into(ww_path, s_ww_cache))
         if s_ww_cache["error"]:
             results["ww"] = {"ok": False, "error": s_ww_cache["error"]}
         else:
-            builds = json.loads(s_ww_cache["ww_builds_bytes"])
-            n = sum(len(v) for v in builds["builds"].values())
-            results["ww"] = {"ok": True, "builds": n}
-        logger.info("Session {} uploaded WizardsWardrobe.lua ({} bytes)", sid[:8], len(data))
+            account_name = _extract_ww_account_name_from_bytes(ww_bytes) or active_account
+            if account_name:
+                slot, conflict = _select_upload_slot(sid, account_name)
+                if not slot:
+                    results["ww"] = {"ok": False, "error": conflict, "conflict": True, "account_name": account_name}
+                else:
+                    persisted_ww_path = _persist_account_source(account_name, dest, ("SavedVariables", "WizardsWardrobe.lua"))
+                    s_ww_cache["source_path"] = persisted_ww_path
+                    s_ww_cache["source_bytes"] = ww_bytes
+                    _db_upsert_account_payload(AccountPayload(
+                        account_name=account_name,
+                        server=str(_config.get("server", "NA")),
+                        ww_builds_bytes=s_ww_cache["ww_builds_bytes"],
+                        ww_mtime=s_ww_cache["mtime"],
+                        ww_source_path=persisted_ww_path,
+                        raw_ww_lua=ww_bytes,
+                    ))
+                    _db_bind_session(sid, account_name, slot, make_active=True)
+                    workspace = _workspace_info(sid)
+                    active_account = _active_account_label(workspace)
+                    builds = json.loads(s_ww_cache["ww_builds_bytes"])
+                    n = sum(len(v) for v in builds["builds"].values())
+                    results["ww"] = {"ok": True, "builds": n, "account_name": account_name, "slot_updated": slot}
+            else:
+                results["ww"] = {"ok": False, "error": "account name missing from upload"}
+        logger.info("Session {} uploaded WizardsWardrobe.lua ({} bytes)", sid[:8], size)
 
     if ttc_lookup and ttc_lookup.filename:
         dest = upload_dir / "AddOns" / "TamrielTradeCentre" / "ItemLookUpTable_EN.lua"
-        data = await ttc_lookup.read()
-        _write_upload(dest, data)
-        s_ttc_cache["lookup"] = None
-        s_ttc_cache["price_cache"] = {}
-        try:
-            s_ttc_cache["lookup"] = _parse_lua_assignment(dest, "self.ItemLookUpTable")
-            s_ttc_cache["lookup_mtime"] = os.path.getmtime(dest)
-            s_ttc_cache["lookup_path"] = str(dest)
-            s_ttc_cache["error"] = None
-            results["ttc_lookup"] = {"ok": True}
-        except Exception as exc:
-            s_ttc_cache["error"] = str(exc)
-            results["ttc_lookup"] = {"ok": False, "error": str(exc)}
-        logger.info("Session {} uploaded TTC lookup ({} bytes)", sid[:8], len(data))
+        size = await _stream_to_path(ttc_lookup, dest)
+        if active_account:
+            _persist_account_source(active_account, dest, ("AddOns", "TamrielTradeCentre", "ItemLookUpTable_EN.lua"))
+        s_ttc_cache["lookup_mtime"] = os.path.getmtime(dest)
+        s_ttc_cache["lookup_path"] = str(dest)
+        s_ttc_cache["db_ready"] = False
+        s_ttc_cache["price_cache"] = collections.OrderedDict()
+        s_ttc_cache["error"] = None
+        results["ttc_lookup"] = {"ok": True}
+        logger.info("Session {} uploaded TTC lookup ({} bytes)", sid[:8], size)
 
     if ttc_price and ttc_price.filename:
         dest = upload_dir / "AddOns" / "TamrielTradeCentre" / ("PriceTableEU.lua" if str(_config.get("server", "NA")).upper() == "EU" else "PriceTableNA.lua")
-        data = await ttc_price.read()
-        _write_upload(dest, data)
-        s_ttc_cache["price"] = None
-        s_ttc_cache["price_cache"] = {}
-        try:
-            s_ttc_cache["price"] = _parse_lua_assignment(dest, "self.PriceTable")
-            s_ttc_cache["price_mtime"] = os.path.getmtime(dest)
-            s_ttc_cache["price_path"] = str(dest)
-            s_ttc_cache["error"] = None
-            results["ttc_price"] = {"ok": True}
-        except Exception as exc:
-            s_ttc_cache["error"] = str(exc)
-            results["ttc_price"] = {"ok": False, "error": str(exc)}
-        logger.info("Session {} uploaded TTC price table ({} bytes)", sid[:8], len(data))
+        size = await _stream_to_path(ttc_price, dest)
+        if active_account:
+            _persist_account_source(active_account, dest, ("AddOns", "TamrielTradeCentre", dest.name))
+        s_ttc_cache["price_mtime"] = os.path.getmtime(dest)
+        s_ttc_cache["price_path"] = str(dest)
+        s_ttc_cache["db_ready"] = False
+        s_ttc_cache["price_time"] = None
+        s_ttc_cache["price_cache"] = collections.OrderedDict()
+        s_ttc_cache["error"] = None
+        results["ttc_price"] = {"ok": True}
+        logger.info("Session {} uploaded TTC price table ({} bytes)", sid[:8], size)
 
     if not results:
         return JSONResponse({"error": "No files received"}, status_code=400)
@@ -1036,6 +1637,7 @@ async def api_share(session: str | None = Query(None), share: str | None = Query
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
     sess = _get_or_create_session(sid)
+    account_name, _ = _resolve_account_name(sid, None)
     code = _session_share_code(sid)
     return JSONResponse({
         "code": code,
@@ -1054,11 +1656,16 @@ async def api_share_create(session: str | None = Query(None), share: str | None 
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
     sess = _get_or_create_session(sid)
+    account_name, _ = _resolve_account_name(sid, None)
+    if not account_name:
+        return JSONResponse({"error": "upload armory data before sharing"}, status_code=400)
     code = _session_share_code(sid)
     if not code:
         code = _generate_share_code()
+        _db_get_or_create_share_code(code, account_name)
         _share_registry["codes"][code] = {
             "session_id": sid,
+            "account_name": account_name,
             "created_at": int(time.time()),
             "updated_at": int(time.time()),
         }
@@ -1100,8 +1707,9 @@ async def api_share_join(session: str | None = Query(None), code: str | None = Q
 async def api_set_bonus(set_id: int, set_name: str):
     slug = _set_name_to_slug(set_name)
     cache_key = set_id if set_id else slug
-    if cache_key in _set_bonus_cache:
-        return JSONResponse(_set_bonus_cache[cache_key])
+    cached = _lru_get(_set_bonus_cache, cache_key)
+    if cached is not None:
+        return JSONResponse(cached)
     url = f"https://eso-sets.com/set/{slug}"
     try:
         loop = asyncio.get_event_loop()
@@ -1111,15 +1719,16 @@ async def api_set_bonus(set_id: int, set_name: str):
     except Exception as exc:
         result = {"bonuses": [], "url": url, "error": str(exc)}
         logger.warning("Set bonus fetch failed: {} — {}", set_name, exc)
-    _set_bonus_cache[cache_key] = result
+    _lru_put(_set_bonus_cache, cache_key, result, _EXTERNAL_CACHE_MAX)
     return JSONResponse(result)
 
 
 @app.get("/api/skill_info")
 async def api_skill_info(name: str):
     slug = _set_name_to_slug(name)
-    if slug in _skill_info_cache:
-        return JSONResponse(_skill_info_cache[slug])
+    cached = _lru_get(_skill_info_cache, slug)
+    if cached is not None:
+        return JSONResponse(cached)
     url = f"https://eso-skillbook.com/skill/{slug}"
     try:
         loop = asyncio.get_event_loop()
@@ -1129,7 +1738,7 @@ async def api_skill_info(name: str):
     except Exception as exc:
         result = {"url": url, "error": str(exc)}
         logger.warning("Skill info fetch failed: {} — {}", name, exc)
-    _skill_info_cache[slug] = result
+    _lru_put(_skill_info_cache, slug, result, _EXTERNAL_CACHE_MAX)
     return JSONResponse(result)
 
 

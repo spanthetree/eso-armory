@@ -2,7 +2,7 @@
 
 ![ESO Armory header](header.svg)
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.25-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.26-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -20,7 +20,9 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 - **Color themes** — five palettes (Gold, Light, Dark, Synthwave, Outrun) switchable via a "Theme" dropdown in the header; selection persists across sessions
 - **Live reload** — watches SavedVariables files and updates the browser automatically via SSE
 - **File upload / remote use** — upload `iasync.lua`, `WizardsWardrobe.lua`, and optional Tamriel Trade Centre tables directly via the browser instead of relying on local file paths; hosted users can seed TTC pricing manually even without a live watcher
+- **SQLite-backed uploaded workspaces** — uploaded `iasync.lua` and `WizardsWardrobe.lua` are stored in a local SQLite database along with processed API payloads, so uploaded workspaces reopen from the DB instead of reparsing copied files on each read
 - **Workspace sharing** — create a pairing code or share link from the header so another browser or device can join the same uploaded workspace later; private sessions remain the default
+- **Primary + shadow workspaces** — a browser session now keeps one primary account and one optional shadow account; uploading a second distinct ESO account fills the shadow slot instead of replacing the primary account, and you can switch between them from the header
 - **Shared workspace persistence** — pairing codes are backed by a small server-side registry so the same uploaded data can be reopened on another browser later without re-uploading
 - **Folder watcher** (Chrome/Edge) — select your ESO `live` folder once and the app polls for changes every 5 s, re-uploading `SavedVariables/` and Tamriel Trade Centre tables from `AddOns/TamrielTradeCentre/` automatically; directory handle persists across sessions via IndexedDB
 - **Refresh button** — manually check for updated data at any time; toasts "Data updated ✓" or "No updates"
@@ -77,7 +79,8 @@ On first run a `config.json` is created automatically with paths detected for yo
   "ttc_price_table_path": "",
   "port": 5000,
   "server": "NA",
-  "poll_interval_seconds": 5
+  "poll_interval_seconds": 5,
+  "database_url": "sqlite:///uploads/armory.db"
 }
 ```
 
@@ -152,6 +155,7 @@ Generated live-derived files are for review only; committed tests should continu
 
 ```
 server.py              # FastAPI app + file watcher + TTC price lookups
+db.py                  # SQLAlchemy models and uploaded workspace persistence
 lua_parser.py          # Recursive-descent Lua parser
 data_processor.py      # iasync + WW data → JSON model
 item_link_decoder.py   # ESO item link decoder (trait/style/enchant)
@@ -162,6 +166,7 @@ assets/gear/           # Slot-specific gear icons (weapon/armor/jewelry)
 assets/abilities/      # Skill icons used by current builds and WW saved builds
 iasync/                # Companion ESO addon (symlink to AddOns folder)
 config.json            # Auto-generated on first run
+uploads/armory.db      # Default SQLite database for uploaded account workspaces
 ```
 
 ## Notes
@@ -169,4 +174,6 @@ config.json            # Auto-generated on first run
 - SavedVariables are only written to disk on `/reloadui` or character logout. The web app shows whatever was last flushed.
 - Bank currency (gold, AP, Telvar, Writ Vouchers) is not saved by IIfA — iasync captures it separately.
 - Ability and CP names in build cards require iasync to have run at least once in-game.
+- Uploaded/browser-backed workspaces now read from SQLite after ingest. Uploading newer files for the same ESO account rewrites that account's stored raw SavedVariables and processed payloads in the DB.
+- If you upload a different ESO account into a session that already has one loaded, it is stored as the session's shadow workspace when available instead of replacing the primary workspace.
 - Collections piece-price tooltips use Tamriel Trade Centre `ItemLookUpTable_EN.lua` and `PriceTableNA.lua`/`PriceTableEU.lua` files from the selected live folder when available, or configured local TTC paths on self-hosted installs; hosted users can also upload those TTC files manually. Restart the server after changing TTC config paths or updating routes. If tooltip prices are missing, check `/api/ttc_price` and server logs first.
