@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.24] - 2026-05-22
+
+### Added
+- **Project header artwork** — added `header.svg`, an ESO Armory-branded terminal-style header matching the sibling addon header style and highlighting inventory, equipment, builds, and collections
+
+## [0.1.0-beta.23] - 2026-05-22
+
+### Added
+- **Static serving regression coverage** — Playwright now checks first-load rendering in Chromium and Firefox and fails if the page dumps HTML, Lua data, or inline Alpine source instead of the setup UI
+- **Response header API coverage** — tests now verify `/`, `HEAD /`, and `/static/index.html` return HTML content types with `X-Content-Type-Options: nosniff`
+
+### Changed
+- **App shell delivery** — `/` now explicitly serves `static/index.html` as `text/html; charset=utf-8` with `Cache-Control: no-store` and `nosniff` headers
+- **Upload failure messaging** — malformed JSON or proxy HTML responses now show concise upload errors rather than browser `JSON.parse` wording
+- **Repository hygiene** — Vim swap files are ignored by git
+
+## [0.1.0-beta.22] - 2026-05-22
+
+### Added
+- **Test harness** — added pytest unit/API coverage, Playwright UI test scaffolding for Chromium and Firefox, mutmut mutation-test configuration, Makefile test commands, and CI workflow entries
+- **Sanitized fixtures** — added committed sanitized fixtures plus fixture-safety checks for parser, processor, upload, sharing, and TTC price flows
+- **Per-browser UI test targets** — added `make test-ui-chromium` and `make test-ui-firefox` alongside the existing all-browser `make test-ui` target
+
+### Changed
+- **Upload error handling** — non-JSON proxy errors now surface as actionable HTTP/content messages instead of JSON parse failures
+
 ## [0.1.0-beta.21] - 2026-05-21
 
 ### Changed

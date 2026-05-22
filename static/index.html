@@ -2622,6 +2622,27 @@ function armory() {
       return `${path}?${qp.toString()}`;
     },
 
+    async readJsonResponse(response, label = 'Request') {
+      const contentType = response.headers.get('content-type') || '';
+      const text = await response.text();
+      let data = null;
+      if (contentType.includes('application/json') || text.trim().startsWith('{') || text.trim().startsWith('[')) {
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch(e) {
+          const preview = text.replace(/\s+/g, ' ').trim().slice(0, 160);
+          throw new Error(`${label} returned invalid JSON response: ${preview || 'empty response'}`);
+        }
+      } else {
+        const preview = text.replace(/\s+/g, ' ').trim().slice(0, 160);
+        throw new Error(`${label} returned ${response.status} ${response.statusText || ''}: ${preview || 'non-JSON response'}`);
+      }
+      if (!response.ok) {
+        throw new Error(data?.error || `${label} failed with HTTP ${response.status}`);
+      }
+      return data;
+    },
+
     shareLink(code = this.shareCode) {
       const normalized = this._normalizeShareCode(code);
       if (!normalized) return '';
@@ -2963,7 +2984,7 @@ function armory() {
       this.uploadStatus = null;
       try {
         const r = await fetch(this.apiUrl('/api/upload'), { method: 'POST', body: fd });
-        const d = await r.json();
+        const d = await this.readJsonResponse(r, 'Upload');
         this.uploadStatus = d;
         const tasks = [];
         if (d.iasync?.ok) tasks.push(this.fetchData(), this.fetchBuilds(), this.fetchAchievements(), this.fetchStickerbook());
@@ -3096,7 +3117,7 @@ function armory() {
 
       try {
         const r = await fetch(this.apiUrl('/api/upload'), { method: 'POST', body: fd });
-        const d = await r.json();
+        const d = await this.readJsonResponse(r, 'Folder upload');
         const tasks = [];
         if (d.iasync?.ok && iasyncFile) {
           this.iasyncLastMod = iasyncFile.lastModified;

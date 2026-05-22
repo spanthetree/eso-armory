@@ -1,6 +1,8 @@
 # ESO Armory
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.21-orange)
+![ESO Armory header](header.svg)
+
+![Version](https://img.shields.io/badge/version-0.1.0--beta.24-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -23,6 +25,7 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 - **Folder watcher** (Chrome/Edge) — select your ESO `live` folder once and the app polls for changes every 5 s, re-uploading `SavedVariables/` and Tamriel Trade Centre tables from `AddOns/TamrielTradeCentre/` automatically; directory handle persists across sessions via IndexedDB
 - **Refresh button** — manually check for updated data at any time; toasts "Data updated ✓" or "No updates"
 - **Session isolation** — each browser gets a UUID stored in `localStorage`; multiple users on the same hosted instance see only their own uploaded data by default, but a browser can opt into a shared workspace with a pairing code; private sessions still expire after 2 hours of inactivity
+- **Static serving hardening** — the app shell is explicitly served as `text/html` with `nosniff` headers, and upload failures from proxies/CDNs show actionable HTTP/content messages instead of raw JSON parser errors
 
 ## Requirements
 
@@ -108,6 +111,43 @@ python server.py --port 8080
 
 The server polls your SavedVariables files every 5 seconds (configurable) and pushes a reload event to the browser when anything changes.
 
+## Testing
+
+Install dev dependencies:
+
+```bash
+uv sync --dev
+```
+
+Common test commands:
+
+```bash
+make test-fast          # unit + API tests
+make test               # alias for test-fast
+make playwright-install # install Chromium + Firefox for Playwright
+make playwright-install-deps # install Linux system libraries for browsers
+make test-ui            # browser tests in Chromium + Firefox
+make test-ui-chromium   # browser tests in Chromium only
+make test-ui-firefox    # browser tests in Firefox only
+make test-all           # fast tests + browser tests
+make test-mutation-core # mutmut for parser/decoder/data processing
+make test-mutation      # mutmut for all backend modules
+```
+
+Use `make test-fast` before small backend changes, `make test-ui` for frontend/upload/share changes, and `make test-all` before release-style validation. Mutation tests are intentionally manual because they are slower than the normal suite.
+
+On Linux, Playwright may also need system browser libraries. If Chromium or Firefox fails to launch with a missing shared library, run `make playwright-install-deps` in a shell with sudo access.
+
+The UI suite includes first-load regressions that assert the browser renders the upload/setup screen instead of dumping HTML, Lua, or inline Alpine source text. It also exercises non-JSON upload responses so CDN/proxy errors are visible to users.
+
+The committed test fixtures in `tests/fixtures/` are sanitized and deterministic. To refresh local generated samples from your ESO live folder, run:
+
+```bash
+uv run scripts/generate_test_fixtures.py
+```
+
+Generated live-derived files are for review only; committed tests should continue using sanitized fixtures and must not depend on `/mnt/c/...` paths.
+
 ## Project Structure
 
 ```
@@ -116,6 +156,7 @@ lua_parser.py          # Recursive-descent Lua parser
 data_processor.py      # iasync + WW data → JSON model
 item_link_decoder.py   # ESO item link decoder (trait/style/enchant)
 static/index.html      # Single-file frontend (Alpine.js + Tailwind CDN)
+header.svg             # Project header artwork for README/release surfaces
 assets/gear/           # Slot-specific gear icons (weapon/armor/jewelry)
 assets/abilities/      # Skill icons used by current builds and WW saved builds
 iasync/                # Companion ESO addon (symlink to AddOns folder)

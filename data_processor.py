@@ -201,6 +201,16 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
             for slot, item_data in chest.get("slots", {}).items():
                 _add_slot(item_data, slot, "house_chest", label, label, chest_id, label)
 
+    # Guild banks
+    for guild_name, guild in raw.get("guildBanks", {}).items():
+        slots = guild.get("slots", guild) if isinstance(guild, dict) else {}
+        if not isinstance(slots, dict):
+            continue
+        label = str(guild_name)
+        for slot, item_data in slots.items():
+            if isinstance(item_data, dict):
+                _add_slot(item_data, slot, "guild_bank", label, label, 3, "Guild Bank")
+
     items = list(item_map.values())
     parse_ms = int((time.monotonic() - t0) * 1000)
 

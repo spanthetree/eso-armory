@@ -8,6 +8,7 @@ Local web app that reads ESO SavedVariables and presents inventory, equipment, a
 - **Frontend**: Single-file `static/index.html` — Alpine.js 3.x, Tailwind CDN, no build step
 - **Lua parser**: Custom recursive-descent in `lua_parser.py` (stdlib only, no lupa/lark)
 - **Start**: `uv run server.py` → http://localhost:5000 (or `python server.py` if a virtualenv is active via `uv sync --active`)
+- **Tests**: pytest unit/API tests, Playwright UI tests for Chromium and Firefox, mutmut mutation tests for backend confidence
 
 ## Approval Preference
 Before making code or file changes, ask for explicit approval unless the user has already clearly requested implementation in the current turn. Read-only inspection, searches, and non-mutating checks are fine without approval.
@@ -22,6 +23,23 @@ Before making code or file changes, ask for explicit approval unless the user ha
 | `config.json` | Paths to Lua files, port, server region, poll interval |
 | `iasync/iasync.lua` | ESO addon (symlinked to Windows AddOns folder) |
 | `static/index.html` | Full SPA (Characters, Inventory, Achievements, Collections tabs) |
+| `header.svg` | README/release header artwork; ANSI-style SVG matching sibling addon headers |
+| `tests/fixtures/` | Sanitized deterministic Lua/TTC fixtures; do not commit live user data |
+| `tests/ui/test_critical_flows.py` | Chromium/Firefox first-load, upload, share, and inventory browser flows |
+
+## Testing Commands
+```bash
+make test-fast          # unit + API tests with coverage
+make test               # alias for test-fast
+make test-ui            # Playwright in Chromium + Firefox
+make test-ui-chromium   # Playwright in Chromium only
+make test-ui-firefox    # Playwright in Firefox only
+make test-all           # fast tests + browser tests
+make test-mutation-core # scoped mutmut run for parser/decoder/data processing
+make test-mutation      # broader mutmut run
+```
+
+Use `make test-all` before release-style validation. Mutation tests are intentionally manual because they are much slower than the normal suite. The UI suite includes a first-load regression that fails if the browser renders HTML, Lua data, or inline Alpine source text instead of the setup UI.
 
 ## Data Sources
 Two SavedVariables files are parsed:
@@ -140,6 +158,9 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 | `POST /api/upload?session=&share=` | Accepts `iasync`, `ww`, `ttc_lookup`, and `ttc_price` multipart file fields; requires valid UUID session; writes to `uploads/<session_id>/`, re-parses into session cache, notifies session SSE queue; returns `{iasync: {ok, items, chars}, ww: {ok, builds}, ttc_lookup: {ok}, ttc_price: {ok}}` |
 | `GET /events?session=&share=` | SSE stream; joins the shared workspace queue when `share` resolves, otherwise the browser's own session queue if it has data, else global queue; sends `"reload"` on data change |
 
+### Static serving expectations
+`GET /` and `HEAD /` must serve the app shell as `text/html; charset=utf-8` with `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. Static/assets responses also set `nosniff`. If a hosted browser appears to dump `function armory()` or other source text, first verify response headers for `/` and `/static/index.html`, then check CDN/proxy cache behavior.
+
 ## Server Caches (server.py)
 ```python
 _cache           = {data_bytes, builds_bytes, achievements_bytes, stickerbook_bytes, mtime, error}  # global iasync (local users)
@@ -182,6 +203,8 @@ If Collections piece tooltips render but price rows are missing, check `/api/ttc
 
 ## Assets System
 All icons are served via `app.mount("/assets", StaticFiles(directory="assets"))`.
+
+`header.svg` is a root-level project header image for README/release surfaces. Keep its 860×162 SVG format and terminal-style composition aligned with the sibling `Tools4Nerds` and `iasync` addon headers unless the user asks for a redesign.
 
 ### Icon normalization (both Python and JS must match)
 ```python

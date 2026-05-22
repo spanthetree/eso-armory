@@ -1,6 +1,6 @@
 [project]
 name = "eso-armory"
-version = "0.1.0-beta.21"
+version = "0.1.0-beta.24"
 description = "Local web app for browsing ESO inventory, gear, and WizardsWardrobe builds"
 requires-python = ">=3.12"
 dependencies = [
@@ -8,4 +8,42 @@ dependencies = [
     "loguru>=0.7.3",
     "python-multipart>=0.0.9",
     "uvicorn[standard]>=0.47.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: fast unit tests",
+    "api: FastAPI endpoint tests",
+    "ui: Playwright browser tests",
+    "slow: slow tests",
+    "mutation_target: tests selected by mutmut",
+]
+addopts = "--strict-markers"
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "scripts/*",
+    ".venv/*",
+]
+
+[tool.mutmut]
+paths_to_mutate = [
+    "lua_parser.py",
+    "item_link_decoder.py",
+    "data_processor.py",
+    "server.py",
+]
+pytest_add_cli_args_test_selection = ["tests/unit", "tests/api"]
+also_copy = ["tests/fixtures/", "static/", "assets/"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "mutmut>=3.5.0",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
+    "pytest-playwright>=0.8.0",
 ]

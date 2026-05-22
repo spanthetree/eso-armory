@@ -822,17 +822,32 @@ app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     if request.url.path.startswith(("/static", "/assets")):
-        return await call_next(request)
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        return response
     t0 = time.monotonic()
     response = await call_next(request)
     ms = int((time.monotonic() - t0) * 1000)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
     logger.info("{} {} → {} {}ms", request.method, request.url.path, response.status_code, ms)
     return response
 
 
 @app.get("/")
 async def root():
-    return FileResponse("static/index.html", headers={"Cache-Control": "no-store"})
+    return FileResponse(
+        "static/index.html",
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@app.head("/")
+async def root_head():
+    return Response(
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
 
 
 @app.get("/api/data")

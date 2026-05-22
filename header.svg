@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 162">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#08070b"/>
+      <stop offset="58%" stop-color="#120d06"/>
+      <stop offset="100%" stop-color="#071414"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="860" height="162" fill="url(#bg)" rx="10"/>
+  <rect x="8" y="8" width="844" height="146" fill="none" stroke="#D0A84A" stroke-width="1" rx="6" opacity="0.48"/>
+  <rect x="10" y="10" width="840" height="142" fill="none" stroke="#F0D878" stroke-width="0.4" rx="5" opacity="0.22"/>
+
+  <!-- corner chars -->
+  <text font-family="monospace" font-size="11" fill="#D0A84A" opacity="0.9" x="11" y="21">╔</text>
+  <text font-family="monospace" font-size="11" fill="#D0A84A" opacity="0.9" x="841" y="21">╗</text>
+  <text font-family="monospace" font-size="11" fill="#C48A2C" opacity="0.9" x="11" y="152">╚</text>
+  <text font-family="monospace" font-size="11" fill="#C48A2C" opacity="0.9" x="841" y="152">╝</text>
+
+  <!--
+    ANSI Shadow ASCII art for ESO ARMORY.
+    Layout follows the sibling addon headers: dark gradient shell, thin ESO-gold
+    border, centered monospace block art, and a small spaced tagline.
+  -->
+
+  <!-- Line 1 -->
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="46" xml:space="preserve">
+    <tspan x="65" fill="#F0D878">███████╗███████╗ ██████╗ </tspan><tspan fill="#D0A84A">    █████╗ ██████╗ ███╗   ███╗ ██████╗ ██████╗ ██╗   ██╗</tspan>
+  </text>
+  <!-- Line 2 -->
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="61" xml:space="preserve">
+    <tspan x="65" fill="#E8C864">██╔════╝██╔════╝██╔═══██╗</tspan><tspan fill="#C89838">   ██╔══██╗██╔══██╗████╗ ████║██╔═══██╗██╔══██╗╚██╗ ██╔╝</tspan>
+  </text>
+  <!-- Line 3 -->
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="76" xml:space="preserve">
+    <tspan x="65" fill="#D8B450">█████╗  ███████╗██║   ██║</tspan><tspan fill="#B88428">   ███████║██████╔╝██╔████╔██║██║   ██║██████╔╝ ╚████╔╝ </tspan>
+  </text>
+  <!-- Line 4 -->
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="91" xml:space="preserve">
+    <tspan x="65" fill="#C8A040">██╔══╝  ╚════██║██║   ██║</tspan><tspan fill="#A87820">   ██╔══██║██╔══██╗██║╚██╔╝██║██║   ██║██╔══██╗  ╚██╔╝  </tspan>
+  </text>
+  <!-- Line 5 -->
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="106" xml:space="preserve">
+    <tspan x="65" fill="#B88C30">███████╗███████║╚██████╔╝</tspan><tspan fill="#967018">   ██║  ██║██║  ██║██║ ╚═╝ ██║╚██████╔╝██║  ██║   ██║   </tspan>
+  </text>
+  <!-- Line 6 -->
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="121" xml:space="preserve">
+    <tspan x="65" fill="#A87820">╚══════╝╚══════╝ ╚═════╝ </tspan><tspan fill="#785008">   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   </tspan>
+  </text>
+
+  <!-- tagline -->
+  <text font-family="'Courier New',Courier,monospace" font-size="11" text-anchor="middle"
+        x="430" y="143" fill="#C4A040" letter-spacing="2" opacity="0.68">
+    inventory · equipment · builds · collections · elder scrolls online
+  </text>
+</svg>

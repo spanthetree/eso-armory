@@ -7,8 +7,21 @@ venv/
 dist/
 build/
 
+# Editor swap files
+*.swp
+*.swo
+.*.swp
+.*.swo
+
 # Logs
 logs/
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+test-results/
+mutants/
 
 # Config (contains local paths)
 config.json
