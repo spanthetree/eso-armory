@@ -157,7 +157,7 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 | `GET /api/workspace?session=&share=` | Returns `{primary, shadow, activeSlot, activeAccount}` for the current browser workspace |
 | `POST /api/workspace/slot?session=&slot=` | Switches the active browser workspace slot between `primary` and `shadow` |
 | `DELETE /api/workspace/shadow?session=` | Removes the browser session's shadow workspace; only deletes the canonical account row if it is no longer referenced elsewhere |
-| `POST /api/build_export?session=&share=&character_id=` | Serializes the selected character's current build into a short export code |
+| `POST /api/build_export?session=&share=&character_id=` | Serializes the selected character's current build into a short export code (schema v2 payload: `build` + scoped `ability_names` + `cp_names`; server enriches gear metadata from equipped `/api/data` items before storing) |
 | `GET /api/compare_builds?session=&share=` | Returns imported compare builds keyed by destination `character_id` for the active workspace/account |
 | `POST /api/compare_builds/import?session=&share=&character_id=&code=` | Resolves a build export code and stores/replaces one imported compare build for that destination character |
 | `DELETE /api/compare_builds?session=&share=&character_id=` | Deletes the imported compare build bound to that destination character |
@@ -307,6 +307,8 @@ charInvTransmuted, charInvCrafted, charInvGroupBySet
 detailPanelHeight // measured current-build panel height for wide-screen panel matching
 compareMode, compareImportCode, compareBusy, compareStatus
 importedCompareBuilds // map keyed by destination character_id from /api/compare_builds
+importedAbilityNames  // map keyed by destination character_id from /api/compare_builds ability_names
+importedCpNames       // map keyed by destination character_id from /api/compare_builds cp_names
 exportedBuildCodes    // last export code per character in the active browser session
 ```
 
@@ -340,6 +342,7 @@ tipShowSbPiece(name, evt)    // shows TTC piece-price tooltip; displays HTTP/err
 uploadFiles()                // reads $refs.iasyncInput / $refs.wwInput, POSTs to /api/upload, refreshes data
 fetchWorkspace()             // refreshes primary/shadow slot metadata from /api/workspace
 switchWorkspaceSlot(slot)    // POST /api/workspace/slot, reloads all workspace-scoped data
+switchWorkspaceSlotAndHome(slot) // returns to Characters home view, clears drilldown/compare state, then switches slot
 deleteShadowWorkspace()      // DELETE /api/workspace/shadow, reloads all workspace-scoped data
 openFolderPicker()           // showDirectoryPicker() → persists handle to IDB, checkDirForChanges(true), startDirWatch()
 restoreDirHandle()           // on init: loads handle from IDB, queryPermission check (no gesture needed), resumes watch
@@ -362,8 +365,8 @@ returnToCharacterDrilldown() // exits compare mode and returns to normal drilldo
 importCompareBuild(charId)   // POST /api/compare_builds/import with build code
 deleteCompareBuild(charId)   // DELETE /api/compare_builds
 compareImportedBuild(charId) // returns imported compare record for destination character
-compareMissingItems          // computed strict-match missing list with source + TTC status
-compareMissingTotal          // computed total of missing rows with TTC avg price
+compareMissingItems          // computed strict-match missing list; crafted or Dungeon/Trial/Arena sourced rows skip TTC price lookup
+compareMissingTotal          // computed total of TTC-priced purchasable rows only
 ```
 
 ### Theme System

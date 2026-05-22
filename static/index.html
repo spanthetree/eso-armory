@@ -813,14 +813,14 @@
           <div x-show="workspace.primary.account || workspace.shadow.account"
             class="mt-1.5 flex items-center gap-1 rounded border px-1.5 py-1 text-[11px] w-fit"
             style="background:var(--t-bg);border-color:var(--t-border)">
-            <button @click="switchWorkspaceSlot('primary')"
+            <button @click="switchWorkspaceSlotAndHome('primary')"
               class="rounded px-2 py-0.5 transition-colors"
               :style="workspace.activeSlot==='primary'
                 ? 'background:var(--t-gold);color:var(--t-bg)'
                 : 'color:var(--t-muted)'">
               <span x-text="workspace.primary.account ? 'Primary' : 'Primary · empty'"></span>
             </button>
-            <button @click="switchWorkspaceSlot('shadow')"
+            <button @click="switchWorkspaceSlotAndHome('shadow')"
               class="rounded px-2 py-0.5 transition-colors"
               :disabled="!workspace.shadow.account"
               :style="workspace.activeSlot==='shadow'
@@ -1249,73 +1249,266 @@
             <button @click="returnToCharacterDrilldown()"
               class="text-xs text-eso-muted hover:text-eso-gold transition-colors">Return to Drilldown</button>
           </div>
-          <div class="flex flex-wrap items-center gap-2 mb-3">
-            <input x-model="compareImportCode"
-              placeholder="ABCD-EFGH"
-              class="px-2 py-1.5 text-xs rounded bg-eso-bg border border-eso-border text-eso-text focus:border-eso-gold outline-none w-36 uppercase tracking-wider">
-            <button @click="importCompareBuild(selectedChar?.id)"
-              :disabled="compareBusy || !compareImportCode"
-              class="px-3 py-1.5 text-xs rounded border border-eso-gold/50 text-eso-gold hover:bg-eso-gold/10 disabled:opacity-50 disabled:cursor-not-allowed">
-              Import by Code
-            </button>
-            <button x-show="compareImportedBuild(selectedChar?.id)"
-              @click="deleteCompareBuild(selectedChar?.id)"
-              :disabled="compareBusy"
-              class="px-3 py-1.5 text-xs rounded border border-eso-border text-eso-muted hover:text-eso-gold hover:border-eso-gold/40 disabled:opacity-50 disabled:cursor-not-allowed">
-              Delete Imported
-            </button>
-            <span x-show="compareStatus" class="text-xs text-eso-muted" x-text="compareStatus"></span>
-          </div>
-
-          <template x-if="compareImportedBuild(selectedChar?.id)">
-            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <div class="bg-eso-bg border border-eso-border rounded p-3">
-                <div class="text-xs uppercase tracking-wider text-eso-muted mb-2">Current</div>
-                <template x-if="charBuilds(selectedChar?.id)[0]">
-                  <div class="space-y-1 text-xs">
-                    <template x-for="g in charBuilds(selectedChar?.id)[0].gear" :key="'cur-'+g.slot">
-                      <div class="flex justify-between gap-3">
-                        <span class="text-eso-muted" x-text="g.slot_name"></span>
-                        <span class="truncate text-right" x-text="(g.link_name || ('Item #' + g.item_id))"></span>
-                      </div>
-                    </template>
-                  </div>
-                </template>
+          <div class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 items-start">
+            <div class="bg-eso-card border border-eso-border rounded-lg p-4 max-h-[35rem] overflow-y-auto"
+               x-data="{ get sl() { return selectedChar ? (charMaps[selectedChar.id] || {}) : {}; } }">
+              <div class="flex items-center mb-2">
+                <span class="font-cinzel text-xs text-eso-muted uppercase tracking-wider">Current Build</span>
               </div>
-              <div class="bg-eso-bg border border-eso-border rounded p-3">
-                <div class="text-xs uppercase tracking-wider text-eso-muted mb-2">Imported</div>
-                <div class="space-y-1 text-xs">
-                  <template x-for="g in compareImportedBuild(selectedChar?.id).build.gear" :key="'imp-'+g.slot">
-                    <div class="flex justify-between gap-3">
-                      <span class="text-eso-muted" x-text="g.slot_name"></span>
-                      <span class="truncate text-right" x-text="(g.link_name || ('Item #' + g.item_id))"></span>
+              <div class="flex items-start justify-between mb-3">
+                <div>
+                  <h2 class="font-cinzel font-semibold text-eso-gold text-base" x-text="selectedChar?.name"></h2>
+                  <div class="flex gap-3 mt-1 text-xs text-eso-muted">
+                    <span class="flex items-center gap-0.5"><img src="/assets/currencies/gold.png" class="cur-icon"> <span x-text="selectedChar ? fmtGold(selectedChar.gold) : ''"></span></span>
+                    <span x-show="selectedChar?.ap > 0" class="flex items-center gap-0.5"><img src="/assets/currencies/ap.png" class="cur-icon"> <span x-text="selectedChar ? fmtNum(selectedChar.ap) : ''"></span> AP</span>
+                    <span x-show="selectedChar?.tv > 0" class="flex items-center gap-0.5"><img src="/assets/currencies/tv.png" class="cur-icon"> <span x-text="selectedChar ? fmtNum(selectedChar.tv) : ''"></span> TV</span>
+                  </div>
+                </div>
+                <div class="text-xs text-eso-muted text-right">
+                  <div class="flex items-center justify-end gap-1 mb-1.5">
+                    <img x-show="selectedChar?.class" :src="selectedChar ? classIcon(selectedChar.class) : ''" :title="selectedChar?.class" class="cur-icon opacity-70">
+                    <img x-show="selectedChar?.race" :src="selectedChar ? raceIcon(selectedChar.race) : ''" :title="selectedChar?.race" class="cur-icon opacity-70">
+                    <img x-show="selectedChar?.alliance" :src="selectedChar ? allianceIcon(selectedChar.alliance) : ''" :title="selectedChar?.alliance" class="cur-icon opacity-70">
+                  </div>
+                  <div x-text="selectedChar ? `${selectedChar.space_used} / ${selectedChar.space_max} slots` : ''"></div>
+                  <div class="mt-1 w-24 h-1.5 bg-eso-bg rounded-full overflow-hidden">
+                    <div class="h-full rounded-full transition-all"
+                      :style="selectedChar ? `width:${selectedChar.space_max ? Math.round(selectedChar.space_used/selectedChar.space_max*100) : 0}%;background:${spaceColor(selectedChar)}` : ''"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="border-t border-eso-border pt-3">
+                <p class="eq-section-label">Apparel</p>
+                <div style="display:grid;grid-template-columns:40px 28px 40px;grid-template-rows:repeat(4,40px);gap:4px;margin-bottom:8px;">
+                  <div class="eq-slot" style="grid-column:1;grid-row:1" :class="!sl[0]&&'eq-empty'" :style="sl[0]?`background:${sl[0].item.quality_color}18;border-color:${sl[0].item.quality_color}55`:''" @mouseenter="sl[0]&&tipShowSlot(sl[0].item,slotLabel(0),$event)" @mouseleave="tipHide()"><span x-show="!!sl[0]" x-html="sl[0]?slotEquipIcon(0,sl[0].item):''"></span></div>
+                  <div class="eq-slot" style="grid-column:1;grid-row:2" :class="!sl[3]&&'eq-empty'" :style="sl[3]?`background:${sl[3].item.quality_color}18;border-color:${sl[3].item.quality_color}55`:''" @mouseenter="sl[3]&&tipShowSlot(sl[3].item,slotLabel(3),$event)" @mouseleave="tipHide()"><span x-show="!!sl[3]" x-html="sl[3]?slotEquipIcon(3,sl[3].item):''"></span></div>
+                  <div class="eq-slot" style="grid-column:1;grid-row:3" :class="!sl[16]&&'eq-empty'" :style="sl[16]?`background:${sl[16].item.quality_color}18;border-color:${sl[16].item.quality_color}55`:''" @mouseenter="sl[16]&&tipShowSlot(sl[16].item,slotLabel(16),$event)" @mouseleave="tipHide()"><span x-show="!!sl[16]" x-html="sl[16]?slotEquipIcon(16,sl[16].item):''"></span></div>
+                  <div style="grid-column:2;grid-row:1/span 4;display:flex;align-items:center;justify-content:center;"><div style="width:1px;height:88%;background:var(--t-border-line);border-radius:1px;"></div></div>
+                  <div class="eq-slot" style="grid-column:3;grid-row:1" :class="!sl[2]&&'eq-empty'" :style="sl[2]?`background:${sl[2].item.quality_color}18;border-color:${sl[2].item.quality_color}55`:''" @mouseenter="sl[2]&&tipShowSlot(sl[2].item,slotLabel(2),$event)" @mouseleave="tipHide()"><span x-show="!!sl[2]" x-html="sl[2]?slotEquipIcon(2,sl[2].item):''"></span></div>
+                  <div class="eq-slot" style="grid-column:3;grid-row:2" :class="!sl[6]&&'eq-empty'" :style="sl[6]?`background:${sl[6].item.quality_color}18;border-color:${sl[6].item.quality_color}55`:''" @mouseenter="sl[6]&&tipShowSlot(sl[6].item,slotLabel(6),$event)" @mouseleave="tipHide()"><span x-show="!!sl[6]" x-html="sl[6]?slotEquipIcon(6,sl[6].item):''"></span></div>
+                  <div class="eq-slot" style="grid-column:3;grid-row:3" :class="!sl[8]&&'eq-empty'" :style="sl[8]?`background:${sl[8].item.quality_color}18;border-color:${sl[8].item.quality_color}55`:''" @mouseenter="sl[8]&&tipShowSlot(sl[8].item,slotLabel(8),$event)" @mouseleave="tipHide()"><span x-show="!!sl[8]" x-html="sl[8]?slotEquipIcon(8,sl[8].item):''"></span></div>
+                  <div class="eq-slot" style="grid-column:3;grid-row:4" :class="!sl[9]&&'eq-empty'" :style="sl[9]?`background:${sl[9].item.quality_color}18;border-color:${sl[9].item.quality_color}55`:''" @mouseenter="sl[9]&&tipShowSlot(sl[9].item,slotLabel(9),$event)" @mouseleave="tipHide()"><span x-show="!!sl[9]" x-html="sl[9]?slotEquipIcon(9,sl[9].item):''"></span></div>
+                </div>
+                <p class="eq-section-label">Accessories</p>
+                <div class="flex gap-1 mb-2">
+                  <template x-for="s in [1,11,12]" :key="'ca'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
+                </div>
+                <p class="eq-section-label">Weapons</p>
+                <div class="flex gap-1 items-center">
+                  <template x-for="s in [4,5]" :key="'cw1'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
+                  <div class="w-px bg-eso-border self-stretch mx-0.5"></div>
+                  <template x-for="s in [20,21]" :key="'cw2'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
+                </div>
+              </div>
+              <template x-if="charBuilds(selectedChar?.id)[0]">
+                <div class="border-t border-eso-border mt-3 pt-3 space-y-2 text-xs"
+                  x-data="{ get b() { return charBuilds(selectedChar.id)[0]; } }">
+                  <p class="eq-section-label">Build</p>
+                  <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-eso-muted">
+                    <template x-if="b.mundus && b.mundus.length">
+                      <span class="flex items-center gap-1">
+                        <img :src="mundusIcon(b.mundus[0])" class="cur-icon" :title="b.mundus[0]">
+                        <span x-text="b.mundus.join(', ')"></span>
+                      </span>
+                    </template>
+                    <span class="flex items-center gap-1" style="color:#5199ff99"><img src="/assets/interface/magicka.png" class="cur-icon"><span x-text="b.attributes?.magicka ?? 0"></span></span>
+                    <span class="flex items-center gap-1 text-red-400/80"><img src="/assets/interface/health.png" class="cur-icon"><span x-text="b.attributes?.health ?? 0"></span></span>
+                    <span class="flex items-center gap-1" style="color:#2dc50e99"><img src="/assets/interface/stamina.png" class="cur-icon"><span x-text="b.attributes?.stamina ?? 0"></span></span>
+                  </div>
+                  <template x-if="buildHasSkills(b)">
+                    <div class="space-y-0.5">
+                      <template x-for="bar in ['primary','backup']" :key="bar">
+                        <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
+                          <span class="text-eso-muted/50 capitalize shrink-0 w-14" x-text="bar + ':'"></span>
+                          <span class="inline-flex flex-wrap gap-0.5">
+                            <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
+                              <span x-show="b.skills?.[bar]?.[slot]"
+                                class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text"
+                                :class="slot===8?'border-eso-gold/40 text-eso-gold':''"
+                                @mouseenter="tipShowSkill(b.skills?.[bar]?.[slot], $event)"
+                                @mouseleave="tipHide()"
+                                @click="openSkillbook(b.skills?.[bar]?.[slot])"
+                                x-html="abilitySlotHtml(b.skills?.[bar]?.[slot], slot===8)"></span>
+                            </template>
+                          </span>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                  <template x-if="buildHasCP(b)">
+                    <div class="grid grid-cols-3 gap-x-4 gap-y-0.5">
+                      <template x-for="group in cpGroups(b)" :key="group.label">
+                        <div>
+                          <span class="flex items-center gap-1 font-medium" :style="`color:${group.color}`">
+                            <img :src="group.icon" class="cur-icon"><span x-text="group.label"></span>
+                          </span>
+                          <template x-for="slot in group.slots" :key="slot">
+                            <div x-show="b.cp?.[slot]" class="text-eso-muted whitespace-nowrap" x-text="cpName(b.cp?.[slot])"></div>
+                          </template>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                  <template x-if="b.cp_earned > 0">
+                    <div class="flex items-center gap-1 text-eso-muted">
+                      <img src="/assets/interface/system.png" class="cur-icon">
+                      <span x-text="b.cp_earned.toLocaleString()"></span>
                     </div>
                   </template>
                 </div>
-              </div>
+              </template>
             </div>
-          </template>
-
-          <template x-if="compareImportedBuild(selectedChar?.id)">
-            <div class="mt-4">
-              <div class="text-xs uppercase tracking-wider text-eso-muted mb-2">Missing Items</div>
-              <div x-show="compareMissingItems.length===0" class="text-sm text-green-400">No missing items.</div>
-              <div x-show="compareMissingItems.length>0" class="space-y-2">
-                <template x-for="m in compareMissingItems" :key="m.slot + '-' + m.item_id + '-' + m.trait_id + '-' + m.enchant_id">
-                  <div class="bg-eso-bg border border-eso-border rounded p-2 text-xs">
-                    <div class="flex justify-between gap-3">
-                      <span class="text-eso-gold" x-text="m.slot_name + ': ' + m.name"></span>
-                      <span class="text-eso-muted" x-text="m.priceText"></span>
+            <div class="bg-eso-card border border-eso-border rounded-lg p-4 max-h-[35rem] overflow-y-auto"
+              x-data="{ get b(){ return compareBuildRecord(selectedChar?.id,'imported'); }, get sl(){ return compareSlotMap(selectedChar?.id,'imported'); } }">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-cinzel text-xs text-eso-muted uppercase tracking-wider">Imported Build</span>
+                <button x-show="compareImportedBuild(selectedChar?.id)" @click="deleteCompareBuild(selectedChar?.id)"
+                  :disabled="compareBusy"
+                  class="px-2 py-1 text-[11px] rounded border border-eso-border text-eso-muted hover:text-eso-gold hover:border-eso-gold/40 disabled:opacity-50 disabled:cursor-not-allowed">Delete</button>
+              </div>
+              <template x-if="!compareImportedBuild(selectedChar?.id)">
+                <div class="h-[380px] flex items-center justify-center">
+                  <div class="w-full max-w-xs bg-eso-card border border-eso-border rounded-lg p-4">
+                    <div class="text-xs text-eso-muted mb-2 text-center">Import a build by code</div>
+                    <div class="flex flex-col items-center gap-2">
+                      <input x-model="compareImportCode" placeholder="ABCD-EFGH"
+                        class="px-2 py-1.5 text-xs rounded bg-eso-bg border border-eso-border text-eso-text focus:border-eso-gold outline-none w-36 uppercase tracking-wider text-center">
+                      <button @click="importCompareBuild(selectedChar?.id)" :disabled="compareBusy || !compareImportCode"
+                        class="px-3 py-1.5 text-xs rounded border border-eso-gold/50 text-eso-gold hover:bg-eso-gold/10 disabled:opacity-50 disabled:cursor-not-allowed">Import by Code</button>
                     </div>
-                    <div class="text-eso-muted" x-text="m.sourceText"></div>
                   </div>
-                </template>
-                <div class="pt-1 text-sm text-eso-gold font-semibold">
-                  Purchasable Total: <span x-text="fmtGold(compareMissingTotal)"></span>
                 </div>
-              </div>
+              </template>
+              <template x-if="compareImportedBuild(selectedChar?.id)">
+                <div>
+                  <div class="flex items-start justify-between mb-3">
+                    <div>
+                      <h2 class="font-cinzel font-semibold text-eso-gold text-base" x-text="b?.char_name || 'Imported Build'"></h2>
+                      <div class="flex gap-3 mt-1 text-xs text-eso-muted">
+                        <span x-text="b?.class || ''"></span>
+                        <span x-text="b?.race || ''"></span>
+                        <span x-text="b?.alliance || ''"></span>
+                      </div>
+                    </div>
+                    <div class="text-xs text-eso-muted text-right">
+                      <div class="flex items-center justify-end gap-1 mb-1.5">
+                        <img x-show="b?.class" :src="classIcon(b?.class)" :title="b?.class" class="cur-icon opacity-70">
+                        <img x-show="b?.race" :src="raceIcon(b?.race)" :title="b?.race" class="cur-icon opacity-70">
+                        <img x-show="b?.alliance" :src="allianceIcon(b?.alliance)" :title="b?.alliance" class="cur-icon opacity-70">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="border-t border-eso-border pt-3">
+                    <p class="eq-section-label">Apparel</p>
+                    <div style="display:grid;grid-template-columns:40px 28px 40px;grid-template-rows:repeat(4,40px);gap:4px;margin-bottom:8px;">
+                      <div class="eq-slot" style="grid-column:1;grid-row:1" :class="!sl[0]&&'eq-empty'" :style="sl[0]?`background:${sl[0].item.quality_color}18;border-color:${sl[0].item.quality_color}55`:''" @mouseenter="sl[0]&&tipShowSlot(sl[0].item,slotLabel(0),$event)" @mouseleave="tipHide()"><span x-show="!!sl[0]" x-html="sl[0]?slotEquipIcon(0,sl[0].item):''"></span></div>
+                      <div class="eq-slot" style="grid-column:1;grid-row:2" :class="!sl[3]&&'eq-empty'" :style="sl[3]?`background:${sl[3].item.quality_color}18;border-color:${sl[3].item.quality_color}55`:''" @mouseenter="sl[3]&&tipShowSlot(sl[3].item,slotLabel(3),$event)" @mouseleave="tipHide()"><span x-show="!!sl[3]" x-html="sl[3]?slotEquipIcon(3,sl[3].item):''"></span></div>
+                      <div class="eq-slot" style="grid-column:1;grid-row:3" :class="!sl[16]&&'eq-empty'" :style="sl[16]?`background:${sl[16].item.quality_color}18;border-color:${sl[16].item.quality_color}55`:''" @mouseenter="sl[16]&&tipShowSlot(sl[16].item,slotLabel(16),$event)" @mouseleave="tipHide()"><span x-show="!!sl[16]" x-html="sl[16]?slotEquipIcon(16,sl[16].item):''"></span></div>
+                      <div style="grid-column:2;grid-row:1/span 4;display:flex;align-items:center;justify-content:center;"><div style="width:1px;height:88%;background:var(--t-border-line);border-radius:1px;"></div></div>
+                      <div class="eq-slot" style="grid-column:3;grid-row:1" :class="!sl[2]&&'eq-empty'" :style="sl[2]?`background:${sl[2].item.quality_color}18;border-color:${sl[2].item.quality_color}55`:''" @mouseenter="sl[2]&&tipShowSlot(sl[2].item,slotLabel(2),$event)" @mouseleave="tipHide()"><span x-show="!!sl[2]" x-html="sl[2]?slotEquipIcon(2,sl[2].item):''"></span></div>
+                      <div class="eq-slot" style="grid-column:3;grid-row:2" :class="!sl[6]&&'eq-empty'" :style="sl[6]?`background:${sl[6].item.quality_color}18;border-color:${sl[6].item.quality_color}55`:''" @mouseenter="sl[6]&&tipShowSlot(sl[6].item,slotLabel(6),$event)" @mouseleave="tipHide()"><span x-show="!!sl[6]" x-html="sl[6]?slotEquipIcon(6,sl[6].item):''"></span></div>
+                      <div class="eq-slot" style="grid-column:3;grid-row:3" :class="!sl[8]&&'eq-empty'" :style="sl[8]?`background:${sl[8].item.quality_color}18;border-color:${sl[8].item.quality_color}55`:''" @mouseenter="sl[8]&&tipShowSlot(sl[8].item,slotLabel(8),$event)" @mouseleave="tipHide()"><span x-show="!!sl[8]" x-html="sl[8]?slotEquipIcon(8,sl[8].item):''"></span></div>
+                      <div class="eq-slot" style="grid-column:3;grid-row:4" :class="!sl[9]&&'eq-empty'" :style="sl[9]?`background:${sl[9].item.quality_color}18;border-color:${sl[9].item.quality_color}55`:''" @mouseenter="sl[9]&&tipShowSlot(sl[9].item,slotLabel(9),$event)" @mouseleave="tipHide()"><span x-show="!!sl[9]" x-html="sl[9]?slotEquipIcon(9,sl[9].item):''"></span></div>
+                    </div>
+                    <p class="eq-section-label">Accessories</p>
+                    <div class="flex gap-1 mb-2">
+                      <template x-for="s in [1,11,12]" :key="'ia'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
+                    </div>
+                    <p class="eq-section-label">Weapons</p>
+                    <div class="flex gap-1 items-center">
+                      <template x-for="s in [4,5]" :key="'iw1'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
+                      <div class="w-px bg-eso-border self-stretch mx-0.5"></div>
+                      <template x-for="s in [20,21]" :key="'iw2'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
+                    </div>
+                  </div>
+                  <template x-if="b">
+                    <div class="border-t border-eso-border mt-3 pt-3 space-y-2 text-xs">
+                      <p class="eq-section-label">Build</p>
+                      <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-eso-muted">
+                        <template x-if="b.mundus && b.mundus.length">
+                          <span class="flex items-center gap-1">
+                            <img :src="mundusIcon(b.mundus[0])" class="cur-icon" :title="b.mundus[0]">
+                            <span x-text="b.mundus.join(', ')"></span>
+                          </span>
+                        </template>
+                        <span class="flex items-center gap-1" style="color:#5199ff99"><img src="/assets/interface/magicka.png" class="cur-icon"><span x-text="b.attributes?.magicka ?? 0"></span></span>
+                        <span class="flex items-center gap-1 text-red-400/80"><img src="/assets/interface/health.png" class="cur-icon"><span x-text="b.attributes?.health ?? 0"></span></span>
+                        <span class="flex items-center gap-1" style="color:#2dc50e99"><img src="/assets/interface/stamina.png" class="cur-icon"><span x-text="b.attributes?.stamina ?? 0"></span></span>
+                      </div>
+                      <template x-if="buildHasSkills(b)">
+                        <div class="space-y-0.5">
+                          <template x-for="bar in ['primary','backup']" :key="bar">
+                            <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
+                              <span class="text-eso-muted/50 capitalize shrink-0 w-14" x-text="bar + ':'"></span>
+                              <span class="inline-flex flex-wrap gap-0.5">
+                                <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
+                                  <span x-show="b.skills?.[bar]?.[slot]"
+                                    class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text"
+                                    :class="slot===8?'border-eso-gold/40 text-eso-gold':''"
+                                    @mouseenter="tipShowSkill(b.skills?.[bar]?.[slot], $event)"
+                                    @mouseleave="tipHide()"
+                                    @click="openSkillbook(b.skills?.[bar]?.[slot])"
+                                    x-html="abilitySlotHtmlCompare(b.skills?.[bar]?.[slot], slot===8, selectedChar?.id)"></span>
+                                </template>
+                              </span>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
+                      <template x-if="buildHasCP(b)">
+                        <div class="grid grid-cols-3 gap-x-4 gap-y-0.5">
+                          <template x-for="group in cpGroups(b)" :key="group.label">
+                            <div>
+                              <span class="flex items-center gap-1 font-medium" :style="`color:${group.color}`">
+                                <img :src="group.icon" class="cur-icon"><span x-text="group.label"></span>
+                              </span>
+                              <template x-for="slot in group.slots" :key="slot">
+                                <div x-show="b.cp?.[slot]" class="text-eso-muted whitespace-nowrap" x-text="cpNameForCompare(b.cp?.[slot], selectedChar?.id)"></div>
+                              </template>
+                            </div>
+                          </template>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                  <template x-if="b.cp_earned > 0">
+                    <div class="flex items-center gap-1 text-eso-muted">
+                      <img src="/assets/interface/system.png" class="cur-icon">
+                      <span x-text="b.cp_earned.toLocaleString()"></span>
+                    </div>
+                  </template>
+                </div>
+              </template>
             </div>
-          </template>
+            <div class="bg-eso-card border border-eso-border rounded-lg p-4 max-h-[35rem] overflow-y-auto">
+              <div class="text-xs uppercase tracking-wider text-eso-muted mb-2">Missing Items</div>
+              <template x-if="!compareImportedBuild(selectedChar?.id)">
+                <div class="h-[300px] flex items-center justify-center text-sm text-eso-muted text-center px-4">
+                  Import a build to see missing items and total purchasable cost.
+                </div>
+              </template>
+              <template x-if="compareImportedBuild(selectedChar?.id)">
+                <div>
+                  <div x-show="compareMissingItems.length===0" class="text-sm text-green-400">No missing items.</div>
+                  <div x-show="compareMissingItems.length>0" class="space-y-2">
+                    <template x-for="m in compareMissingItems" :key="m.slot + '-' + m.item_id + '-' + m.trait_id + '-' + m.enchant_id">
+                      <div class="bg-eso-bg border border-eso-border rounded p-2 text-xs">
+                        <div class="flex justify-between gap-3">
+                          <span class="text-eso-gold" x-text="m.slot_name + ': ' + m.name"></span>
+                          <span class="text-eso-muted" x-text="m.priceText"></span>
+                        </div>
+                        <div class="text-eso-muted" x-text="m.sourceText"></div>
+                      </div>
+                    </template>
+                    <div class="pt-1 text-sm text-eso-gold font-semibold">
+                      Purchasable Total: <span x-text="fmtGold(compareMissingTotal)"></span>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div x-show="compareStatus" class="text-xs text-eso-muted mt-3" x-text="compareStatus"></div>
         </div>
 
         <div class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6 items-start"
@@ -1915,8 +2108,8 @@
       </div>
 
       <!-- Table -->
-      <div class="bg-eso-card border border-eso-border rounded-lg overflow-hidden">
-        <div class="overflow-x-auto">
+      <div class="bg-eso-card border border-eso-border rounded-lg overflow-hidden max-h-[38rem] flex flex-col min-h-0">
+        <div class="overflow-x-auto overflow-y-auto flex-1 min-h-0">
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-eso-border text-eso-muted text-xs font-cinzel tracking-wide">
@@ -2011,7 +2204,7 @@
         <div class="flex items-center justify-center h-64 text-eso-muted text-sm animate-pulse">Loading achievements…</div>
       </template>
       <template x-if="achievData">
-        <div class="flex h-[calc(100vh-9.5rem)] border border-eso-border rounded-lg overflow-hidden">
+        <div class="flex max-h-[45rem] border border-eso-border rounded-lg overflow-hidden">
 
           <!-- Left nav: SUMMARY + category list -->
           <div class="w-52 shrink-0 border-r border-eso-border bg-eso-card overflow-y-auto">
@@ -2054,6 +2247,9 @@
                   <option :value="c.id" x-text="c.name"></option>
                 </template>
               </select>
+              <input type="text" x-model.debounce.150ms="achievSearch"
+                placeholder="Search achievements…"
+                class="ml-auto w-64 max-w-full bg-eso-bg border border-eso-border rounded px-3 py-1 text-sm text-eso-text placeholder-eso-muted focus:outline-none focus:border-eso-gold" />
             </div>
 
             <!-- ── Summary view ─────────────────────────────── -->
@@ -2230,7 +2426,7 @@
                     </template>
                     <div x-show="achievItemsByCatSubcat(achievCat?.name, sub.name).length === 0"
                       class="text-xs text-eso-muted/50 py-2 px-2 italic">
-                      No individual achievement data for this subcategory.
+                      <span x-text="achievSearch.trim() ? 'No achievements match your search in this subcategory.' : 'No individual achievement data for this subcategory.'"></span>
                     </div>
                   </div>
                 </div>
@@ -2248,7 +2444,7 @@
         <div class="flex items-center justify-center h-64 text-eso-muted text-sm animate-pulse">Loading stickerbook…</div>
       </template>
       <template x-if="sbData">
-        <div class="flex h-[calc(100vh-9.5rem)] border border-eso-border rounded-lg overflow-hidden">
+        <div class="flex max-h-[45rem] border border-eso-border rounded-lg overflow-hidden">
 
           <!-- Left nav -->
           <div class="w-52 shrink-0 border-r border-eso-border bg-eso-card flex flex-col">
@@ -2509,6 +2705,7 @@ function armory() {
     achievView: 'summary',
     achievCat: null,
     achievCharId: null,
+    achievSearch: '',
     _achievIndexByAccount: {},
     _achievIndexByChar: {},
     sbData: null,
@@ -2550,6 +2747,8 @@ function armory() {
     compareBusy: false,
     compareStatus: '',
     importedCompareBuilds: {},
+    importedAbilityNames: {},
+    importedCpNames: {},
     exportedBuildCodes: {},
     _sse: null,
     _sseGeneration: 0,
@@ -2985,6 +3184,14 @@ function armory() {
         const d = await r.json();
         if (d.error) return;
         this.importedCompareBuilds = d.imported || {};
+        const importedAbility = {};
+        const importedCp = {};
+        for (const [charId, rec] of Object.entries(this.importedCompareBuilds)) {
+          importedAbility[charId] = rec?.ability_names || {};
+          importedCp[charId] = rec?.cp_names || {};
+        }
+        this.importedAbilityNames = importedAbility;
+        this.importedCpNames = importedCp;
       } catch(e) {}
     },
 
@@ -3011,6 +3218,17 @@ function armory() {
       } catch(e) {
         this.showToast(e.message || 'Workspace switch failed');
       }
+    },
+
+    async switchWorkspaceSlotAndHome(slot) {
+      if (slot === 'shadow' && !this.workspace.shadow.account) return;
+      this.tab = 'characters';
+      this.selectedChar = null;
+      this.compareMode = false;
+      this.compareImportCode = '';
+      this.compareStatus = '';
+      this.tipHide();
+      await this.switchWorkspaceSlot(slot);
     },
 
     async deleteShadowWorkspace() {
@@ -3101,13 +3319,18 @@ function armory() {
       const accountItems = this._achievIndexByAccount[key] || [];
       const idx = this._achievIndexByChar[this.achievCharId];
       const charItems = idx ? (idx[key] || []) : [];
-      if (!accountItems.length) return charItems;
-      if (!charItems.length) return accountItems;
+      const q = (this.achievSearch || '').toLowerCase().trim();
+      const applySearch = (items) => !q ? items : items.filter((a) =>
+        (a.name || '').toLowerCase().includes(q) ||
+        (a.desc || '').toLowerCase().includes(q)
+      );
+      if (!accountItems.length) return applySearch(charItems);
+      if (!charItems.length) return applySearch(accountItems);
 
       const merged = new Map();
       for (const a of accountItems) merged.set(a.id, a);
       for (const a of charItems) merged.set(a.id, a);
-      return [...merged.values()];
+      return applySearch([...merged.values()]);
     },
 
     achievIconUrl(icon) {
@@ -3656,17 +3879,110 @@ function armory() {
       return this.importedCompareBuilds[String(charId)] || null;
     },
 
+    compareBuildRecord(charId, which = 'current') {
+      if (!charId) return null;
+      if (which === 'imported') return this.compareImportedBuild(charId)?.build || null;
+      return this.charBuilds(charId)[0] || null;
+    },
+
+    _importedAbilityName(charId, id) {
+      if (!charId || !id) return '';
+      return this.importedAbilityNames?.[String(charId)]?.[String(id)] || '';
+    },
+
+    _importedCpName(charId, id) {
+      if (!charId || !id) return '';
+      return this.importedCpNames?.[String(charId)]?.[String(id)] || '';
+    },
+
+    compareGearToItem(g) {
+      const slot = g?.slot ?? -1;
+      const fallbackType = ([0,2,3,6,8,9,16].includes(slot) || slot === 5 || slot === 21) ? 2 : (slot === 1 || slot === 11 || slot === 12 ? 25 : 1);
+      const invMatch = (this.data?.items || []).find((i) =>
+        Number(i?.item_id || 0) === Number(g?.item_id || 0) &&
+        Number(i?.trait_id || 0) === Number(g?.trait_id || 0) &&
+        Number(i?.enchant_id || 0) === Number(g?.enchant_id || 0)
+      ) || this.itemIdMap?.[g?.item_id];
+      const quality = Number.isInteger(g?.quality) ? g.quality : 4;
+      const qualityColorMap = {
+        0: '#8b8b8b',
+        1: '#cccccc',
+        2: '#2dc50e',
+        3: '#5199ff',
+        4: '#a02ee4',
+        5: '#c29300',
+        6: '#e87800',
+      };
+      return {
+        name: g?.link_name || (g?.item_id ? `Item #${g.item_id}` : 'Unknown'),
+        quality: Number.isInteger(g?.quality) ? g.quality : (Number.isInteger(invMatch?.quality) ? invMatch.quality : quality),
+        quality_color: g?.quality_color || invMatch?.quality_color || qualityColorMap[quality] || '#a02ee4',
+        filter_type: Number.isInteger(g?.filter_type) ? g.filter_type : (Number.isInteger(invMatch?.filter_type) ? invMatch.filter_type : fallbackType),
+        filter_type_name: g?.filter_type_name || invMatch?.filter_type_name || '',
+        weapon_type: g?.weapon_type || invMatch?.weapon_type || null,
+        armor_type: g?.armor_type || invMatch?.armor_type || null,
+        trait_id: g?.trait_id || 0,
+        trait_name: g?.trait_name || null,
+        is_transmuted: Boolean(g?.is_transmuted),
+        style_id: g?.style_id || 0,
+        style_name: g?.style_name || null,
+        is_crafted: Boolean(g?.is_crafted),
+        is_bound: Boolean(g?.is_bound),
+        is_enchanted: Boolean(g?.is_enchanted),
+        enchant_name: g?.enchant_name || '',
+        set_name: g?.set_name || '',
+        set_id: g?.set_id || 0,
+        level: Number.isInteger(g?.level) ? g.level : 0,
+      };
+    },
+
+    compareSlotMap(charId, which = 'current') {
+      if (!charId) return {};
+      if (which === 'current') return this.charMaps[charId] || {};
+      const build = this.compareBuildRecord(charId, 'imported');
+      if (!build?.gear) return {};
+      const out = {};
+      for (const g of build.gear) {
+        out[g.slot] = { slot: g.slot, item: this.compareGearToItem(g) };
+      }
+      return out;
+    },
+
     _gearSig(g) {
       return [g?.item_id || 0, g?.trait_id || 0, g?.enchant_id || 0].join(':');
     },
 
-    compareSourceText(gear) {
+    compareSourceMeta(gear) {
       const setName = gear.set_name || '';
-      if (!setName || !this.sbData) return 'Source: Unknown';
+      if (!setName || !this.sbData) return { text: 'Source: Unknown', isDungeonTrial: false };
       const set = (this.sbData.sets || []).find(s => (s.name || '').toLowerCase() === setName.toLowerCase());
-      if (!set) return `Source: ${setName}`;
+      if (!set) return { text: `Source: ${setName}`, isDungeonTrial: false };
       const where = set.subcategory && set.subcategory !== set.category ? `${set.category} / ${set.subcategory}` : set.category;
-      return where ? `Source: ${where}` : `Source: ${setName}`;
+      const sourceText = where ? `Source: ${where}` : `Source: ${setName}`;
+      const categoryText = `${set.category || ''} ${set.subcategory || ''}`.toLowerCase();
+      const hasDungeon = /dungeon/.test(categoryText);
+      const hasTrial = /trial/.test(categoryText);
+      const hasArena = /arena/.test(categoryText);
+      return {
+        text: sourceText,
+        isDungeonTrial: hasDungeon || hasTrial || hasArena,
+        hasDungeon,
+        hasTrial,
+        hasArena,
+      };
+    },
+
+    compareSourceText(gear) {
+      return this.compareSourceMeta(gear).text;
+    },
+
+    compareIsCrafted(gear) {
+      if (gear?.is_crafted) return true;
+      const itemId = Number(gear?.item_id || 0);
+      if (!itemId) return false;
+      const byId = this.itemIdMap?.[itemId];
+      if (byId?.is_crafted) return true;
+      return (this.data?.items || []).some(i => Number(i?.item_id || 0) === itemId && i?.is_crafted);
     },
 
     get compareMissingItems() {
@@ -3678,14 +3994,30 @@ function armory() {
       for (const g of imported.build.gear) {
         if (owned.has(this._gearSig(g))) continue;
         const name = g.link_name || (g.item_id ? `Item #${g.item_id}` : 'Unknown Item');
-        const price = this.ttcPriceCache[this._ttcPriceKey(name)];
+        const isCrafted = this.compareIsCrafted(g);
+        const sourceMeta = this.compareSourceMeta(g);
+        const isDungeonTrial = sourceMeta.isDungeonTrial;
+        const sourceLabels = [];
+        if (sourceMeta.hasDungeon) sourceLabels.push('Dungeon');
+        if (sourceMeta.hasTrial) sourceLabels.push('Trial');
+        if (sourceMeta.hasArena) sourceLabels.push('Arena');
+        const dungeonTrialLabel = sourceLabels.length ? sourceLabels.join('/') : 'Dungeon/Trial/Arena';
+        const skipPriceLookup = isCrafted || isDungeonTrial;
+        const price = skipPriceLookup ? null : this.ttcPriceCache[this._ttcPriceKey(name)];
         const avg = (price && typeof price.avg === 'number') ? price.avg : null;
         out.push({
           ...g,
           name,
-          sourceText: this.compareSourceText(g),
-          priceText: avg != null ? `~${this.fmtGold(avg)} gold` : (price?.loading ? 'Price: loading…' : 'Price: unavailable'),
-          avgPrice: avg,
+          isCrafted,
+          isDungeonTrial,
+          skipPriceLookup,
+          sourceText: isCrafted ? `Crafted • ${sourceMeta.text}` : sourceMeta.text,
+          priceText: isCrafted
+            ? 'Crafted'
+            : (isDungeonTrial
+              ? dungeonTrialLabel
+              : (avg != null ? `~${this.fmtGold(avg)} gold` : (price?.loading ? 'Price: loading…' : 'Price: unavailable'))),
+          avgPrice: skipPriceLookup ? 0 : avg,
         });
       }
       return out;
@@ -3696,7 +4028,10 @@ function armory() {
     },
 
     refreshMissingPrices() {
-      for (const m of this.compareMissingItems) this.fetchTtcPrice(m.name);
+      for (const m of this.compareMissingItems) {
+        if (m.skipPriceLookup) continue;
+        this.fetchTtcPrice(m.name);
+      }
     },
 
     syncDetailPanelHeights() {
@@ -3795,6 +4130,11 @@ function armory() {
       return n || '';
     },
 
+    abilityNameForCompare(id, charId) {
+      if (!id) return '';
+      return this.abilityName(id) || this._importedAbilityName(charId, id) || `#${id}`;
+    },
+
     abilityIcon(id) {
       if (!id) return null;
       const name = this.abilityName(id);
@@ -3813,10 +4153,27 @@ function armory() {
       return `<span class="px-1 py-0.5 text-xs${cls}">${name || ''}</span>`;
     },
 
+    abilitySlotHtmlCompare(id, isUlt, charId) {
+      const name = this.abilityNameForCompare(id, charId);
+      let icon = null;
+      if (name && !name.startsWith('#')) {
+        const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+        icon = this.abilityIcons[key] || null;
+      }
+      if (icon) return `<img src="${icon}" class="skill-icon" alt="">`;
+      const cls = isUlt ? ' text-eso-gold' : '';
+      return `<span class="px-1 py-0.5 text-xs${cls}">${name || ''}</span>`;
+    },
+
     cpName(id) {
       if (!id) return '';
       const n = this.builds?.cpNames?.[String(id)];
       return n || '';
+    },
+
+    cpNameForCompare(id, charId) {
+      if (!id) return '';
+      return this.cpName(id) || this._importedCpName(charId, id) || `#${id}`;
     },
 
     buildHasSkills(build) {

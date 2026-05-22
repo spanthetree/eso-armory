@@ -488,6 +488,8 @@ def process_iasync_builds(raw: dict) -> dict:
             item_id = int(m.group(1)) if m else None
             nm      = _ITEM_LINK_NAME_RE.search(link)
             decoded = decode_link(link)
+            quality = int(item_data.get("quality", 1))
+            filter_type = int(item_data.get("filterType", 5))
             trait_id   = int(item_data.get("traitType", 0)) or decoded.get("trait_id", 0)
             trait_name = item_data.get("traitName") or decoded.get("trait_name")
             enchant_id = decoded.get("enchant_id", 0) or int(item_data.get("enchantId", 0))
@@ -497,6 +499,14 @@ def process_iasync_builds(raw: dict) -> dict:
                 "link":           link,
                 "item_id":        item_id,
                 "link_name":      nm.group(1) if nm else item_data.get("name"),
+                "quality":        quality,
+                "quality_name":   QUALITY_NAMES.get(quality, "Unknown"),
+                "quality_color":  QUALITY_COLORS.get(quality, "#cccccc"),
+                "filter_type":    filter_type,
+                "filter_type_name": FILTER_TYPE_NAMES.get(filter_type, "Miscellaneous"),
+                "weapon_type":    item_data.get("weaponType") or None,
+                "armor_type":     item_data.get("armorType") or None,
+                "level":          _parse_link_level(link),
                 "trait_id":       trait_id,
                 "trait_name":     trait_name,
                 "is_transmuted":  decoded.get("is_transmuted", False),

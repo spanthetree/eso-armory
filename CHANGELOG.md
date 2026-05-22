@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.28] - 2026-05-22
+
+### Changed
+- **Export build fidelity** — build exports now include stronger per-slot gear metadata coverage (quality, quality color/name, armor weight, weapon type, filter type, level, enchant/trait/set fallbacks) and server-side export enrichment from equipped `/api/data` state to prevent stale/missing metadata in exported codes
+- **Imported compare name fidelity** — compare imports now carry/export scoped `ability_names` and `cp_names` so imported skills and slotted CP names render even when the active workspace lacks those ids
+- **Missing-item pricing gate** — compare missing-items now classifies each row before TTC lookup and only price-checks truly purchasable items; crafted and stickerbook Dungeon/Trial/Arena sourced items are explicitly skipped and excluded from purchasable totals
+- **Workspace pill navigation** — clicking `Primary` or `Shadow` workspace pills now returns to the Characters home view while switching context
+
 ## [0.1.0-beta.27] - 2026-05-22
 
 ### Added

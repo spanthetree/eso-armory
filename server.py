@@ -412,6 +412,96 @@ def _find_build_for_char(cache: dict, character_id: str) -> dict | None:
     return None
 
 
+def _equipped_item_map_for_char(cache: dict, character_id: str) -> dict[int, dict]:
+    """Return equipped slot -> item metadata from /api/data cache for one character."""
+    payload = cache.get("data_bytes")
+    if not payload:
+        return {}
+    try:
+        parsed = json.loads(payload)
+    except Exception:
+        return {}
+    slot_map: dict[int, dict] = {}
+    for item in parsed.get("items", []):
+        for loc in item.get("locations", []):
+            if str(loc.get("location_key")) != str(character_id):
+                continue
+            if int(loc.get("bag_id", -1)) != 0:  # BAG_WORN / equipped only
+                continue
+            for slot_raw in (loc.get("bag_slots") or {}).keys():
+                try:
+                    slot = int(slot_raw)
+                except Exception:
+                    continue
+                slot_map[slot] = item
+    return slot_map
+
+
+def _enrich_build_for_export(cache: dict, build: dict) -> dict:
+    """Backfill export build gear metadata from equipped item cache."""
+    if not isinstance(build, dict):
+        return build
+    gear = build.get("gear")
+    char_id = build.get("char_id")
+    if not isinstance(gear, list) or not char_id:
+        return build
+    equipped = _equipped_item_map_for_char(cache, str(char_id))
+    if not equipped:
+        return build
+
+    enriched = dict(build)
+    out_gear: list[dict] = []
+    for g in gear:
+        if not isinstance(g, dict):
+            out_gear.append(g)
+            continue
+        slot = g.get("slot")
+        src = equipped.get(int(slot)) if isinstance(slot, int) else None
+        if not src:
+            out_gear.append(g)
+            continue
+        merged = dict(g)
+        merged["quality"] = src.get("quality", merged.get("quality"))
+        merged["quality_name"] = src.get("quality_name", merged.get("quality_name"))
+        merged["quality_color"] = src.get("quality_color", merged.get("quality_color"))
+        merged["filter_type"] = src.get("filter_type", merged.get("filter_type"))
+        merged["filter_type_name"] = src.get("filter_type_name", merged.get("filter_type_name"))
+        merged["weapon_type"] = src.get("weapon_type", merged.get("weapon_type"))
+        merged["armor_type"] = src.get("armor_type", merged.get("armor_type"))
+        merged["level"] = src.get("level", merged.get("level"))
+        if not merged.get("trait_name"):
+            merged["trait_name"] = src.get("trait_name")
+        if not merged.get("enchant_name"):
+            merged["enchant_name"] = src.get("enchant_name", "")
+        if not merged.get("set_name"):
+            merged["set_name"] = src.get("set_name", "")
+        if not merged.get("link_name"):
+            merged["link_name"] = src.get("name", merged.get("link_name"))
+        out_gear.append(merged)
+    enriched["gear"] = out_gear
+    return enriched
+
+
+def _parse_export_payload(payload_json: str) -> tuple[dict | None, dict, dict]:
+    """Backward-compatible export payload parser.
+
+    Returns (build, ability_names, cp_names) where name maps may be empty.
+    """
+    try:
+        parsed = json.loads(payload_json)
+    except Exception:
+        return None, {}, {}
+    if isinstance(parsed, dict) and isinstance(parsed.get("build"), dict):
+        return (
+            parsed.get("build"),
+            parsed.get("ability_names") or {},
+            parsed.get("cp_names") or {},
+        )
+    if isinstance(parsed, dict):
+        return parsed, {}, {}
+    return None, {}, {}
+
+
 def _character_ids_for_cache(cache: dict) -> set[str]:
     payload = cache.get("data_bytes")
     if not payload:
@@ -1530,9 +1620,25 @@ async def api_build_export(
     build = _find_build_for_char(cache, character_id)
     if not build:
         return JSONResponse({"error": "character build not found"}, status_code=404)
+    build = _enrich_build_for_export(cache, build)
 
     code = _generate_build_code()
-    payload_json = json.dumps(build, separators=(",", ":"), ensure_ascii=False)
+    parsed_builds = json.loads(cache.get("builds_bytes") or "{}")
+    ability_names = parsed_builds.get("abilityNames") or {}
+    cp_names = parsed_builds.get("cpNames") or {}
+    skill_ids: set[str] = set()
+    for bar in ("primary", "backup"):
+        for _, skill_id in (build.get("skills", {}).get(bar, {}) or {}).items():
+            if skill_id:
+                skill_ids.add(str(skill_id))
+    cp_ids = {str(v) for _, v in (build.get("cp", {}) or {}).items() if v}
+    payload = {
+        "schema_version": 2,
+        "build": build,
+        "ability_names": {sid: ability_names.get(sid, "") for sid in skill_ids},
+        "cp_names": {sid: cp_names.get(sid, "") for sid in cp_ids},
+    }
+    payload_json = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
     _db_upsert_build_export(code, account_name, str(character_id), payload_json)
 
     return JSONResponse({
@@ -1558,9 +1664,8 @@ async def api_compare_builds(session: str | None = Query(None), share: str | Non
 
     imported = {}
     for row in _db_list_imported_builds(sid, account_name):
-        try:
-            payload = json.loads(row["payload_json"])
-        except Exception:
+        payload, ability_names, cp_names = _parse_export_payload(row["payload_json"])
+        if not payload:
             continue
         imported[str(row["character_id"])] = {
             "character_id": str(row["character_id"]),
@@ -1571,6 +1676,8 @@ async def api_compare_builds(session: str | None = Query(None), share: str | Non
             "created_at": row["created_at"],
             "updated_at": row["updated_at"],
             "build": payload,
+            "ability_names": ability_names,
+            "cp_names": cp_names,
         }
     return JSONResponse({"imported": imported})
 
@@ -1608,9 +1715,8 @@ async def api_compare_builds_import(
     if not source:
         return JSONResponse({"error": "build code not found"}, status_code=404)
 
-    try:
-        payload = json.loads(source["payload_json"])
-    except Exception:
+    payload, _, _ = _parse_export_payload(source["payload_json"])
+    if not payload:
         return JSONResponse({"error": "build code payload is invalid"}, status_code=500)
 
     _db_upsert_imported_build(
