@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.25] - 2026-05-22
+
+### Fixed
+- **Frontend startup reliability** — Alpine.js is now served from `static/vendor/alpine.min.js` instead of the jsDelivr CDN, preventing a white page when hosted browsers cannot reach `cdn.min.js`
+
 ## [0.1.0-beta.24] - 2026-05-22
 
 ### Added

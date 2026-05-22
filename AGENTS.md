@@ -1,11 +1,11 @@
 # ESO Armory — Agent Notes
 
 ## Project Overview
-Local web app that reads ESO SavedVariables and presents inventory, equipment, and builds in a WoW-Armory-style browser. FastAPI backend, Alpine.js + Tailwind CDN frontend (no build step). Designed for WSL2 on Windows where the ESO client runs natively.
+Local web app that reads ESO SavedVariables and presents inventory, equipment, and builds in a WoW-Armory-style browser. FastAPI backend, local Alpine.js + Tailwind CDN frontend (no build step). Designed for WSL2 on Windows where the ESO client runs natively.
 
 ## Stack
 - **Backend**: Python / FastAPI + Uvicorn (`server.py`)
-- **Frontend**: Single-file `static/index.html` — Alpine.js 3.x, Tailwind CDN, no build step
+- **Frontend**: Single-file `static/index.html` — vendored Alpine.js 3.x from `static/vendor/alpine.min.js`, Tailwind CDN, no build step
 - **Lua parser**: Custom recursive-descent in `lua_parser.py` (stdlib only, no lupa/lark)
 - **Start**: `uv run server.py` → http://localhost:5000 (or `python server.py` if a virtualenv is active via `uv sync --active`)
 - **Tests**: pytest unit/API tests, Playwright UI tests for Chromium and Firefox, mutmut mutation tests for backend confidence
@@ -23,6 +23,7 @@ Before making code or file changes, ask for explicit approval unless the user ha
 | `config.json` | Paths to Lua files, port, server region, poll interval |
 | `iasync/iasync.lua` | ESO addon (symlinked to Windows AddOns folder) |
 | `static/index.html` | Full SPA (Characters, Inventory, Achievements, Collections tabs) |
+| `static/vendor/alpine.min.js` | Vendored Alpine.js runtime loaded by the app shell so CDN reachability does not block boot |
 | `header.svg` | README/release header artwork; ANSI-style SVG matching sibling addon headers |
 | `tests/fixtures/` | Sanitized deterministic Lua/TTC fixtures; do not commit live user data |
 | `tests/ui/test_critical_flows.py` | Chromium/Firefox first-load, upload, share, and inventory browser flows |
@@ -159,7 +160,7 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 | `GET /events?session=&share=` | SSE stream; joins the shared workspace queue when `share` resolves, otherwise the browser's own session queue if it has data, else global queue; sends `"reload"` on data change |
 
 ### Static serving expectations
-`GET /` and `HEAD /` must serve the app shell as `text/html; charset=utf-8` with `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. Static/assets responses also set `nosniff`. If a hosted browser appears to dump `function armory()` or other source text, first verify response headers for `/` and `/static/index.html`, then check CDN/proxy cache behavior.
+`GET /` and `HEAD /` must serve the app shell as `text/html; charset=utf-8` with `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`. Static/assets responses also set `nosniff`. Alpine is loaded from `/static/vendor/alpine.min.js`; if a hosted browser shows a white page with a failed `cdn.min.js` request, it is probably running an older cached `index.html`. If a hosted browser appears to dump `function armory()` or other source text, first verify response headers for `/` and `/static/index.html`, then check CDN/proxy cache behavior.
 
 ## Server Caches (server.py)
 ```python

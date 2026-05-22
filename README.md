@@ -2,7 +2,7 @@
 
 ![ESO Armory header](header.svg)
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.24-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.25-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -25,7 +25,7 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 - **Folder watcher** (Chrome/Edge) — select your ESO `live` folder once and the app polls for changes every 5 s, re-uploading `SavedVariables/` and Tamriel Trade Centre tables from `AddOns/TamrielTradeCentre/` automatically; directory handle persists across sessions via IndexedDB
 - **Refresh button** — manually check for updated data at any time; toasts "Data updated ✓" or "No updates"
 - **Session isolation** — each browser gets a UUID stored in `localStorage`; multiple users on the same hosted instance see only their own uploaded data by default, but a browser can opt into a shared workspace with a pairing code; private sessions still expire after 2 hours of inactivity
-- **Static serving hardening** — the app shell is explicitly served as `text/html` with `nosniff` headers, and upload failures from proxies/CDNs show actionable HTTP/content messages instead of raw JSON parser errors
+- **Static serving hardening** — the app shell is explicitly served as `text/html` with `nosniff` headers, Alpine.js is served locally from `static/vendor/`, and upload failures from proxies/CDNs show actionable HTTP/content messages instead of raw JSON parser errors
 
 ## Requirements
 
@@ -155,7 +155,8 @@ server.py              # FastAPI app + file watcher + TTC price lookups
 lua_parser.py          # Recursive-descent Lua parser
 data_processor.py      # iasync + WW data → JSON model
 item_link_decoder.py   # ESO item link decoder (trait/style/enchant)
-static/index.html      # Single-file frontend (Alpine.js + Tailwind CDN)
+static/index.html      # Single-file frontend (local Alpine.js + Tailwind CDN)
+static/vendor/         # Vendored browser runtimes, including Alpine.js
 header.svg             # Project header artwork for README/release surfaces
 assets/gear/           # Slot-specific gear icons (weapon/armor/jewelry)
 assets/abilities/      # Skill icons used by current builds and WW saved builds
