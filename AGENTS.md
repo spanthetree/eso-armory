@@ -157,6 +157,10 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 | `GET /api/workspace?session=&share=` | Returns `{primary, shadow, activeSlot, activeAccount}` for the current browser workspace |
 | `POST /api/workspace/slot?session=&slot=` | Switches the active browser workspace slot between `primary` and `shadow` |
 | `DELETE /api/workspace/shadow?session=` | Removes the browser session's shadow workspace; only deletes the canonical account row if it is no longer referenced elsewhere |
+| `POST /api/build_export?session=&share=&character_id=` | Serializes the selected character's current build into a short export code |
+| `GET /api/compare_builds?session=&share=` | Returns imported compare builds keyed by destination `character_id` for the active workspace/account |
+| `POST /api/compare_builds/import?session=&share=&character_id=&code=` | Resolves a build export code and stores/replaces one imported compare build for that destination character |
+| `DELETE /api/compare_builds?session=&share=&character_id=` | Deletes the imported compare build bound to that destination character |
 | `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/...png|.webp"}` — scanned at startup |
 | `GET /api/status?session=&share=` | `{ok, item_count, character_count, last_modified, error}` |
 | `POST /api/upload?session=&share=` | Accepts `iasync`, `ww`, `ttc_lookup`, and `ttc_price` multipart file fields; requires valid UUID session; writes to `uploads/<session_id>/`, parses, persists raw source + processed payloads into SQLite by ESO `accountName`, updates the session's `primary` or `shadow` slot, and returns upload status including `slot_updated` for armory files |
@@ -301,6 +305,9 @@ hasDirectoryPicker // bool — true if window.showDirectoryPicker is available (
 charInvSearch, charInvQuality, charInvTypes, charInvLocTypes, charInvTraits
 charInvTransmuted, charInvCrafted, charInvGroupBySet
 detailPanelHeight // measured current-build panel height for wide-screen panel matching
+compareMode, compareImportCode, compareBusy, compareStatus
+importedCompareBuilds // map keyed by destination character_id from /api/compare_builds
+exportedBuildCodes    // last export code per character in the active browser session
 ```
 
 ### Key JS Methods
@@ -347,6 +354,16 @@ _idbOp/Get/Set/Del           // thin IndexedDB wrappers (DB: 'eso-armory', store
 setTheme(name)               // sets data-theme on <html>, persists to localStorage, calls _applyThemeTailwind
 _applyThemeTailwind(name)    // injects <style id="theme-tw"> with !important overrides for all eso-* Tailwind classes
                              //   uses themes[name].*R RGB triplets for rgba() math; no-op (clears tag) for 'gold'
+// Build compare
+fetchCompareBuilds()         // GET /api/compare_builds
+exportCurrentBuild(charId)   // POST /api/build_export, copies code to clipboard when allowed
+openCompare(charId)          // opens compare mode for selected character
+returnToCharacterDrilldown() // exits compare mode and returns to normal drilldown layout
+importCompareBuild(charId)   // POST /api/compare_builds/import with build code
+deleteCompareBuild(charId)   // DELETE /api/compare_builds
+compareImportedBuild(charId) // returns imported compare record for destination character
+compareMissingItems          // computed strict-match missing list with source + TTC status
+compareMissingTotal          // computed total of missing rows with TTC avg price
 ```
 
 ### Theme System
@@ -441,7 +458,7 @@ toggleFilter(arr, val) {
 
 ## Character Detail Inventory Panel (`static/index.html`)
 
-The character drill-down view is ordered Current Build → Character Inventory → WW Saved Builds. On `2xl` screens this is a three-column grid; below that, panels stack/wrap naturally.
+The character drill-down view is ordered Current Build → Character Inventory → WW Saved Builds. On `2xl` screens this is a three-column grid; below that, panels stack/wrap naturally. A compare-mode panel can temporarily replace this grid for side-by-side current vs imported build review.
 
 ### Character-Scoped Inventory State
 The panel has its own filter state so it does not disturb the global Inventory tab:

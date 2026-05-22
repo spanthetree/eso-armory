@@ -30,6 +30,7 @@ from data_processor import process_iasync, process_iasync_builds, process_iasync
 from db import (
     AccountPayload,
     bind_session as _db_bind_session,
+    delete_imported_build as _db_delete_imported_build,
     delete_shadow_slot as _db_delete_shadow_slot,
     find_share_code_for_account as _db_find_share_code_for_account,
     find_session_for_account as _db_find_session_for_account,
@@ -38,11 +39,15 @@ from db import (
     get_or_create_share_code as _db_get_or_create_share_code,
     get_workspace_binding as _db_get_workspace_binding,
     init_db as _db_init,
+    list_imported_builds as _db_list_imported_builds,
     resolve_account_for_share_code as _db_resolve_account_for_share_code,
+    resolve_build_export as _db_resolve_build_export,
     session_slot_for_account as _db_session_slot_for_account,
     set_active_slot as _db_set_active_slot,
     touch_session as _db_touch_session,
     update_account_blobs as _db_update_account_blobs,
+    upsert_build_export as _db_upsert_build_export,
+    upsert_imported_build as _db_upsert_imported_build,
     upsert_account_payload as _db_upsert_account_payload,
 )
 
@@ -158,6 +163,8 @@ _ttc_tables: dict = {
 
 _SHARE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 _SHARE_CODE_LEN = 8
+_BUILD_CODE_ALPHABET = _SHARE_CODE_ALPHABET
+_BUILD_CODE_LEN = 8
 _EXTERNAL_CACHE_MAX = 256
 _TTC_PRICE_CACHE_MAX = 512
 _IASYNC_PARSE_LOCK = threading.Lock()
@@ -231,6 +238,22 @@ def _generate_share_code() -> str:
         code = f"{raw[:4]}-{raw[4:]}"
         if code not in _share_registry["codes"]:
             return code
+
+
+def _normalize_build_code(code: str | None) -> str | None:
+    raw = re.sub(r"[^A-Za-z0-9]", "", code or "").upper()
+    if len(raw) != _BUILD_CODE_LEN:
+        return None
+    return f"{raw[:4]}-{raw[4:]}"
+
+
+def _generate_build_code() -> str:
+    for _ in range(256):
+        raw = "".join(secrets.choice(_BUILD_CODE_ALPHABET) for _ in range(_BUILD_CODE_LEN))
+        code = f"{raw[:4]}-{raw[4:]}"
+        if _db_resolve_build_export(code) is None:
+            return code
+    raise RuntimeError("failed to allocate build code")
 
 
 def _session_share_code(session_id: str) -> str | None:
@@ -376,6 +399,26 @@ def _state_to_cache(state) -> dict:
         "ww_source_bytes": state.raw_ww_lua,
         "ww_mtime": state.ww_mtime,
     }
+
+
+def _find_build_for_char(cache: dict, character_id: str) -> dict | None:
+    payload = cache.get("builds_bytes")
+    if not payload:
+        return None
+    parsed = json.loads(payload)
+    for build in parsed.get("builds", []):
+        if str(build.get("char_id")) == str(character_id):
+            return build
+    return None
+
+
+def _character_ids_for_cache(cache: dict) -> set[str]:
+    payload = cache.get("data_bytes")
+    if not payload:
+        return set()
+    parsed = json.loads(payload)
+    chars = parsed.get("characters", {})
+    return {str(cid) for cid in chars.keys()}
 
 
 def _build_ability_icon_map() -> dict:
@@ -1461,6 +1504,150 @@ async def api_workspace_delete_shadow(session: str | None = Query(None)):
         "activeSlot": workspace["active_slot"],
         "activeAccount": _active_account_label(workspace),
     })
+
+
+@app.post("/api/build_export")
+async def api_build_export(
+    session: str | None = Query(None),
+    share: str | None = Query(None),
+    character_id: str | None = Query(None),
+):
+    sid, err = _resolve_session_context(session, share)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    if not character_id:
+        return JSONResponse({"error": "character_id is required"}, status_code=400)
+
+    account_name, account_err = _resolve_account_name(sid, None)
+    if account_err:
+        return JSONResponse({"error": account_err}, status_code=400)
+    if not account_name:
+        return JSONResponse({"error": "upload armory data before exporting a build"}, status_code=400)
+
+    cache = _resolve_cache(sid, None)
+    build = _find_build_for_char(cache, character_id)
+    if not build:
+        return JSONResponse({"error": "character build not found"}, status_code=404)
+
+    code = _generate_build_code()
+    payload_json = json.dumps(build, separators=(",", ":"), ensure_ascii=False)
+    _db_upsert_build_export(code, account_name, str(character_id), payload_json)
+
+    return JSONResponse({
+        "ok": True,
+        "code": code,
+        "character_id": str(character_id),
+        "build": build,
+    })
+
+
+@app.get("/api/compare_builds")
+async def api_compare_builds(session: str | None = Query(None), share: str | None = Query(None)):
+    sid, err = _resolve_session_context(session, share)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    account_name, account_err = _resolve_account_name(sid, share)
+    if account_err:
+        return JSONResponse({"error": account_err}, status_code=400)
+    if not account_name:
+        return JSONResponse({"imported": {}}, status_code=200)
+
+    imported = {}
+    for row in _db_list_imported_builds(sid, account_name):
+        try:
+            payload = json.loads(row["payload_json"])
+        except Exception:
+            continue
+        imported[str(row["character_id"])] = {
+            "character_id": str(row["character_id"]),
+            "build_name": row["build_name"],
+            "source_code": row["source_code"],
+            "exported_from_account": row["exported_from_account"],
+            "exported_from_character_id": row["exported_from_character_id"],
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+            "build": payload,
+        }
+    return JSONResponse({"imported": imported})
+
+
+@app.post("/api/compare_builds/import")
+async def api_compare_builds_import(
+    session: str | None = Query(None),
+    share: str | None = Query(None),
+    character_id: str | None = Query(None),
+    code: str | None = Query(None),
+):
+    sid, err = _resolve_session_context(session, share)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    if not character_id:
+        return JSONResponse({"error": "character_id is required"}, status_code=400)
+    normalized_code = _normalize_build_code(code)
+    if not normalized_code:
+        return JSONResponse({"error": "valid build code required"}, status_code=400)
+
+    account_name, account_err = _resolve_account_name(sid, share)
+    if account_err:
+        return JSONResponse({"error": account_err}, status_code=400)
+    if not account_name:
+        return JSONResponse({"error": "upload armory data before importing a compare build"}, status_code=400)
+
+    cache = _resolve_cache(sid, share)
+    valid_chars = _character_ids_for_cache(cache)
+    if str(character_id) not in valid_chars:
+        return JSONResponse({"error": "character_id is not in the active workspace"}, status_code=400)
+
+    source = _db_resolve_build_export(normalized_code)
+    if not source:
+        return JSONResponse({"error": "build code not found"}, status_code=404)
+
+    try:
+        payload = json.loads(source["payload_json"])
+    except Exception:
+        return JSONResponse({"error": "build code payload is invalid"}, status_code=500)
+
+    _db_upsert_imported_build(
+        workspace_session_id=sid,
+        account_name=account_name,
+        character_id=str(character_id),
+        build_name=payload.get("char_name") or "Imported Build",
+        source_code=normalized_code,
+        exported_from_account=source.get("account_name"),
+        exported_from_character_id=str(source.get("character_id") or ""),
+        payload_json=source["payload_json"],
+    )
+    return JSONResponse({"ok": True, "character_id": str(character_id), "source_code": normalized_code})
+
+
+@app.delete("/api/compare_builds")
+async def api_compare_builds_delete(
+    session: str | None = Query(None),
+    share: str | None = Query(None),
+    character_id: str | None = Query(None),
+):
+    sid, err = _resolve_session_context(session, share)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    if not character_id:
+        return JSONResponse({"error": "character_id is required"}, status_code=400)
+    account_name, account_err = _resolve_account_name(sid, share)
+    if account_err:
+        return JSONResponse({"error": account_err}, status_code=400)
+    if not account_name:
+        return JSONResponse({"error": "no active workspace account"}, status_code=400)
+    deleted = _db_delete_imported_build(sid, account_name, str(character_id))
+    if not deleted:
+        return JSONResponse({"error": "no imported build for character"}, status_code=404)
+    return JSONResponse({"ok": True, "character_id": str(character_id)})
 
 
 @app.post("/api/upload")

@@ -1227,8 +1227,99 @@
           <span class="font-cinzel text-eso-gold font-semibold" x-text="selectedChar?.name"></span>
         </div>
 
+        <div class="mb-4 flex flex-wrap items-center gap-2">
+          <button @click="exportCurrentBuild(selectedChar?.id)"
+            :disabled="compareBusy || !charBuilds(selectedChar?.id)[0]"
+            class="px-3 py-1.5 text-xs rounded border border-eso-gold/50 text-eso-gold hover:bg-eso-gold/10 disabled:opacity-50 disabled:cursor-not-allowed">
+            Export Build Code
+          </button>
+          <button @click="openCompare(selectedChar?.id)"
+            :disabled="!charBuilds(selectedChar?.id)[0]"
+            class="px-3 py-1.5 text-xs rounded border border-eso-border text-eso-text hover:border-eso-gold/40 hover:text-eso-gold disabled:opacity-50 disabled:cursor-not-allowed">
+            Compare Build
+          </button>
+          <span x-show="exportedBuildCodes[selectedChar?.id]" class="text-xs text-eso-muted">
+            Code: <code class="text-eso-gold" x-text="exportedBuildCodes[selectedChar?.id]"></code>
+          </span>
+        </div>
+
+        <div x-show="compareMode && selectedChar" class="bg-eso-card border border-eso-border rounded-lg p-4 mb-5">
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <h3 class="font-cinzel font-semibold text-eso-gold text-sm">Build Compare</h3>
+            <button @click="returnToCharacterDrilldown()"
+              class="text-xs text-eso-muted hover:text-eso-gold transition-colors">Return to Drilldown</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <input x-model="compareImportCode"
+              placeholder="ABCD-EFGH"
+              class="px-2 py-1.5 text-xs rounded bg-eso-bg border border-eso-border text-eso-text focus:border-eso-gold outline-none w-36 uppercase tracking-wider">
+            <button @click="importCompareBuild(selectedChar?.id)"
+              :disabled="compareBusy || !compareImportCode"
+              class="px-3 py-1.5 text-xs rounded border border-eso-gold/50 text-eso-gold hover:bg-eso-gold/10 disabled:opacity-50 disabled:cursor-not-allowed">
+              Import by Code
+            </button>
+            <button x-show="compareImportedBuild(selectedChar?.id)"
+              @click="deleteCompareBuild(selectedChar?.id)"
+              :disabled="compareBusy"
+              class="px-3 py-1.5 text-xs rounded border border-eso-border text-eso-muted hover:text-eso-gold hover:border-eso-gold/40 disabled:opacity-50 disabled:cursor-not-allowed">
+              Delete Imported
+            </button>
+            <span x-show="compareStatus" class="text-xs text-eso-muted" x-text="compareStatus"></span>
+          </div>
+
+          <template x-if="compareImportedBuild(selectedChar?.id)">
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <div class="bg-eso-bg border border-eso-border rounded p-3">
+                <div class="text-xs uppercase tracking-wider text-eso-muted mb-2">Current</div>
+                <template x-if="charBuilds(selectedChar?.id)[0]">
+                  <div class="space-y-1 text-xs">
+                    <template x-for="g in charBuilds(selectedChar?.id)[0].gear" :key="'cur-'+g.slot">
+                      <div class="flex justify-between gap-3">
+                        <span class="text-eso-muted" x-text="g.slot_name"></span>
+                        <span class="truncate text-right" x-text="(g.link_name || ('Item #' + g.item_id))"></span>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+              <div class="bg-eso-bg border border-eso-border rounded p-3">
+                <div class="text-xs uppercase tracking-wider text-eso-muted mb-2">Imported</div>
+                <div class="space-y-1 text-xs">
+                  <template x-for="g in compareImportedBuild(selectedChar?.id).build.gear" :key="'imp-'+g.slot">
+                    <div class="flex justify-between gap-3">
+                      <span class="text-eso-muted" x-text="g.slot_name"></span>
+                      <span class="truncate text-right" x-text="(g.link_name || ('Item #' + g.item_id))"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template x-if="compareImportedBuild(selectedChar?.id)">
+            <div class="mt-4">
+              <div class="text-xs uppercase tracking-wider text-eso-muted mb-2">Missing Items</div>
+              <div x-show="compareMissingItems.length===0" class="text-sm text-green-400">No missing items.</div>
+              <div x-show="compareMissingItems.length>0" class="space-y-2">
+                <template x-for="m in compareMissingItems" :key="m.slot + '-' + m.item_id + '-' + m.trait_id + '-' + m.enchant_id">
+                  <div class="bg-eso-bg border border-eso-border rounded p-2 text-xs">
+                    <div class="flex justify-between gap-3">
+                      <span class="text-eso-gold" x-text="m.slot_name + ': ' + m.name"></span>
+                      <span class="text-eso-muted" x-text="m.priceText"></span>
+                    </div>
+                    <div class="text-eso-muted" x-text="m.sourceText"></div>
+                  </div>
+                </template>
+                <div class="pt-1 text-sm text-eso-gold font-semibold">
+                  Purchasable Total: <span x-text="fmtGold(compareMissingTotal)"></span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
         <div class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6 items-start"
-          x-show="selectedChar"
+          x-show="selectedChar && !compareMode"
           x-effect="selectedChar && $nextTick(() => syncDetailPanelHeights())">
           <!-- Left column -->
           <div class="min-w-0 order-1" x-ref="currentBuildPanel">
@@ -2454,6 +2545,12 @@ function armory() {
     shareStatus: null,
     shareBusy: false,
     workspace: { primary: { account: null }, shadow: { account: null }, activeSlot: 'primary', activeAccount: null },
+    compareMode: false,
+    compareImportCode: '',
+    compareBusy: false,
+    compareStatus: '',
+    importedCompareBuilds: {},
+    exportedBuildCodes: {},
     _sse: null,
     _sseGeneration: 0,
     _sseRetryTimer: null,
@@ -2624,6 +2721,7 @@ function armory() {
         this.fetchData(),
         this.fetchBuilds(),
         this.fetchWWBuilds(),
+        this.fetchCompareBuilds(),
         this.fetchAbilityIcons(),
         this.fetchAchievements(),
         this.fetchStickerbook(),
@@ -2738,6 +2836,7 @@ function armory() {
           this.fetchData(true),
           this.fetchBuilds(),
           this.fetchWWBuilds(),
+          this.fetchCompareBuilds(),
           this.fetchAchievements(),
           this.fetchStickerbook(),
         ]);
@@ -2879,6 +2978,16 @@ function armory() {
       } catch(e) {}
     },
 
+    async fetchCompareBuilds() {
+      try {
+        const r = await fetch(this.apiUrl('/api/compare_builds'));
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.error) return;
+        this.importedCompareBuilds = d.imported || {};
+      } catch(e) {}
+    },
+
     async switchWorkspaceSlot(slot) {
       if (slot === this.workspace.activeSlot) return;
       try {
@@ -2894,6 +3003,7 @@ function armory() {
           this.fetchData(true),
           this.fetchBuilds(),
           this.fetchWWBuilds(),
+          this.fetchCompareBuilds(),
           this.fetchAchievements(),
           this.fetchStickerbook(),
         ]);
@@ -2918,6 +3028,7 @@ function armory() {
           this.fetchData(true),
           this.fetchBuilds(),
           this.fetchWWBuilds(),
+          this.fetchCompareBuilds(),
           this.fetchAchievements(),
           this.fetchStickerbook(),
         ]);
@@ -3085,6 +3196,7 @@ function armory() {
         if (d.ttc_lookup?.ok || d.ttc_price?.ok) this.ttcPriceCache = {};
         if (tasks.length) {
           await Promise.all(tasks);
+          await this.fetchCompareBuilds();
           if (d.iasync?.ok) {
             this.uploadOpen = false;
             this.shareOpen = false;
@@ -3229,7 +3341,10 @@ function armory() {
           this.ttcPriceLastMod = ttcPriceFile.lastModified;
           this.ttcPriceCache = {};
         }
-        if (tasks.length) await Promise.all(tasks);
+        if (tasks.length) {
+          await Promise.all(tasks);
+          await this.fetchCompareBuilds();
+        }
         return true;
       } catch(e) {
         return false;
@@ -3454,9 +3569,134 @@ function armory() {
     // ── Characters ───────────────────────────────────────
     selectChar(char) {
       this.selectedChar = char;
+      this.compareMode = false;
+      this.compareImportCode = '';
+      this.compareStatus = '';
       this.tipHide();
       this.$nextTick(() => this.syncDetailPanelHeights());
       setTimeout(() => this.syncDetailPanelHeights(), 100);
+    },
+
+    openCompare(charId) {
+      if (!charId) return;
+      this.compareMode = true;
+      this.compareImportCode = '';
+      this.compareStatus = '';
+      this.refreshMissingPrices();
+    },
+
+    closeCompare() {
+      this.compareMode = false;
+      this.compareImportCode = '';
+      this.compareStatus = '';
+    },
+
+    returnToCharacterDrilldown() {
+      this.closeCompare();
+    },
+
+    async exportCurrentBuild(charId) {
+      if (!charId) return;
+      this.compareBusy = true;
+      this.compareStatus = '';
+      try {
+        const r = await fetch(this.apiUrl('/api/build_export', { character_id: charId }), { method: 'POST' });
+        const d = await this.readJsonResponse(r, 'Build export');
+        this.exportedBuildCodes[charId] = d.code;
+        try {
+          await navigator.clipboard.writeText(d.code);
+          this.compareStatus = `Exported and copied ${d.code}`;
+          this.showToast('Exported build code copied to clipboard');
+        } catch(_) {
+          this.compareStatus = `Exported ${d.code} (copy blocked)`;
+        }
+      } catch(e) {
+        this.compareStatus = e.message || 'Export failed';
+      } finally {
+        this.compareBusy = false;
+      }
+    },
+
+    async importCompareBuild(charId) {
+      if (!charId) return;
+      this.compareBusy = true;
+      this.compareStatus = '';
+      try {
+        const code = (this.compareImportCode || '').toUpperCase();
+        const r = await fetch(this.apiUrl('/api/compare_builds/import', { character_id: charId, code }), { method: 'POST' });
+        await this.readJsonResponse(r, 'Compare import');
+        await this.fetchCompareBuilds();
+        this.compareStatus = 'Imported compare build';
+        this.refreshMissingPrices();
+      } catch(e) {
+        this.compareStatus = e.message || 'Import failed';
+      } finally {
+        this.compareBusy = false;
+      }
+    },
+
+    async deleteCompareBuild(charId) {
+      if (!charId) return;
+      this.compareBusy = true;
+      this.compareStatus = '';
+      try {
+        const r = await fetch(this.apiUrl('/api/compare_builds', { character_id: charId }), { method: 'DELETE' });
+        await this.readJsonResponse(r, 'Compare delete');
+        await this.fetchCompareBuilds();
+        this.compareStatus = 'Imported build deleted';
+      } catch(e) {
+        this.compareStatus = e.message || 'Delete failed';
+      } finally {
+        this.compareBusy = false;
+      }
+    },
+
+    compareImportedBuild(charId) {
+      if (!charId) return null;
+      return this.importedCompareBuilds[String(charId)] || null;
+    },
+
+    _gearSig(g) {
+      return [g?.item_id || 0, g?.trait_id || 0, g?.enchant_id || 0].join(':');
+    },
+
+    compareSourceText(gear) {
+      const setName = gear.set_name || '';
+      if (!setName || !this.sbData) return 'Source: Unknown';
+      const set = (this.sbData.sets || []).find(s => (s.name || '').toLowerCase() === setName.toLowerCase());
+      if (!set) return `Source: ${setName}`;
+      const where = set.subcategory && set.subcategory !== set.category ? `${set.category} / ${set.subcategory}` : set.category;
+      return where ? `Source: ${where}` : `Source: ${setName}`;
+    },
+
+    get compareMissingItems() {
+      if (!this.selectedChar) return [];
+      const imported = this.compareImportedBuild(this.selectedChar.id);
+      if (!imported?.build?.gear) return [];
+      const owned = new Set((this.data?.items || []).map(i => this._gearSig(i)));
+      const out = [];
+      for (const g of imported.build.gear) {
+        if (owned.has(this._gearSig(g))) continue;
+        const name = g.link_name || (g.item_id ? `Item #${g.item_id}` : 'Unknown Item');
+        const price = this.ttcPriceCache[this._ttcPriceKey(name)];
+        const avg = (price && typeof price.avg === 'number') ? price.avg : null;
+        out.push({
+          ...g,
+          name,
+          sourceText: this.compareSourceText(g),
+          priceText: avg != null ? `~${this.fmtGold(avg)} gold` : (price?.loading ? 'Price: loading…' : 'Price: unavailable'),
+          avgPrice: avg,
+        });
+      }
+      return out;
+    },
+
+    get compareMissingTotal() {
+      return this.compareMissingItems.reduce((sum, m) => sum + (m.avgPrice || 0), 0);
+    },
+
+    refreshMissingPrices() {
+      for (const m of this.compareMissingItems) this.fetchTtcPrice(m.name);
     },
 
     syncDetailPanelHeights() {

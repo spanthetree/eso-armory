@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlalchemy import Float, ForeignKey, Integer, LargeBinary, String, Text, create_engine, inspect, select, text
+from sqlalchemy import Float, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, create_engine, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
 
 
@@ -77,6 +77,36 @@ class AccountShareCode(Base):
     updated_at: Mapped[float] = mapped_column(Float, default=lambda: time.time())
 
     account: Mapped[AccountState] = relationship(back_populates="share_codes")
+
+
+class BuildExport(Base):
+    __tablename__ = "build_exports"
+
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    account_name: Mapped[str] = mapped_column(String(255), index=True)
+    character_id: Mapped[str] = mapped_column(String(255), index=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[float] = mapped_column(Float, default=lambda: time.time())
+    updated_at: Mapped[float] = mapped_column(Float, default=lambda: time.time())
+
+
+class ImportedBuild(Base):
+    __tablename__ = "imported_builds"
+    __table_args__ = (
+        UniqueConstraint("workspace_session_id", "account_name", "character_id", name="ux_imported_build_slot"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    workspace_session_id: Mapped[str] = mapped_column(String(64), index=True)
+    account_name: Mapped[str] = mapped_column(String(255), index=True)
+    character_id: Mapped[str] = mapped_column(String(255), index=True)
+    build_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    exported_from_account: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    exported_from_character_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[float] = mapped_column(Float, default=lambda: time.time())
+    updated_at: Mapped[float] = mapped_column(Float, default=lambda: time.time())
 
 
 @dataclass
@@ -383,3 +413,104 @@ def resolve_account_for_share_code(code: str) -> str | None:
             return None
         row.updated_at = time.time()
         return row.account.account_name
+
+
+def upsert_build_export(code: str, account_name: str, character_id: str, payload_json: str) -> None:
+    with session_scope() as db:
+        row = db.get(BuildExport, code)
+        if row is None:
+            db.add(BuildExport(
+                code=code,
+                account_name=account_name,
+                character_id=character_id,
+                payload_json=payload_json,
+            ))
+            return
+        row.account_name = account_name
+        row.character_id = character_id
+        row.payload_json = payload_json
+        row.updated_at = time.time()
+
+
+def resolve_build_export(code: str) -> dict | None:
+    with session_scope() as db:
+        row = db.get(BuildExport, code)
+        if row is None:
+            return None
+        row.updated_at = time.time()
+        return {
+            "code": row.code,
+            "account_name": row.account_name,
+            "character_id": row.character_id,
+            "payload_json": row.payload_json,
+            "created_at": row.created_at,
+            "updated_at": row.updated_at,
+        }
+
+
+def upsert_imported_build(
+    *,
+    workspace_session_id: str,
+    account_name: str,
+    character_id: str,
+    build_name: str | None,
+    source_code: str | None,
+    exported_from_account: str | None,
+    exported_from_character_id: str | None,
+    payload_json: str,
+) -> None:
+    with session_scope() as db:
+        row = db.scalar(select(ImportedBuild).where(
+            ImportedBuild.workspace_session_id == workspace_session_id,
+            ImportedBuild.account_name == account_name,
+            ImportedBuild.character_id == character_id,
+        ))
+        if row is None:
+            db.add(ImportedBuild(
+                workspace_session_id=workspace_session_id,
+                account_name=account_name,
+                character_id=character_id,
+                build_name=build_name,
+                source_code=source_code,
+                exported_from_account=exported_from_account,
+                exported_from_character_id=exported_from_character_id,
+                payload_json=payload_json,
+            ))
+            return
+        row.build_name = build_name
+        row.source_code = source_code
+        row.exported_from_account = exported_from_account
+        row.exported_from_character_id = exported_from_character_id
+        row.payload_json = payload_json
+        row.updated_at = time.time()
+
+
+def list_imported_builds(workspace_session_id: str, account_name: str) -> list[dict]:
+    with session_scope() as db:
+        rows = db.scalars(select(ImportedBuild).where(
+            ImportedBuild.workspace_session_id == workspace_session_id,
+            ImportedBuild.account_name == account_name,
+        )).all()
+        return [{
+            "character_id": row.character_id,
+            "build_name": row.build_name,
+            "source_code": row.source_code,
+            "exported_from_account": row.exported_from_account,
+            "exported_from_character_id": row.exported_from_character_id,
+            "payload_json": row.payload_json,
+            "created_at": row.created_at,
+            "updated_at": row.updated_at,
+        } for row in rows]
+
+
+def delete_imported_build(workspace_session_id: str, account_name: str, character_id: str) -> bool:
+    with session_scope() as db:
+        row = db.scalar(select(ImportedBuild).where(
+            ImportedBuild.workspace_session_id == workspace_session_id,
+            ImportedBuild.account_name == account_name,
+            ImportedBuild.character_id == character_id,
+        ))
+        if row is None:
+            return False
+        db.delete(row)
+        return True

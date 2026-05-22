@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.27] - 2026-05-22
+
+### Added
+- **Character drilldown build compare** — added `Export Build Code` and `Compare Build` actions in character drilldown, with a dedicated compare view that supports import-by-code and return-to-drilldown navigation
+- **Clipboard export UX** — exporting a build code now attempts to copy to clipboard automatically and shows a toast when successful
+- **Persistent compare build storage** — added DB-backed build export/import models and APIs:
+  - `POST /api/build_export`
+  - `GET /api/compare_builds`
+  - `POST /api/compare_builds/import`
+  - `DELETE /api/compare_builds`
+
+### Changed
+- **Compare missing-items panel** — compare mode now highlights missing imported-build gear, source hints from stickerbook metadata, and TTC-based purchasable totals when available
+- **Workspace-scoped compare state** — imported compare builds are stored per workspace/account/character and reload from SQLite with the rest of uploaded workspace state
+
 ## [0.1.0-beta.26] - 2026-05-22
 
 ### Added

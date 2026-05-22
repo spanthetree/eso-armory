@@ -271,3 +271,28 @@ def test_ww_transient_parse_keeps_previous_cache(isolated_server, fixtures_dir, 
 
     assert cache["error"] is None
     assert json.loads(cache["ww_builds_bytes"]) == first
+
+
+@pytest.mark.api
+def test_build_export_and_compare_import_cycle(client, uploaded_workspace):
+    exported = client.post(f"/api/build_export?session={TEST_SESSION}&character_id=char-a")
+    assert exported.status_code == 200
+    code = exported.json()["code"]
+    assert code
+
+    imported = client.post(f"/api/compare_builds/import?session={TEST_SESSION}&character_id=char-a&code={code}")
+    assert imported.status_code == 200
+    assert imported.json()["ok"] is True
+
+    listed = client.get(f"/api/compare_builds?session={TEST_SESSION}")
+    assert listed.status_code == 200
+    body = listed.json()
+    assert "char-a" in body["imported"]
+    assert body["imported"]["char-a"]["source_code"] == code
+    assert body["imported"]["char-a"]["build"]["char_id"] == "char-a"
+
+    deleted = client.delete(f"/api/compare_builds?session={TEST_SESSION}&character_id=char-a")
+    assert deleted.status_code == 200
+    listed_after = client.get(f"/api/compare_builds?session={TEST_SESSION}")
+    assert listed_after.status_code == 200
+    assert "char-a" not in listed_after.json()["imported"]
