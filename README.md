@@ -2,7 +2,7 @@
 
 ![ESO Armory header](header.svg)
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.29-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.30-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -12,7 +12,7 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 ## Features
 
 - **Characters tab** — all characters at a glance with equipped gear paper-doll using slot-specific gear icons; click any character to see current build details, character-scoped inventory, and WizardsWardrobe builds
-- **Build compare workflow** — from character drilldown, export your current build as a short code, import another build by code, and compare current vs imported gear side-by-side; each account+character keeps a single export code that is updated on re-export
+- **Build compare workflow** — from character drilldown, export your current build as a short code, import another build by code, and compare current vs imported gear side-by-side; each account+character keeps a single export code that is updated on re-export, including hosted/shared workspaces
 - **Missing gear planner** — compare mode lists missing imported-build items, uses stickerbook metadata to flag Dungeon/Trial/Arena sources, skips TTC pricing for crafted and source-gated items, and totals only purchasable missing-item cost
 - **Builds** — gear, skills (primary + backup bars), Champion Points, and food for each WW setup; ability icons are discovered from PNG and WebP assets, including scribing skills such as Chilling Throw and Shocking Contingency
 - **Inventory tab** — full cross-character inventory with search, multiselect quality/type/trait/location/character filters, Transmuted and Crafted toggle buttons, Group by Set view, and sortable columns; items show weapon-type and armor-weight tags and slot-specific gear icons

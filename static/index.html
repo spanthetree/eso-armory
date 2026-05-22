@@ -3832,9 +3832,11 @@ function armory() {
           this.showToast('Exported build code copied to clipboard');
         } catch(_) {
           this.compareStatus = `Exported ${d.code} (copy blocked)`;
+          this.showToast(`Exported ${d.code} (copy blocked)`);
         }
       } catch(e) {
         this.compareStatus = e.message || 'Export failed';
+        this.showToast(this.compareStatus);
       } finally {
         this.compareBusy = false;
       }

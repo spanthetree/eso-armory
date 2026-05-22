@@ -1610,13 +1610,13 @@ async def api_build_export(
     if not character_id:
         return JSONResponse({"error": "character_id is required"}, status_code=400)
 
-    account_name, account_err = _resolve_account_name(sid, None)
+    account_name, account_err = _resolve_account_name(sid, share)
     if account_err:
         return JSONResponse({"error": account_err}, status_code=400)
     if not account_name:
         return JSONResponse({"error": "upload armory data before exporting a build"}, status_code=400)
 
-    cache = _resolve_cache(sid, None)
+    cache = _resolve_cache(sid, share)
     build = _find_build_for_char(cache, character_id)
     if not build:
         return JSONResponse({"error": "character build not found"}, status_code=404)
