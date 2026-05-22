@@ -85,13 +85,7 @@ On first run a `config.json` is created automatically with paths detected for yo
 
 `server` should be `"NA"` or `"EU"`. Leave `ttc_price_table_path` empty to use `PriceTableNA.lua` or `PriceTableEU.lua` automatically from `ttc_addon_path`.
 
-### 4. First run in-game
-
-Load into a character and run `/reloadui`. This flushes SavedVariables to disk and lets iasync export bank currency and ability/CP names.
-
-For accurate currency totals across all characters, log into each character once and `/reloadui`.
-
-### 5. Start the server
+### 4. Start the server
 
 ```bash
 uv run server.py
@@ -169,9 +163,7 @@ uploads/armory.db      # Default SQLite database for uploaded account workspaces
 
 ## Notes
 
-- SavedVariables are only written to disk on `/reloadui` or character logout. The web app shows whatever was last flushed.
 - Bank currency, build metadata, achievements, and stickerbook state come from `iasync.lua`.
-- Ability and CP names in build cards require iasync to have run at least once in-game.
 - Uploaded/browser-backed workspaces now read from SQLite after ingest. Uploading newer files for the same ESO account rewrites that account's stored raw SavedVariables and processed payloads in the DB.
 - If you upload a different ESO account into a session that already has one loaded, it is stored as the session's shadow workspace when available instead of replacing the primary workspace.
 - Collections piece-price tooltips use Tamriel Trade Centre `ItemLookUpTable_EN.lua` and `PriceTableNA.lua`/`PriceTableEU.lua` files from the selected live folder when available, or configured local TTC paths on self-hosted installs; hosted users can also upload those TTC files manually. Restart the server after changing TTC config paths or updating routes. If tooltip prices are missing, check `/api/ttc_price` and server logs first.

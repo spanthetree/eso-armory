@@ -59,17 +59,6 @@ ESO Armory does not vendor the addon source in this repo. The app consumes the S
 - `SavedVariables/iasync.lua` → `iasync_data`
 - configured in ESO Armory via `iasync_lua_path`
 
-**Triggers:**
-- `EVENT_ADD_ON_LOADED` — initializes `iasync_data` structure
-- `EVENT_PLAYER_ACTIVATED` (2s delay) — scans character bags + build bars + resolves names; (3s delay) scans house chests
-- `EVENT_OPEN_BANK` — scans bank bags + craft bag + records bank currency
-- `EVENT_OPEN_GUILD_BANK` — scans guild bank
-- `EVENT_INVENTORY_SINGLE_SLOT_UPDATE` — real-time single-slot updates for all bag types
-
-**Manual trigger:** `/script iasync_scan()` in-game chat.
-
-**To flush to disk:** `/reloadui` — ESO writes SavedVariables on logout or reloadui. Server picks up within `poll_interval_seconds`.
-
 **ESO Lua version:** Lua 5.1 — no `goto`, no `::labels::`. Use nested `if` guards.
 
 ### iasync_data Structure
