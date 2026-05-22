@@ -46,7 +46,7 @@ from db import (
     set_active_slot as _db_set_active_slot,
     touch_session as _db_touch_session,
     update_account_blobs as _db_update_account_blobs,
-    upsert_build_export as _db_upsert_build_export,
+    upsert_build_export_for_character as _db_upsert_build_export_for_character,
     upsert_imported_build as _db_upsert_imported_build,
     upsert_account_payload as _db_upsert_account_payload,
 )
@@ -1639,7 +1639,12 @@ async def api_build_export(
         "cp_names": {sid: cp_names.get(sid, "") for sid in cp_ids},
     }
     payload_json = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
-    _db_upsert_build_export(code, account_name, str(character_id), payload_json)
+    code = _db_upsert_build_export_for_character(
+        code=code,
+        account_name=account_name,
+        character_id=str(character_id),
+        payload_json=payload_json,
+    )
 
     return JSONResponse({
         "ok": True,

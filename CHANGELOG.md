@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.29] - 2026-05-22
+
+### Changed
+- **Single export code per character** — `POST /api/build_export` now overwrites the existing export for the same `account_name + character_id` instead of creating additional rows/codes on repeated exports
+- **Export row dedupe on overwrite** — if legacy duplicate export rows exist for the same account+character, the export upsert path now keeps one row and removes extras
+
 ## [0.1.0-beta.28] - 2026-05-22
 
 ### Changed

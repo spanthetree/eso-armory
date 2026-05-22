@@ -432,6 +432,35 @@ def upsert_build_export(code: str, account_name: str, character_id: str, payload
         row.updated_at = time.time()
 
 
+def upsert_build_export_for_character(
+    code: str,
+    account_name: str,
+    character_id: str,
+    payload_json: str,
+) -> str:
+    """Ensure a single export row per account+character and return its code."""
+    with session_scope() as db:
+        rows = db.scalars(select(BuildExport).where(
+            BuildExport.account_name == account_name,
+            BuildExport.character_id == character_id,
+        ).order_by(BuildExport.created_at.asc())).all()
+        if not rows:
+            db.add(BuildExport(
+                code=code,
+                account_name=account_name,
+                character_id=character_id,
+                payload_json=payload_json,
+            ))
+            return code
+
+        keep = rows[0]
+        keep.payload_json = payload_json
+        keep.updated_at = time.time()
+        for extra in rows[1:]:
+            db.delete(extra)
+        return keep.code
+
+
 def resolve_build_export(code: str) -> dict | None:
     with session_scope() as db:
         row = db.get(BuildExport, code)
