@@ -1238,6 +1238,10 @@
             class="px-3 py-1.5 text-xs rounded border border-eso-border text-eso-text hover:border-eso-gold/40 hover:text-eso-gold disabled:opacity-50 disabled:cursor-not-allowed">
             Compare Build
           </button>
+          <button @click="openSuperStar()"
+            class="px-3 py-1.5 text-xs rounded border border-eso-border text-eso-text hover:border-eso-gold/40 hover:text-eso-gold">
+            SuperStar Compare
+          </button>
           <span x-show="exportedBuildCodes[selectedChar?.id]" class="text-xs text-eso-muted">
             Code: <code class="text-eso-gold" x-text="exportedBuildCodes[selectedChar?.id]"></code>
           </span>
@@ -1511,8 +1515,103 @@
           <div x-show="compareStatus" class="text-xs text-eso-muted mt-3" x-text="compareStatus"></div>
         </div>
 
+        <!-- SuperStar Compare panel -->
+        <div x-show="ssMode && selectedChar" class="bg-eso-card border border-eso-border rounded-lg p-4 mb-5">
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <h3 class="font-cinzel font-semibold text-eso-gold text-sm">SuperStar Compare</h3>
+            <button @click="closeSuperStar()" class="text-xs text-eso-muted hover:text-eso-gold transition-colors">Close</button>
+          </div>
+
+          <!-- Upload area (shown until image is parsed) -->
+          <template x-if="!ssData">
+            <div class="space-y-3" @paste.window="handleSuperStarPaste($event)">
+              <div
+                @click="$refs.ssImageInput.click()"
+                @dragover.prevent="$el.classList.add('!border-eso-gold/60')"
+                @dragleave="$el.classList.remove('!border-eso-gold/60')"
+                @drop.prevent="$el.classList.remove('!border-eso-gold/60'); handleSuperStarDrop($event)"
+                class="border-2 border-dashed border-eso-border rounded-lg p-5 text-center cursor-pointer hover:border-eso-gold/40 transition-colors">
+                <template x-if="!ssBusy">
+                  <div>
+                    <p class="text-xs text-eso-text">Press <kbd class="px-1 py-0.5 rounded border border-eso-border font-mono text-eso-muted">Ctrl+V</kbd> to paste a screenshot</p>
+                    <p class="text-xs text-eso-muted mt-1">or click to choose a file &middot; drag &amp; drop also works</p>
+                  </div>
+                </template>
+                <template x-if="ssBusy">
+                  <p class="text-xs text-eso-gold">Parsing…</p>
+                </template>
+                <input type="file" accept="image/*" x-ref="ssImageInput" @change="handleSuperStarFile($event)" class="hidden">
+              </div>
+              <div x-show="ssStatus" class="text-xs text-red-400" x-text="ssStatus"></div>
+            </div>
+          </template>
+
+          <!-- Results table (shown once parsed) -->
+          <template x-if="ssData">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <div class="text-xs text-eso-muted">
+                  <span class="font-semibold text-eso-gold" x-text="ssData.character?.name || 'Unknown'"></span>
+                  <span x-show="ssData.character?.cp"> &mdash; <span x-text="ssData.character?.cp"></span> CP</span>
+                  <span x-show="ssData.mundus"> &mdash; <span x-text="ssData.mundus"></span></span>
+                </div>
+                <button @click="ssData = null; ssStatus = ''" class="text-xs text-eso-muted hover:text-eso-gold">Clear</button>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs border-collapse">
+                  <thead>
+                    <tr class="text-left border-b border-eso-border">
+                      <th class="pb-1 pr-4 font-normal text-eso-muted" rowspan="2">Slot</th>
+                      <th class="pb-1 pr-2 font-normal text-eso-muted text-center" colspan="3">Target Build</th>
+                      <th class="pb-1 pr-2 font-normal text-eso-muted text-center" colspan="3">Currently Equipped</th>
+                      <th class="pb-1 font-normal text-eso-muted" rowspan="2">Have It?</th>
+                    </tr>
+                    <tr class="text-left text-eso-muted border-b border-eso-border">
+                      <th class="pb-1 pr-4 font-normal">Item</th>
+                      <th class="pb-1 pr-4 font-normal">Trait</th>
+                      <th class="pb-1 pr-4 font-normal">Enchantment</th>
+                      <th class="pb-1 pr-4 font-normal">Item</th>
+                      <th class="pb-1 pr-4 font-normal">Trait</th>
+                      <th class="pb-1 pr-4 font-normal">Enchantment</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="row in ssComparison()" :key="row.slot">
+                      <tr class="border-b border-eso-border/40">
+                        <td class="py-1 pr-4 text-eso-muted" x-text="row.slot"></td>
+                        <!-- Target -->
+                        <td class="py-1 pr-4" :class="row.item_name ? 'text-eso-text' : 'text-eso-muted/50'" x-text="row.item_name || 'N/A'"></td>
+                        <td class="py-1 pr-4 text-eso-muted" x-text="row.trait || '—'"></td>
+                        <td class="py-1 pr-4 text-eso-muted" x-text="row.enchantment || '—'"></td>
+                        <!-- Currently equipped -->
+                        <td class="py-1 pr-4"
+                          :class="row.status === 'na' ? 'text-eso-muted/50' : row.curItemMatch ? 'text-green-400' : 'text-yellow-400'"
+                          x-text="row.cur?.name || (row.status === 'na' ? 'N/A' : '— empty —')"></td>
+                        <td class="py-1 pr-4"
+                          :class="!row.cur?.trait ? 'text-eso-muted/50' : row.curTraitMatch ? 'text-green-400' : 'text-yellow-400'"
+                          x-text="row.cur?.trait || '—'"></td>
+                        <td class="py-1 pr-4 text-eso-muted" x-text="row.cur?.enchant || '—'"></td>
+                        <!-- Status -->
+                        <td class="py-1 font-semibold"
+                          :class="{
+                            'text-green-400':  row.status === 'equipped',
+                            'text-blue-400':   row.status === 'have',
+                            'text-yellow-400': row.status === 'wrong_trait',
+                            'text-red-400':    row.status === 'missing',
+                            'text-eso-muted':  row.status === 'na'
+                          }"
+                          x-text="row.statusLabel"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </template>
+        </div>
+
         <div class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6 items-start"
-          x-show="selectedChar && !compareMode"
+          x-show="selectedChar && !compareMode && !ssMode"
           x-effect="selectedChar && $nextTick(() => syncDetailPanelHeights())">
           <!-- Left column -->
           <div class="min-w-0 order-1" x-ref="currentBuildPanel">
@@ -2750,6 +2849,12 @@ function armory() {
     importedAbilityNames: {},
     importedCpNames: {},
     exportedBuildCodes: {},
+    ssMode: false,
+    ssData: null,
+    ssFile: null,
+    ssPreview: null,
+    ssBusy: false,
+    ssStatus: '',
     _sse: null,
     _sseGeneration: 0,
     _sseRetryTimer: null,
@@ -3816,6 +3921,114 @@ function armory() {
 
     returnToCharacterDrilldown() {
       this.closeCompare();
+    },
+
+    openSuperStar() {
+      this.ssMode = true;
+      this.compareMode = false;
+    },
+
+    closeSuperStar() {
+      this.ssMode = false;
+      this.ssData = null;
+      this.ssFile = null;
+      this.ssPreview = null;
+      this.ssStatus = '';
+    },
+
+    handleSuperStarPaste(e) {
+      if (!this.ssMode || this.ssData || this.ssBusy) return;
+      const items = e.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          this.parseSuperStar(item.getAsFile());
+          break;
+        }
+      }
+    },
+
+    handleSuperStarDrop(e) {
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type.startsWith('image/')) this.parseSuperStar(file);
+    },
+
+    handleSuperStarFile(e) {
+      const file = e.target?.files?.[0];
+      if (file) this.parseSuperStar(file);
+    },
+
+    async parseSuperStar(file) {
+      if (!file) { this.ssStatus = 'No image provided.'; return; }
+      this.ssBusy = true;
+      this.ssStatus = '';
+      try {
+        const fd = new FormData();
+        fd.append('image', file, file.name || 'screenshot.png');
+        const r = await fetch('/api/parse_superstar', { method: 'POST', body: fd });
+        const j = await r.json();
+        if (!r.ok || j.error) { this.ssStatus = j.error || `Error ${r.status}`; return; }
+        this.ssData = j;
+      } catch(e) {
+        this.ssStatus = `Request failed: ${e.message}`;
+      } finally {
+        this.ssBusy = false;
+      }
+    },
+
+    ssComparison() {
+      if (!this.ssData || !this.data) return [];
+      const items = this.data.items || [];
+      const byName = {};
+      for (const item of items) {
+        const key = (item.name || '').toLowerCase().trim();
+        if (key) (byName[key] = byName[key] || []).push(item);
+      }
+
+      const slotMap = this.charMaps[this.selectedChar?.id] || {};
+
+      const BAG_LABEL = { 1: 'Backpack', 2: 'Bank', 5: 'Craft Bag', 6: 'ESO+ Bank' };
+      const locLabel = loc => {
+        if (!loc) return 'Storage';
+        if (loc.bag_id === 0) return `Equipped on ${loc.location_label}`;
+        if (loc.bag_id === 1) return `${loc.location_label}'s Backpack`;
+        return BAG_LABEL[loc.bag_id] || 'Storage';
+      };
+
+      return (this.ssData.gear || []).map(slot => {
+        const curItem = slotMap[slot.slot_id]?.item || null;
+        const cur = curItem ? {
+          name:    curItem.name || null,
+          trait:   curItem.trait_name || null,
+          enchant: curItem.enchant_name || null,
+        } : null;
+
+        if (!slot.item_name) return { ...slot, status: 'na', statusLabel: 'N/A', cur };
+
+        const key = slot.item_name.toLowerCase().trim();
+        const targetTrait = (slot.trait || '').toLowerCase().trim();
+        const matches = byName[key] || [];
+
+        const curItemMatch  = cur && (cur.name || '').toLowerCase() === key;
+        const curTraitMatch = curItemMatch && (!targetTrait || (cur.trait || '').toLowerCase() === targetTrait);
+
+        if (matches.length === 0) return { ...slot, status: 'missing', statusLabel: '✗ Missing', cur, curItemMatch, curTraitMatch };
+
+        const traitMatch = matches.find(i => !targetTrait || (i.trait_name || '').toLowerCase() === targetTrait);
+        const candidate = traitMatch || matches[0];
+
+        const locs = candidate.locations || [];
+        const best = locs.find(l => l.bag_id === 0)
+                  || locs.find(l => l.bag_id === 1)
+                  || locs.find(l => l.bag_id === 2)
+                  || locs[0];
+
+        if (!traitMatch) {
+          const actualTrait = (candidate.trait_name || 'unknown trait');
+          return { ...slot, status: 'wrong_trait', statusLabel: `⚠ ${locLabel(best)} (${actualTrait})`, cur, curItemMatch, curTraitMatch };
+        }
+        const status = (best && best.bag_id === 0) ? 'equipped' : 'have';
+        return { ...slot, status, statusLabel: `✓ ${locLabel(best)}`, cur, curItemMatch, curTraitMatch };
+      });
     },
 
     async exportCurrentBuild(charId) {

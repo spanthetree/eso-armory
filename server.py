@@ -1,6 +1,7 @@
 """ESO Armory — FastAPI server."""
 
 import asyncio
+import base64
 import collections
 import json
 import os
@@ -1759,6 +1760,89 @@ async def api_compare_builds_delete(
     if not deleted:
         return JSONResponse({"error": "no imported build for character"}, status_code=404)
     return JSONResponse({"ok": True, "character_id": str(character_id)})
+
+
+_SUPERSTAR_SLOT_IDS = {
+    "head": 0, "shoulders": 3, "chest": 2, "hands": 16, "waist": 6,
+    "legs": 8, "feet": 9, "ring 1": 11, "ring 2": 12, "neck": 1,
+    "main hand": 4, "off hand": 5, "main hand backup": 20, "off-hand backup": 21,
+}
+
+_SUPERSTAR_PROMPT = """
+You are parsing a screenshot from the ESO SuperStar addon. Extract the build data as JSON.
+
+Return ONLY a JSON object with this exact structure (no markdown, no explanation):
+{
+  "character": {
+    "name": "<full display name e.g. Khajiit Templar>",
+    "race": "<race>",
+    "class": "<class>",
+    "cp": <champion points as integer>
+  },
+  "mundus": "<stone name without 'Boon: ' prefix, e.g. The Thief>",
+  "gear": [
+    {
+      "slot": "<slot label as shown, e.g. Head, Shoulders, Main Hand Backup>",
+      "item_name": "<full item name e.g. Tide-Born Helmet>",
+      "set_name": "<set name or null if no set>",
+      "set_completion": "<e.g. 5/5 or null>",
+      "trait": "<trait name e.g. Divines, or null>",
+      "enchantment": "<enchantment name e.g. Maximum Stamina Enchantment, or null>"
+    }
+  ]
+}
+
+Rules:
+- Include every gear slot shown, even if the item is N/A.
+- For N/A slots set item_name to null and all other fields to null.
+- trait is the word directly below the item name (e.g. Divines, Infused, Bloodthirsty).
+- enchantment is the line below the trait (e.g. Maximum Stamina Enchantment).
+- set_name is the base set name only (not the item type), e.g. "Tide-Born" not "Tide-Born Helmet".
+- For mythic items with Set: 1/1, set set_completion to "1/1".
+""".strip()
+
+
+@app.post("/api/parse_superstar")
+async def api_parse_superstar(image: UploadFile = File(...)):
+    """Accept a SuperStar screenshot and return extracted build JSON via Claude Vision."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or _config.get("anthropic_api_key", "")
+    if not api_key:
+        return JSONResponse(
+            {"error": "ANTHROPIC_API_KEY not configured. Set it as an environment variable or add anthropic_api_key to config.json."},
+            status_code=503,
+        )
+
+    image_bytes = await image.read()
+    media_type = image.content_type or "image/png"
+    if media_type not in ("image/png", "image/jpeg", "image/gif", "image/webp"):
+        media_type = "image/png"
+    image_b64 = base64.standard_b64encode(image_bytes).decode()
+
+    try:
+        import anthropic as _anthropic
+        client = _anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1500,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
+                    {"type": "text", "text": _SUPERSTAR_PROMPT},
+                ],
+            }],
+        )
+        raw = msg.content[0].text.strip()
+        parsed = json.loads(raw)
+    except Exception as exc:
+        logger.error("SuperStar parse error: {}", exc)
+        return JSONResponse({"error": f"Parse failed: {exc}"}, status_code=500)
+
+    # Annotate each gear slot with its numeric slot_id for frontend lookup
+    for slot in parsed.get("gear", []):
+        slot["slot_id"] = _SUPERSTAR_SLOT_IDS.get((slot.get("slot") or "").lower())
+
+    return JSONResponse(parsed)
 
 
 @app.post("/api/upload")
