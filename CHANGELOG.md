@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.31] - 2026-05-25
+
+### Added
+- **SuperStar Compare** — upload or paste a screenshot from the ESO SuperStar addon; Claude Vision (claude-sonnet-4-6) parses the build and produces a slot-by-slot comparison against the currently equipped gear for the selected character, with colour-coded status: equipped, have it (wrong slot), wrong trait, or missing; supports paste (Ctrl+V), drag-and-drop, and file picker
+- **`POST /api/parse_superstar`** — accepts a multipart image upload, sends it to the Anthropic API with a structured extraction prompt, annotates each gear slot with its numeric `slot_id`, and returns the parsed build JSON; requires `ANTHROPIC_API_KEY` in the environment or `anthropic_api_key` in `config.json`
+
 ## [0.1.0-beta.30] - 2026-05-23
 
 ### Fixed

@@ -111,6 +111,7 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/..."}` — static, built at startup |
 | `GET /api/status?session=&share=` | `{ok, item_count, character_count, last_modified, error}` |
 | `POST /api/upload?session=&share=` | Multipart: `iasync`, `ww`, `ttc_lookup`, `ttc_price` files; stores raw + processed into SQLite by ESO accountName |
+| `POST /api/parse_superstar` | Multipart `image` upload → Claude Vision parses SuperStar addon screenshot → `{character, mundus, gear[{slot, slot_id, item_name, set_name, trait, enchantment}]}` — requires `ANTHROPIC_API_KEY` env var or `anthropic_api_key` in `config.json` |
 | `GET /events?session=&share=` | SSE stream; sends `"reload"` on data change (iasync only — not WW) |
 
 ## Server Architecture
