@@ -57,6 +57,7 @@ class WorkspaceSession(Base):
     account_id: Mapped[int | None] = mapped_column(ForeignKey("account_states.id"), nullable=True, index=True)
     active_slot: Mapped[str] = mapped_column(String(16), default="primary")
     last_active: Mapped[float] = mapped_column(Float, default=lambda: time.time(), index=True)
+    encrypted_api_key: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
     primary_account: Mapped[AccountState | None] = relationship(
         foreign_keys=[primary_account_id],
@@ -161,6 +162,8 @@ def _ensure_schema_columns(engine) -> None:
         ddl.append("ALTER TABLE workspace_sessions ADD COLUMN shadow_account_id INTEGER")
     if "active_slot" not in sess_cols:
         ddl.append("ALTER TABLE workspace_sessions ADD COLUMN active_slot TEXT DEFAULT 'primary'")
+    if "encrypted_api_key" not in sess_cols:
+        ddl.append("ALTER TABLE workspace_sessions ADD COLUMN encrypted_api_key BLOB")
     if not ddl and "account_id" not in sess_cols:
         return
     with engine.begin() as conn:
@@ -543,3 +546,27 @@ def delete_imported_build(workspace_session_id: str, account_name: str, characte
             return False
         db.delete(row)
         return True
+
+
+def save_session_api_key(session_id: str, encrypted: bytes) -> None:
+    with session_scope() as db:
+        row = db.get(WorkspaceSession, session_id)
+        if row is None:
+            row = WorkspaceSession(session_id=session_id)
+            db.add(row)
+        row.encrypted_api_key = encrypted
+        row.last_active = time.time()
+
+
+def get_session_api_key(session_id: str) -> bytes | None:
+    with session_scope() as db:
+        row = db.get(WorkspaceSession, session_id)
+        return row.encrypted_api_key if row else None
+
+
+def delete_session_api_key(session_id: str) -> None:
+    with session_scope() as db:
+        row = db.get(WorkspaceSession, session_id)
+        if row is not None:
+            row.encrypted_api_key = None
+            row.last_active = time.time()

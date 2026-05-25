@@ -1,6 +1,7 @@
 """ESO Armory — FastAPI server."""
 
 import asyncio
+import base64
 import collections
 import json
 import os
@@ -20,7 +21,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, File, Query, Request, UploadFile
+from fastapi import FastAPI, File, Form, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
@@ -49,6 +50,9 @@ from db import (
     upsert_build_export_for_character as _db_upsert_build_export_for_character,
     upsert_imported_build as _db_upsert_imported_build,
     upsert_account_payload as _db_upsert_account_payload,
+    save_session_api_key as _db_save_session_api_key,
+    get_session_api_key as _db_get_session_api_key,
+    delete_session_api_key as _db_delete_session_api_key,
 )
 
 
@@ -160,6 +164,8 @@ _ttc_tables: dict = {
     "price_time": None,
     "price_cache": collections.OrderedDict(),
 }
+
+_db_fernet = None       # Fernet instance for encrypting per-session API keys
 
 _SHARE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 _SHARE_CODE_LEN = 8
@@ -1031,6 +1037,36 @@ def _load_config():
         _config.setdefault(k, v)
 
 
+def _init_db_fernet() -> None:
+    """Generate (or load) the master Fernet key used to encrypt per-session API keys.
+
+    The key is stored as a base64 string under ``db_secret`` in config.json.
+    If it is absent, a new key is generated and the config file is updated.
+    """
+    global _db_fernet
+    from cryptography.fernet import Fernet  # type: ignore[import]
+    if "db_secret" not in _config:
+        _config["db_secret"] = Fernet.generate_key().decode()
+        CONFIG_PATH.write_text(json.dumps(_config, indent=2))
+        logger.info("Generated new db_secret and saved to {}", CONFIG_PATH)
+    _db_fernet = Fernet(_config["db_secret"].encode())
+
+
+def _encrypt_api_key(raw: str) -> bytes:
+    if _db_fernet is None:
+        raise RuntimeError("db_fernet not initialised")
+    return _db_fernet.encrypt(raw.encode())
+
+
+def _decrypt_api_key(blob: bytes) -> str | None:
+    if _db_fernet is None:
+        return None
+    try:
+        return _db_fernet.decrypt(blob).decode()
+    except Exception:
+        return None
+
+
 def _reset_session_memory(sess: dict) -> None:
     cache_path = sess["cache"].get("source_path")
     cache_bytes = sess["cache"].get("source_bytes")
@@ -1384,6 +1420,22 @@ def _valid_session(session_id: str | None) -> str | None:
     return None
 
 
+def _persist_rehydrated_cache_to_db(session_id: str, cache: dict) -> None:
+    state = _db_get_account_state_for_session(session_id)
+    if state is None:
+        return
+    meta = cache.get("meta") or {}
+    try:
+        _db_upsert_account_payload(AccountPayload(
+            account_name=state.account_name,
+            server=str(meta.get("server") or _config.get("server", "NA")),
+            data_bytes=cache.get("data_bytes"),
+            builds_bytes=cache.get("builds_bytes"),
+        ))
+    except Exception as exc:
+        logger.warning("Failed to persist rehydrated cache for session {}: {}", session_id[:8], exc)
+
+
 def _get_or_create_session(session_id: str) -> dict:
     if session_id not in _sessions:
         _sessions[session_id] = {
@@ -1403,6 +1455,8 @@ def _get_or_create_session(session_id: str) -> dict:
         _rehydrate_session_from_disk(session_id, sess)
         sess["cache"]["source_path"] = str(sess["upload_dir"] / "SavedVariables" / "iasync.lua")
         sess["ww_cache"]["source_path"] = str(sess["upload_dir"] / "SavedVariables" / "WizardsWardrobe.lua")
+        if sess["cache"]["data_bytes"] is not None:
+            _persist_rehydrated_cache_to_db(session_id, sess["cache"])
     _evict_idle_session_memory()
     return sess
 
@@ -1496,6 +1550,7 @@ async def lifespan(app: FastAPI):
     _setup_logging()
     UPLOADS_DIR.mkdir(exist_ok=True)
     _load_config()
+    _init_db_fernet()
     _db_init(_config["database_url"])
     _load_share_registry()
     _parse_iasync()
@@ -1664,16 +1719,22 @@ async def api_ww_builds(session: str | None = Query(None), share: str | None = Q
 @app.get("/api/status")
 async def api_status(session: str | None = Query(None), share: str | None = Query(None)):
     cache = _resolve_cache(session, share)
+    sid = _valid_session(session) if session else None
+    has_server_key = bool(os.environ.get("ANTHROPIC_API_KEY") or _config.get("anthropic_api_key", ""))
+    has_session_key = bool(_db_get_session_api_key(sid)) if sid else False
     if cache["data_bytes"] is None:
         return {"ok": False, "item_count": 0, "character_count": 0,
-                "last_modified": None, "error": cache.get("error")}
+                "last_modified": None, "error": cache.get("error"),
+                "has_server_api_key": has_server_key, "has_session_api_key": has_session_key}
     meta = cache.get("meta") or {}
     return {
-        "ok":              True,
-        "item_count":      meta["item_count"],
-        "character_count": meta["character_count"],
-        "last_modified":   cache["mtime"],
-        "error":           None,
+        "ok":                 True,
+        "item_count":         meta["item_count"],
+        "character_count":    meta["character_count"],
+        "last_modified":      cache["mtime"],
+        "error":              None,
+        "has_server_api_key": has_server_key,
+        "has_session_api_key": has_session_key,
     }
 
 
@@ -1898,6 +1959,127 @@ async def api_compare_builds_delete(
     if not deleted:
         return JSONResponse({"error": "no imported build for character"}, status_code=404)
     return JSONResponse({"ok": True, "character_id": str(character_id)})
+
+
+_SUPERSTAR_SLOT_IDS = {
+    "head": 0, "shoulders": 3, "chest": 2, "hands": 16, "waist": 6,
+    "legs": 8, "feet": 9, "ring 1": 11, "ring 2": 12, "neck": 1,
+    "main hand": 4, "off hand": 5, "main hand backup": 20,
+    "off-hand backup": 21, "off hand backup": 21,
+}
+
+
+
+_SUPERSTAR_PROMPT = """
+You are parsing a screenshot from the ESO SuperStar addon. Extract the build data as JSON.
+
+Return ONLY a JSON object with this exact structure (no markdown, no explanation):
+{
+  "character": {
+    "name": "<full display name e.g. Khajiit Templar>",
+    "race": "<race>",
+    "class": "<class>",
+    "cp": <champion points as integer>
+  },
+  "mundus": "<stone name without 'Boon: ' prefix, e.g. The Thief>",
+  "gear": [
+    {
+      "slot": "<slot label as shown, e.g. Head, Shoulders, Main Hand Backup>",
+      "item_name": "<full item name e.g. Tide-Born Helmet>",
+      "set_name": "<set name or null if no set>",
+      "set_completion": "<e.g. 5/5 or null>",
+      "trait": "<trait name e.g. Divines, or null>",
+      "enchantment": "<enchantment name e.g. Maximum Stamina Enchantment, or null>"
+    }
+  ]
+}
+
+Rules:
+- Include every gear slot shown, even if the item is N/A.
+- For N/A slots set item_name to null and all other fields to null.
+- trait is the word directly below the item name (e.g. Divines, Infused, Bloodthirsty).
+- enchantment is the line below the trait (e.g. Maximum Stamina Enchantment).
+- set_name is the base set name only (not the item type), e.g. "Tide-Born" not "Tide-Born Helmet".
+- For mythic items with Set: 1/1, set set_completion to "1/1".
+""".strip()
+
+
+@app.post("/api/session/apikey")
+async def api_save_session_apikey(
+    api_key: str = Form(...),
+    session: str | None = Query(None),
+):
+    """Encrypt and persist an Anthropic API key for this browser session."""
+    sid = _valid_session(session)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    if not api_key.strip():
+        return JSONResponse({"error": "api_key must not be empty"}, status_code=400)
+    encrypted = _encrypt_api_key(api_key.strip())
+    _db_save_session_api_key(sid, encrypted)
+    return {"ok": True}
+
+
+@app.delete("/api/session/apikey")
+async def api_delete_session_apikey(session: str | None = Query(None)):
+    """Remove the stored API key for this browser session."""
+    sid = _valid_session(session)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    _db_delete_session_api_key(sid)
+    return {"ok": True}
+
+
+@app.post("/api/parse_superstar")
+async def api_parse_superstar(
+    image: UploadFile = File(...),
+    session: str | None = Query(None),
+    share: str | None = Query(None),
+):
+    """Accept a SuperStar screenshot and return extracted build JSON via Claude Vision."""
+    api_key = ""
+    sid = _valid_session(session) if session else None
+    if sid:
+        blob = _db_get_session_api_key(sid)
+        if blob:
+            api_key = _decrypt_api_key(blob) or ""
+    if not api_key:
+        api_key = os.environ.get("ANTHROPIC_API_KEY") or _config.get("anthropic_api_key", "")
+
+    if not api_key:
+        return JSONResponse({"error": "No Anthropic API key configured. Enter your key via the key icon."}, status_code=503)
+
+    image_bytes = await image.read()
+    media_type = image.content_type or "image/png"
+    if media_type not in ("image/png", "image/jpeg", "image/gif", "image/webp"):
+        media_type = "image/png"
+
+    image_b64 = base64.standard_b64encode(image_bytes).decode()
+    try:
+        import anthropic as _anthropic
+        client = _anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1500,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
+                    {"type": "text", "text": _SUPERSTAR_PROMPT},
+                ],
+            }],
+        )
+        raw = msg.content[0].text.strip()
+        parsed = json.loads(raw)
+    except Exception as exc:
+        logger.error("SuperStar Claude parse error: {}", exc)
+        return JSONResponse({"error": f"Parse failed: {exc}"}, status_code=500)
+
+    # Annotate each gear slot with its numeric slot_id for frontend lookup
+    for slot in parsed.get("gear", []):
+        slot["slot_id"] = _SUPERSTAR_SLOT_IDS.get((slot.get("slot") or "").lower())
+
+    return JSONResponse(parsed)
 
 
 @app.post("/api/upload")
@@ -2257,6 +2439,7 @@ if __name__ == "__main__":
 
     _setup_logging()
     _load_config()
+    _init_db_fernet()
     port = args.port or _config.get("port", 5000)
     logger.info("ESO Armory → http://localhost:{}", port)
     uvicorn.run(
