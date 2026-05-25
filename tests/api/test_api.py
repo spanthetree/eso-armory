@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 
 import pytest
+from sqlalchemy import select
+
+import db
 
 from tests.conftest import TEST_SESSION
 
@@ -181,6 +184,55 @@ def test_uploaded_workspace_reads_from_db_when_account_files_are_removed(client,
     assert achievements.json()["earnedPts"] == 10
     assert stickerbook.json()["sets"][0]["name"] == "Mock Set"
     assert ww.json()["builds"]["char-a"][0]["name"] == "Mock Raid Build"
+
+
+@pytest.mark.api
+def test_uploaded_workspace_recovers_aux_payloads_from_raw_source_when_db_data_bytes_are_missing(client, isolated_server, uploaded_workspace):
+    with db.session_scope() as session:
+        row = session.scalar(select(db.AccountState).where(db.AccountState.account_name == "@test_account"))
+        assert row is not None
+        assert row.raw_iasync_lua is not None
+        row.data_bytes = None
+        row.builds_bytes = None
+        row.achievements_bytes = None
+        row.stickerbook_bytes = None
+
+    isolated_server._sessions.clear()
+
+    achievements = client.get(f"/api/achievements?session={TEST_SESSION}")
+    stickerbook = client.get(f"/api/stickerbook?session={TEST_SESSION}")
+
+    assert achievements.status_code == 200
+    assert stickerbook.status_code == 200
+    assert achievements.json()["earnedPts"] == 10
+    assert stickerbook.json()["sets"][0]["name"] == "Mock Set"
+
+    state = isolated_server._db_get_account_state("@test_account")
+    assert state is not None
+    assert state.data_bytes is not None
+    assert state.builds_bytes is not None
+    assert state.achievements_bytes is not None
+    assert state.stickerbook_bytes is not None
+
+
+@pytest.mark.api
+def test_uploaded_workspace_recovery_returns_clear_error_when_raw_source_is_missing(client, uploaded_workspace):
+    with db.session_scope() as session:
+        row = session.scalar(select(db.AccountState).where(db.AccountState.account_name == "@test_account"))
+        assert row is not None
+        row.data_bytes = None
+        row.builds_bytes = None
+        row.achievements_bytes = None
+        row.stickerbook_bytes = None
+        row.raw_iasync_lua = None
+
+    achievements = client.get(f"/api/achievements?session={TEST_SESSION}")
+    stickerbook = client.get(f"/api/stickerbook?session={TEST_SESSION}")
+
+    assert achievements.status_code == 503
+    assert stickerbook.status_code == 503
+    assert achievements.json()["detail"] == "missing raw iasync source for @test_account"
+    assert stickerbook.json()["detail"] == "missing raw iasync source for @test_account"
 
 
 @pytest.mark.api

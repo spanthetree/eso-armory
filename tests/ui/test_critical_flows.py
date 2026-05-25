@@ -79,6 +79,61 @@ def test_upload_invalid_json_error_hides_parser_jargon(page: Page, app_url: str,
 
 
 @pytest.mark.ui
+def test_achievements_tab_shows_error_when_endpoint_fails(page: Page, app_url: str, fixtures_dir):
+    page.route(
+        "**/api/achievements?**",
+        lambda route: route.fulfill(
+            status=503,
+            content_type="application/json",
+            body='{"error":"Achievements backend unavailable"}',
+        ),
+    )
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    page.get_by_role("button", name="Achievements").click()
+
+    expect(page.get_by_text("Achievements unavailable")).to_be_visible(timeout=15000)
+    expect(page.get_by_text("Achievements backend unavailable")).to_be_visible(timeout=15000)
+
+
+@pytest.mark.ui
+def test_collections_tab_shows_error_when_endpoint_fails(page: Page, app_url: str, fixtures_dir):
+    page.route(
+        "**/api/stickerbook?**",
+        lambda route: route.fulfill(
+            status=503,
+            content_type="application/json",
+            body='{"error":"Collections backend unavailable"}',
+        ),
+    )
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    page.get_by_role("button", name="Collections").click()
+
+    expect(page.get_by_text("Collections unavailable")).to_be_visible(timeout=15000)
+    expect(page.get_by_text("Collections backend unavailable")).to_be_visible(timeout=15000)
+
+
+@pytest.mark.ui
+def test_collections_tooltip_shows_bonus_lookup_error(page: Page, app_url: str, fixtures_dir):
+    page.route(
+        "**/api/set_bonus?**",
+        lambda route: route.fulfill(
+            status=503,
+            content_type="application/json",
+            body='{"error":"Set bonuses blocked"}',
+        ),
+    )
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    page.get_by_role("button", name="Collections").click()
+    page.get_by_role("button", name=re.compile(r"Dungeons")).click()
+    page.get_by_text("Mock Set").first.hover()
+
+    expect(page.get_by_text("Set bonuses blocked")).to_be_visible(timeout=15000)
+
+
+@pytest.mark.ui
 def test_inventory_filters_and_character_detail(page: Page, app_url: str, fixtures_dir):
     page.goto(app_url)
     upload_all_fixtures(page, fixtures_dir)
