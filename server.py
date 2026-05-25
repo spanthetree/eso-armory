@@ -20,6 +20,7 @@ from contextlib import asynccontextmanager
 from html.parser import HTMLParser
 from pathlib import Path
 
+import bcrypt
 import uvicorn
 from fastapi import FastAPI, File, Form, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
@@ -53,6 +54,8 @@ from db import (
     save_session_api_key as _db_save_session_api_key,
     get_session_api_key as _db_get_session_api_key,
     delete_session_api_key as _db_delete_session_api_key,
+    set_account_password as _db_set_account_password,
+    get_account_password_hash as _db_get_account_password_hash,
 )
 
 
@@ -2320,6 +2323,61 @@ async def api_share_join(session: str | None = Query(None), code: str | None = Q
         "session": sid,
         "sharedSession": shared_sid,
     })
+
+
+@app.get("/api/auth/status")
+async def api_auth_status(session: str | None = Query(None), share: str | None = Query(None)):
+    sid = _valid_session(session)
+    account_name, _ = _resolve_account_name(sid, share)
+    if not account_name:
+        return JSONResponse({"has_password": False, "account_name": None})
+    state = _db_get_account_state(account_name)
+    has_password = bool(state and state.password_hash)
+    return JSONResponse({"has_password": has_password, "account_name": account_name})
+
+
+@app.post("/api/auth/set_password")
+async def api_auth_set_password(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
+    sid = _valid_session(session)
+    account_name, _ = _resolve_account_name(sid, share)
+    if not account_name:
+        return JSONResponse({"error": "no account bound to this session"}, status_code=403)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+    password = body.get("password", "")
+    if len(password) < 8:
+        return JSONResponse({"error": "password must be at least 8 characters"}, status_code=400)
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    ok = _db_set_account_password(account_name, hashed)
+    if not ok:
+        return JSONResponse({"error": "account not found"}, status_code=404)
+    return JSONResponse({"ok": True})
+
+
+@app.post("/api/auth/login")
+async def api_auth_login(request: Request, session: str | None = Query(None)):
+    sid = _valid_session(session)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+    raw_name = str(body.get("account_name", "")).strip()
+    password = body.get("password", "")
+    if not raw_name or not password:
+        return JSONResponse({"error": "account_name and password are required"}, status_code=400)
+    account_name = raw_name if raw_name.startswith("@") else f"@{raw_name}"
+    stored_hash = _db_get_account_password_hash(account_name)
+    _INVALID = {"error": "Invalid account or password"}
+    if stored_hash is None:
+        return JSONResponse(_INVALID, status_code=401)
+    if not bcrypt.checkpw(password.encode(), stored_hash.encode()):
+        return JSONResponse(_INVALID, status_code=401)
+    _db_bind_session(sid, account_name, "primary", make_active=True)
+    return JSONResponse({"ok": True, "account_name": account_name})
 
 
 @app.get("/api/set_bonus")

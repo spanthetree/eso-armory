@@ -36,6 +36,7 @@ class AccountState(Base):
     raw_ww_lua: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     last_ingested_at: Mapped[float] = mapped_column(Float, default=lambda: time.time())
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     primary_sessions: Mapped[list["WorkspaceSession"]] = relationship(
         foreign_keys="WorkspaceSession.primary_account_id",
@@ -164,6 +165,8 @@ def _ensure_schema_columns(engine) -> None:
         ddl.append("ALTER TABLE workspace_sessions ADD COLUMN active_slot TEXT DEFAULT 'primary'")
     if "encrypted_api_key" not in sess_cols:
         ddl.append("ALTER TABLE workspace_sessions ADD COLUMN encrypted_api_key BLOB")
+    if "password_hash" not in cols:
+        ddl.append("ALTER TABLE account_states ADD COLUMN password_hash TEXT")
     if not ddl and "account_id" not in sess_cols:
         return
     with engine.begin() as conn:
@@ -570,3 +573,18 @@ def delete_session_api_key(session_id: str) -> None:
         if row is not None:
             row.encrypted_api_key = None
             row.last_active = time.time()
+
+
+def set_account_password(account_name: str, password_hash: str) -> bool:
+    with session_scope() as db:
+        row = db.scalar(select(AccountState).where(AccountState.account_name == account_name))
+        if row is None:
+            return False
+        row.password_hash = password_hash
+        return True
+
+
+def get_account_password_hash(account_name: str) -> str | None:
+    with session_scope() as db:
+        row = db.scalar(select(AccountState).where(AccountState.account_name == account_name))
+        return row.password_hash if row else None

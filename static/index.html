@@ -811,6 +811,53 @@
     </div>
   </div>
 
+  <!-- Password modal -->
+  <div x-show="passwordOpen" x-cloak
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    style="background:rgba(0,0,0,0.7)"
+    @keydown.escape.window="passwordOpen = false">
+    <div class="w-full max-w-sm rounded-xl p-7 relative"
+      style="background:var(--t-card);border:1px solid var(--t-border)"
+      @click.stop>
+      <button @click="passwordOpen = false"
+        class="absolute top-4 right-4 text-lg leading-none"
+        style="color:var(--t-muted)">&times;</button>
+
+      <h2 class="font-cinzel font-bold text-lg mb-1" style="color:var(--t-gold)"
+        x-text="authStatus.has_password ? 'Change Password' : 'Set Account Password'"></h2>
+      <p class="text-xs mb-5" style="color:var(--t-muted)">
+        Protect your account so you can log in from any device using your ESO account name and this password.
+      </p>
+
+      <div class="space-y-3 mb-4">
+        <input x-model="newPassword" type="password" placeholder="New password (min 8 characters)"
+          class="w-full rounded-lg px-3 py-2 text-sm outline-none"
+          style="background:var(--t-bg);border:1px solid var(--t-border);color:var(--t-text)"
+          @keydown.enter="setPassword()" />
+        <input x-model="confirmPassword" type="password" placeholder="Confirm password"
+          class="w-full rounded-lg px-3 py-2 text-sm outline-none"
+          style="background:var(--t-bg);border:1px solid var(--t-border);color:var(--t-text)"
+          @keydown.enter="setPassword()" />
+      </div>
+
+      <button @click="setPassword()"
+        class="w-full py-2.5 rounded-lg font-cinzel font-semibold text-sm"
+        :disabled="passwordBusy"
+        :style="passwordBusy ? 'background:var(--t-border);color:var(--t-muted);cursor:not-allowed' : 'background:var(--t-gold);color:var(--t-bg)'">
+        <span x-show="!passwordBusy" x-text="authStatus.has_password ? 'Change Password' : 'Save Password'"></span>
+        <span x-show="passwordBusy" class="animate-pulse">Saving…</span>
+      </button>
+
+      <template x-if="passwordStatus">
+        <div class="mt-4 text-sm">
+          <p x-show="passwordStatus.ok" class="text-green-400" x-text="passwordStatus.message"></p>
+          <p x-show="!passwordStatus.ok" class="text-red-400" x-text="passwordStatus.error"></p>
+        </div>
+      </template>
+    </div>
+  </div>
+
+
   <!-- Toast notification -->
   <div class="toast" :class="{ show: toastVisible }" x-text="toastMsg"></div>
 
@@ -899,6 +946,14 @@
           title="Create or join a shared workspace">
           <span>Share</span>
         </button>
+        <template x-if="data">
+          <button @click="passwordOpen = true; passwordStatus = null; newPassword = ''; confirmPassword = ''"
+            class="flex items-center gap-1.5 border rounded px-2 py-1 text-xs transition-colors focus:outline-none"
+            style="background:var(--t-bg);border-color:var(--t-border);color:var(--t-muted)"
+            :title="authStatus.has_password ? 'Change account password' : 'Protect account with a password'">
+            <span x-text="authStatus.has_password ? '🔐 Password' : '🔓 Set Password'"></span>
+          </button>
+        </template>
         <!-- Theme selector -->
         <div class="relative" x-data="{ tOpen: false }" @click.outside="tOpen = false">
           <button @click="tOpen = !tOpen"
@@ -1030,6 +1085,37 @@
 
         <template x-if="error && !uploadStatus">
           <p class="mt-4 text-xs" style="color:var(--t-muted)" x-text="'Server: ' + error"></p>
+        </template>
+      </div>
+
+      <!-- Login card -->
+      <div class="rounded-xl p-8 mt-4" style="background:var(--t-card);border:1px solid var(--t-border)">
+        <h2 class="font-cinzel font-bold text-lg mb-1" style="color:var(--t-gold)">Login to Existing Account</h2>
+        <p class="text-sm mb-5" style="color:var(--t-muted)">
+          Access your data from another device using your ESO account name and password.
+        </p>
+
+        <div class="space-y-3 mb-4">
+          <input x-model="loginName" type="text" placeholder="Account name (e.g. @admin_account)"
+            class="w-full rounded-lg px-3 py-2 text-sm outline-none"
+            style="background:var(--t-bg);border:1px solid var(--t-border);color:var(--t-text)"
+            @keydown.enter="loginWithPassword()" />
+          <input x-model="loginPassword" type="password" placeholder="Password"
+            class="w-full rounded-lg px-3 py-2 text-sm outline-none"
+            style="background:var(--t-bg);border:1px solid var(--t-border);color:var(--t-text)"
+            @keydown.enter="loginWithPassword()" />
+        </div>
+
+        <button @click="loginWithPassword()"
+          class="w-full py-2.5 rounded-lg font-cinzel font-semibold text-sm"
+          :disabled="loginBusy"
+          :style="loginBusy ? 'background:var(--t-border);color:var(--t-muted);cursor:not-allowed' : 'background:var(--t-gold);color:var(--t-bg)'">
+          <span x-show="!loginBusy">Login</span>
+          <span x-show="loginBusy" class="animate-pulse">Logging in…</span>
+        </button>
+
+        <template x-if="loginError">
+          <p class="mt-3 text-sm text-red-400" x-text="loginError"></p>
         </template>
       </div>
     </div>
@@ -2929,6 +3015,16 @@ function armory() {
     _sseRetryTimer: null,
     toastVisible: false,
     toastMsg: '',
+    passwordOpen: false,
+    passwordBusy: false,
+    passwordStatus: null,
+    newPassword: '',
+    confirmPassword: '',
+    authStatus: { has_password: false, account_name: null },
+    loginName: '',
+    loginPassword: '',
+    loginError: null,
+    loginBusy: false,
 
     theme: (() => { const t = localStorage.getItem('eso-theme'); return (t === 'eso' ? 'gold' : t) || 'gold'; })(),
     themes: {
@@ -3104,6 +3200,7 @@ function armory() {
         this.fetchAbilityIcons(),
         this.fetchAchievements(),
         this.fetchStickerbook(),
+        this.fetchAuthStatus(),
       ]);
       this.ready = true;
       this.connectSSE();
@@ -3224,6 +3321,74 @@ function armory() {
         this.shareStatus = { ok: false, error: e.message };
       } finally {
         this.shareBusy = false;
+      }
+    },
+
+    async fetchAuthStatus() {
+      try {
+        const r = await fetch(this.apiUrl('/api/auth/status'));
+        if (r.ok) this.authStatus = await r.json();
+      } catch(_) {}
+    },
+
+    async loginWithPassword() {
+      if (this.loginBusy) return;
+      this.loginError = null;
+      const name = (this.loginName || '').trim();
+      const pwd = this.loginPassword;
+      if (!name || !pwd) { this.loginError = 'Account name and password are required.'; return; }
+      this.loginBusy = true;
+      try {
+        const r = await fetch(this.apiUrl('/api/auth/login', {}, false), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account_name: name, password: pwd }),
+        });
+        const d = await r.json();
+        if (!r.ok) { this.loginError = d.error || `Error ${r.status}`; return; }
+        this.loginPassword = '';
+        await Promise.all([
+          this.fetchWorkspace(),
+          this.fetchData(true),
+          this.fetchBuilds(),
+          this.fetchWWBuilds(),
+          this.fetchAchievements(),
+          this.fetchStickerbook(),
+          this.fetchAuthStatus(),
+        ]);
+        this.showToast('Logged in ✓');
+      } catch(e) {
+        this.loginError = e.message;
+      } finally {
+        this.loginBusy = false;
+      }
+    },
+
+    async setPassword() {
+      if (this.passwordBusy) return;
+      this.passwordStatus = null;
+      const pwd = this.newPassword;
+      const confirm = this.confirmPassword;
+      if (pwd.length < 8) { this.passwordStatus = { ok: false, error: 'Password must be at least 8 characters.' }; return; }
+      if (pwd !== confirm) { this.passwordStatus = { ok: false, error: 'Passwords do not match.' }; return; }
+      this.passwordBusy = true;
+      try {
+        const r = await fetch(this.apiUrl('/api/auth/set_password'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd }),
+        });
+        const d = await r.json();
+        if (!r.ok) { this.passwordStatus = { ok: false, error: d.error || `Error ${r.status}` }; return; }
+        this.passwordStatus = { ok: true, message: 'Password saved.' };
+        this.newPassword = '';
+        this.confirmPassword = '';
+        await this.fetchAuthStatus();
+        this.showToast('Password saved ✓');
+      } catch(e) {
+        this.passwordStatus = { ok: false, error: e.message };
+      } finally {
+        this.passwordBusy = false;
       }
     },
 
