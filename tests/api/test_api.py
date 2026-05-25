@@ -216,7 +216,7 @@ def test_uploaded_workspace_recovers_aux_payloads_from_raw_source_when_db_data_b
 
 
 @pytest.mark.api
-def test_uploaded_workspace_recovery_returns_clear_error_when_raw_source_is_missing(client, uploaded_workspace):
+def test_uploaded_workspace_recovery_returns_clear_error_when_raw_source_is_missing(client, isolated_server, uploaded_workspace):
     with db.session_scope() as session:
         row = session.scalar(select(db.AccountState).where(db.AccountState.account_name == "@test_account"))
         assert row is not None
@@ -225,6 +225,12 @@ def test_uploaded_workspace_recovery_returns_clear_error_when_raw_source_is_miss
         row.achievements_bytes = None
         row.stickerbook_bytes = None
         row.raw_iasync_lua = None
+
+    session_iasync = isolated_server.UPLOADS_DIR / TEST_SESSION / "SavedVariables" / "iasync.lua"
+    if session_iasync.exists():
+        session_iasync.unlink()
+
+    isolated_server._sessions.clear()
 
     achievements = client.get(f"/api/achievements?session={TEST_SESSION}")
     stickerbook = client.get(f"/api/stickerbook?session={TEST_SESSION}")

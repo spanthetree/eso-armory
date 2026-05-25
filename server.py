@@ -1420,6 +1420,22 @@ def _valid_session(session_id: str | None) -> str | None:
     return None
 
 
+def _persist_rehydrated_cache_to_db(session_id: str, cache: dict) -> None:
+    state = _db_get_account_state_for_session(session_id)
+    if state is None:
+        return
+    meta = cache.get("meta") or {}
+    try:
+        _db_upsert_account_payload(AccountPayload(
+            account_name=state.account_name,
+            server=str(meta.get("server") or _config.get("server", "NA")),
+            data_bytes=cache.get("data_bytes"),
+            builds_bytes=cache.get("builds_bytes"),
+        ))
+    except Exception as exc:
+        logger.warning("Failed to persist rehydrated cache for session {}: {}", session_id[:8], exc)
+
+
 def _get_or_create_session(session_id: str) -> dict:
     if session_id not in _sessions:
         _sessions[session_id] = {
@@ -1439,6 +1455,8 @@ def _get_or_create_session(session_id: str) -> dict:
         _rehydrate_session_from_disk(session_id, sess)
         sess["cache"]["source_path"] = str(sess["upload_dir"] / "SavedVariables" / "iasync.lua")
         sess["ww_cache"]["source_path"] = str(sess["upload_dir"] / "SavedVariables" / "WizardsWardrobe.lua")
+        if sess["cache"]["data_bytes"] is not None:
+            _persist_rehydrated_cache_to_db(session_id, sess["cache"])
     _evict_idle_session_memory()
     return sess
 
