@@ -222,11 +222,18 @@
                   </template>
                   <template x-if="!getBonusEntry(tip.item)?.loading">
                     <div>
-                      <template x-for="b in (getBonusEntry(tip.item)?.bonuses || [])" :key="b.pieces">
-                        <div class="text-[11px] leading-snug">
-                          <span class="text-eso-gold/50 font-mono" x-text="`(${b.pieces})`"></span>
-                          <span class="text-eso-muted ml-1" x-text="b.text"></span>
+                      <template x-if="bonusEntryHasBonuses(getBonusEntry(tip.item))">
+                        <div>
+                          <template x-for="b in (getBonusEntry(tip.item)?.bonuses || [])" :key="b.pieces">
+                            <div class="text-[11px] leading-snug">
+                              <span class="text-eso-gold/50 font-mono" x-text="`(${b.pieces})`"></span>
+                              <span class="text-eso-muted ml-1" x-text="b.text"></span>
+                            </div>
+                          </template>
                         </div>
+                      </template>
+                      <template x-if="!bonusEntryHasBonuses(getBonusEntry(tip.item))">
+                        <div class="text-[11px] text-amber-300/80" x-text="bonusEntryErrorText(getBonusEntry(tip.item))"></div>
                       </template>
                       <div class="text-[10px] text-eso-muted/35 mt-1.5">via eso-sets.com</div>
                     </div>
@@ -380,18 +387,25 @@
               :style="'background:var(--t-progress);opacity:' + (tip.sbSet.complete ? 1 : 0.5) + ';width:' + Math.round(tip.sbSet.numCollected/Math.max(tip.sbSet.numTotal,1)*100) + '%'"></div>
           </div>
           <!-- Set bonuses -->
-          <template x-if="setBonusCache[tip.sbSet.setId]">
+          <template x-if="getSbBonusEntry(tip.sbSet)">
             <div class="mb-2 space-y-0.5">
-              <template x-if="setBonusCache[tip.sbSet.setId]?.loading">
+              <template x-if="getSbBonusEntry(tip.sbSet)?.loading">
                 <div class="text-[11px] text-eso-muted/60 animate-pulse">Loading bonuses…</div>
               </template>
-              <template x-if="!setBonusCache[tip.sbSet.setId]?.loading">
+              <template x-if="!getSbBonusEntry(tip.sbSet)?.loading">
                 <div>
-                  <template x-for="b in (setBonusCache[tip.sbSet.setId]?.bonuses || [])" :key="b.pieces">
-                    <div class="text-[11px] leading-snug mb-0.5">
-                      <span class="text-eso-gold/50 font-mono" x-text="`(${b.pieces})`"></span>
-                      <span class="text-eso-muted ml-1" x-text="b.text"></span>
+                  <template x-if="bonusEntryHasBonuses(getSbBonusEntry(tip.sbSet))">
+                    <div>
+                      <template x-for="b in (getSbBonusEntry(tip.sbSet)?.bonuses || [])" :key="b.pieces">
+                        <div class="text-[11px] leading-snug mb-0.5">
+                          <span class="text-eso-gold/50 font-mono" x-text="`(${b.pieces})`"></span>
+                          <span class="text-eso-muted ml-1" x-text="b.text"></span>
+                        </div>
+                      </template>
                     </div>
+                  </template>
+                  <template x-if="!bonusEntryHasBonuses(getSbBonusEntry(tip.sbSet))">
+                    <div class="text-[11px] text-amber-300/80" x-text="bonusEntryErrorText(getSbBonusEntry(tip.sbSet))"></div>
                   </template>
                   <div class="tip-divider"></div>
                   <div class="text-[10px] text-eso-gold/50 hover:text-eso-gold cursor-pointer"
@@ -2299,10 +2313,18 @@
 
     <!-- ===== ACHIEVEMENTS TAB ===== -->
     <div x-show="tab === 'achievements' && data" x-cloak>
-      <template x-if="!achievData">
+      <template x-if="achievLoading">
         <div class="flex items-center justify-center h-64 text-eso-muted text-sm animate-pulse">Loading achievements…</div>
       </template>
-      <template x-if="achievData">
+      <template x-if="!achievLoading && achievError">
+        <div class="flex items-center justify-center h-64">
+          <div class="max-w-xl border border-red-400/40 bg-red-950/20 rounded-lg px-5 py-4 text-sm text-red-200">
+            <div class="font-cinzel tracking-wide text-red-100 mb-1">Achievements unavailable</div>
+            <div x-text="achievError"></div>
+          </div>
+        </div>
+      </template>
+      <template x-if="!achievLoading && !achievError && achievData">
         <div class="flex max-h-[45rem] border border-eso-border rounded-lg overflow-hidden">
 
           <!-- Left nav: SUMMARY + category list -->
@@ -2539,10 +2561,18 @@
 
     <!-- ===== STICKERBOOK TAB ===== -->
     <div x-show="tab === 'stickerbook' && data" x-cloak>
-      <template x-if="!sbData">
+      <template x-if="sbLoading">
         <div class="flex items-center justify-center h-64 text-eso-muted text-sm animate-pulse">Loading stickerbook…</div>
       </template>
-      <template x-if="sbData">
+      <template x-if="!sbLoading && sbError">
+        <div class="flex items-center justify-center h-64">
+          <div class="max-w-xl border border-red-400/40 bg-red-950/20 rounded-lg px-5 py-4 text-sm text-red-200">
+            <div class="font-cinzel tracking-wide text-red-100 mb-1">Collections unavailable</div>
+            <div x-text="sbError"></div>
+          </div>
+        </div>
+      </template>
+      <template x-if="!sbLoading && !sbError && sbData">
         <div class="flex max-h-[45rem] border border-eso-border rounded-lg overflow-hidden">
 
           <!-- Left nav -->
@@ -2801,6 +2831,8 @@ function armory() {
     buildsError: null,
     wwBuilds: null,
     achievData: null,
+    achievLoading: false,
+    achievError: null,
     achievView: 'summary',
     achievCat: null,
     achievCharId: null,
@@ -2808,6 +2840,8 @@ function armory() {
     _achievIndexByAccount: {},
     _achievIndexByChar: {},
     sbData: null,
+    sbLoading: false,
+    sbError: null,
     sbCat: null,
     sbSearch: '',
     abilityIcons: {},
@@ -3229,11 +3263,11 @@ function armory() {
     },
 
     async fetchAchievements() {
+      this.achievLoading = true;
+      this.achievError = null;
       try {
         const r = await fetch(this.apiUrl('/api/achievements'));
-        if (!r.ok) return;
-        const d = await r.json();
-        if (d.error) return;
+        const d = await this.readJsonResponse(r, 'Achievements');
         this.achievData = d;
         const accountIdx = {};
         for (const a of (d.account_items || [])) {
@@ -3254,17 +3288,29 @@ function armory() {
         }
         this._achievIndexByChar = byChar;
         if (!this.achievCharId && d.chars.length) this.achievCharId = d.chars[0].id;
-      } catch(e) {}
+      } catch(e) {
+        this.achievData = null;
+        this._achievIndexByAccount = {};
+        this._achievIndexByChar = {};
+        this.achievError = e.message || 'Achievements request failed';
+      } finally {
+        this.achievLoading = false;
+      }
     },
 
     async fetchStickerbook() {
+      this.sbLoading = true;
+      this.sbError = null;
       try {
         const r = await fetch(this.apiUrl('/api/stickerbook'));
-        if (!r.ok) return;
-        const d = await r.json();
-        if (d.error) return;
+        const d = await this.readJsonResponse(r, 'Collections');
         this.sbData = d;
-      } catch(e) {}
+      } catch(e) {
+        this.sbData = null;
+        this.sbError = e.message || 'Collections request failed';
+      } finally {
+        this.sbLoading = false;
+      }
     },
 
     async fetchWorkspace() {
@@ -3801,22 +3847,40 @@ function armory() {
       return Math.round(Number(v)).toLocaleString();
     },
     _setBonusKey(item) {
-      return item?.set_id || (item?.set_name ? this._slugify(item.set_name) : null);
+      return this._setBonusKeyFor(item?.set_id, item?.set_name);
+    },
+    _setBonusKeyFor(setId, setName) {
+      return setId || (setName ? this._slugify(setName) : null);
     },
     getBonusEntry(item) {
       const key = this._setBonusKey(item);
       return key != null ? this.setBonusCache[key] : undefined;
     },
+    getSbBonusEntry(setData) {
+      const key = this._setBonusKeyFor(setData?.setId, setData?.name);
+      return key != null ? this.setBonusCache[key] : undefined;
+    },
+    bonusEntryHasBonuses(entry) {
+      return Array.isArray(entry?.bonuses) && entry.bonuses.length > 0;
+    },
+    bonusEntryErrorText(entry) {
+      return entry?.error || 'Bonus lookup unavailable';
+    },
     async fetchSetBonus(setId, setName) {
       if (!setName) return;
-      const key = setId || this._slugify(setName);
+      const key = this._setBonusKeyFor(setId, setName);
       if (this.setBonusCache[key] !== undefined) return;
       this.setBonusCache[key] = { loading: true };
       try {
         const r = await fetch(`/api/set_bonus?set_id=${setId}&set_name=${encodeURIComponent(setName)}`);
-        this.setBonusCache[key] = await r.json();
-      } catch {
-        this.setBonusCache[key] = { bonuses: [], error: 'fetch failed' };
+        const d = await this.readJsonResponse(r, 'Set bonus lookup');
+        this.setBonusCache[key] = {
+          bonuses: Array.isArray(d?.bonuses) ? d.bonuses : [],
+          url: d?.url || this.setEsoSetsUrl(setName),
+          error: d?.error || (!Array.isArray(d?.bonuses) || d.bonuses.length === 0 ? 'Bonus lookup unavailable' : null),
+        };
+      } catch (e) {
+        this.setBonusCache[key] = { bonuses: [], error: e.message || 'Bonus lookup unavailable' };
       }
     },
     _ttcPriceKey(name) {
@@ -4045,9 +4109,11 @@ function armory() {
           this.showToast('Exported build code copied to clipboard');
         } catch(_) {
           this.compareStatus = `Exported ${d.code} (copy blocked)`;
+          this.showToast(`Exported ${d.code} (copy blocked)`);
         }
       } catch(e) {
         this.compareStatus = e.message || 'Export failed';
+        this.showToast(this.compareStatus);
       } finally {
         this.compareBusy = false;
       }

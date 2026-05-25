@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.30] - 2026-05-23
+
+### Fixed
+- **Render/shared export context** — `POST /api/build_export` now resolves account and cache state with the active `share` context instead of treating hosted/shared browsers as unbound local sessions, fixing `upload armory data before exporting a build` failures on Render-hosted workspaces
+- **Hosted export error visibility** — export failures and clipboard-blocked exports now surface through toasts even outside compare mode, so drilldown users get visible feedback instead of silent no-op behavior
+
 ## [0.1.0-beta.29] - 2026-05-22
 
 ### Changed

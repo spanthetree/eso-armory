@@ -1198,6 +1198,24 @@ def _build_iasync_derived_bytes_from_source(source_bytes: bytes, builder, variab
         return result
 
 
+def _build_iasync_payloads_from_source(source_bytes: bytes) -> dict:
+    with _IASYNC_PARSE_LOCK:
+        text = source_bytes.decode("utf-8", errors="replace")
+        t0 = time.monotonic()
+        raw = parse_iasync_core_text(text)
+        data = process_iasync(raw, server=_config.get("server", "NA"))
+        builds = process_iasync_builds(raw)
+        del raw
+        gc.collect()
+        elapsed = time.monotonic() - t0
+        data["meta"]["parse_ms"] = int(elapsed * 1000)
+        return {
+            "data_bytes": _json_bytes(data),
+            "builds_bytes": _json_bytes(builds),
+            "meta": data["meta"],
+        }
+
+
 def _parse_lua_variable_retry(path: str, variable_name: str, attempts: int = 3, delay: float = 0.2) -> dict:
     return _retry_lua_loader(lambda: parse_lua_variable(path, variable_name), attempts, delay)
 
@@ -1251,6 +1269,87 @@ def _ensure_iasync_aux_bytes(cache: dict, which: str) -> None:
         cache[which] = _build_iasync_derived_bytes(path, process_iasync_stickerbook)
     else:
         raise ValueError(f"Unknown derived payload: {which}")
+
+
+def _recover_uploaded_iasync_cache(
+    cache: dict,
+    *,
+    account_name: str | None,
+    session_id: str | None,
+    share_code: str | None,
+    need_aux: str | None = None,
+) -> tuple[bool, str | None]:
+    if cache.get("data_bytes") is not None and (need_aux is None or cache.get(need_aux) is not None):
+        return True, None
+    if not account_name:
+        msg = "missing resolved workspace/account"
+        logger.warning("iasync recovery unavailable: {} (session={}, share={})", msg, session_id, share_code)
+        return False, msg
+
+    state = _db_get_account_state(account_name)
+    if state is None:
+        msg = f"missing account state for {account_name}"
+        logger.warning("iasync recovery failed: {}", msg)
+        return False, msg
+
+    if cache.get("source_bytes") is None and state.raw_iasync_lua is not None:
+        cache["source_bytes"] = state.raw_iasync_lua
+    if cache.get("source_path") is None and state.source_path:
+        cache["source_path"] = state.source_path
+    if cache.get("mtime") is None and state.data_mtime is not None:
+        cache["mtime"] = state.data_mtime
+    if cache.get("meta") is None:
+        cache["meta"] = {
+            "account": state.account_name,
+            "server": state.server,
+            "item_count": state.item_count or 0,
+            "character_count": state.character_count or 0,
+            "parse_ms": state.parse_ms or 0,
+            "last_modified": state.source_last_update or 0,
+        }
+
+    source_bytes = cache.get("source_bytes")
+    if source_bytes is None:
+        msg = f"missing raw iasync source for {account_name}"
+        logger.warning("iasync recovery failed: {}", msg)
+        return False, msg
+
+    try:
+        rebuilt = None
+        if cache.get("data_bytes") is None or cache.get("builds_bytes") is None:
+            rebuilt = _build_iasync_payloads_from_source(source_bytes)
+            cache["data_bytes"] = rebuilt["data_bytes"]
+            cache["builds_bytes"] = rebuilt["builds_bytes"]
+            cache["meta"] = rebuilt["meta"]
+            cache["error"] = None
+            _db_upsert_account_payload(AccountPayload(
+                account_name=account_name,
+                server=str(rebuilt["meta"].get("server") or _config.get("server", "NA")),
+                data_bytes=cache["data_bytes"],
+                builds_bytes=cache["builds_bytes"],
+                data_mtime=cache.get("mtime"),
+                item_count=rebuilt["meta"].get("item_count"),
+                character_count=rebuilt["meta"].get("character_count"),
+                parse_ms=rebuilt["meta"].get("parse_ms"),
+                source_last_update=rebuilt["meta"].get("last_modified"),
+                source_path=cache.get("source_path"),
+                raw_iasync_lua=source_bytes,
+            ))
+            logger.info("Recovered uploaded iasync cache for {}", account_name)
+
+        if need_aux and cache.get(need_aux) is None:
+            _ensure_iasync_aux_bytes(cache, need_aux)
+            if need_aux == "achievements_bytes":
+                _db_update_account_blobs(account_name, achievements_bytes=cache[need_aux])
+            elif need_aux == "stickerbook_bytes":
+                _db_update_account_blobs(account_name, stickerbook_bytes=cache[need_aux])
+            logger.info("Recovered uploaded {} for {}", need_aux, account_name)
+        return True, None
+    except Exception as exc:
+        msg = f"failed to rebuild {need_aux or 'iasync cache'} for {account_name}: {exc}"
+        logger.exception("iasync recovery exception for {}: {}", account_name, exc)
+        cache["error"] = str(exc)
+        return False, msg
 
 
 def _extract_ww_account_name(path: str) -> str | None:
@@ -1472,17 +1571,37 @@ async def api_builds(session: str | None = Query(None), share: str | None = Quer
 @app.get("/api/achievements")
 async def api_achievements(session: str | None = Query(None), share: str | None = Query(None)):
     cache = _resolve_cache(session, share)
+    account_name, _ = _resolve_account_name(session, share)
     if cache["data_bytes"] is None:
-        return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
+        recovered, reason = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: _recover_uploaded_iasync_cache(
+                cache,
+                account_name=account_name,
+                session_id=session,
+                share_code=share,
+                need_aux="achievements_bytes",
+            ),
+        )
+        if not recovered:
+            return JSONResponse(
+                {"error": cache.get("error") or "No data loaded", "detail": reason},
+                status_code=503,
+            )
     if cache["achievements_bytes"] is None:
         try:
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(None, lambda: _ensure_iasync_aux_bytes(cache, "achievements_bytes"))
-            account_name, _ = _resolve_account_name(session, share)
             if account_name and cache["achievements_bytes"] is not None:
                 _db_update_account_blobs(account_name, achievements_bytes=cache["achievements_bytes"])
         except Exception as exc:
+            logger.exception("achievements payload generation failed for {}: {}", account_name or "<no-account>", exc)
             return JSONResponse({"error": str(exc)}, status_code=500)
+    if cache["achievements_bytes"] is None:
+        return JSONResponse(
+            {"error": "Achievements payload unavailable", "detail": "aux payload was not generated"},
+            status_code=503,
+        )
     return Response(
         content=cache["achievements_bytes"],
         media_type="application/json",
@@ -1493,17 +1612,37 @@ async def api_achievements(session: str | None = Query(None), share: str | None 
 @app.get("/api/stickerbook")
 async def api_stickerbook(session: str | None = Query(None), share: str | None = Query(None)):
     cache = _resolve_cache(session, share)
+    account_name, _ = _resolve_account_name(session, share)
     if cache["data_bytes"] is None:
-        return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
+        recovered, reason = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: _recover_uploaded_iasync_cache(
+                cache,
+                account_name=account_name,
+                session_id=session,
+                share_code=share,
+                need_aux="stickerbook_bytes",
+            ),
+        )
+        if not recovered:
+            return JSONResponse(
+                {"error": cache.get("error") or "No data loaded", "detail": reason},
+                status_code=503,
+            )
     if cache["stickerbook_bytes"] is None:
         try:
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(None, lambda: _ensure_iasync_aux_bytes(cache, "stickerbook_bytes"))
-            account_name, _ = _resolve_account_name(session, share)
             if account_name and cache["stickerbook_bytes"] is not None:
                 _db_update_account_blobs(account_name, stickerbook_bytes=cache["stickerbook_bytes"])
         except Exception as exc:
+            logger.exception("stickerbook payload generation failed for {}: {}", account_name or "<no-account>", exc)
             return JSONResponse({"error": str(exc)}, status_code=500)
+    if cache["stickerbook_bytes"] is None:
+        return JSONResponse(
+            {"error": "Stickerbook payload unavailable", "detail": "aux payload was not generated"},
+            status_code=503,
+        )
     return Response(
         content=cache["stickerbook_bytes"],
         media_type="application/json",
@@ -1611,13 +1750,13 @@ async def api_build_export(
     if not character_id:
         return JSONResponse({"error": "character_id is required"}, status_code=400)
 
-    account_name, account_err = _resolve_account_name(sid, None)
+    account_name, account_err = _resolve_account_name(sid, share)
     if account_err:
         return JSONResponse({"error": account_err}, status_code=400)
     if not account_name:
         return JSONResponse({"error": "upload armory data before exporting a build"}, status_code=400)
 
-    cache = _resolve_cache(sid, None)
+    cache = _resolve_cache(sid, share)
     build = _find_build_for_char(cache, character_id)
     if not build:
         return JSONResponse({"error": "character build not found"}, status_code=404)

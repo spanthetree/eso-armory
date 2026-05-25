@@ -2,7 +2,7 @@
 
 ![ESO Armory header](header.svg)
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.29-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.30-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -12,7 +12,7 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 ## Features
 
 - **Characters tab** — all characters at a glance with equipped gear paper-doll using slot-specific gear icons; click any character to see current build details, character-scoped inventory, and WizardsWardrobe builds
-- **Build compare workflow** — from character drilldown, export your current build as a short code, import another build by code, and compare current vs imported gear side-by-side; each account+character keeps a single export code that is updated on re-export
+- **Build compare workflow** — from character drilldown, export your current build as a short code, import another build by code, and compare current vs imported gear side-by-side; each account+character keeps a single export code that is updated on re-export, including hosted/shared workspaces
 - **Missing gear planner** — compare mode lists missing imported-build items, uses stickerbook metadata to flag Dungeon/Trial/Arena sources, skips TTC pricing for crafted and source-gated items, and totals only purchasable missing-item cost
 - **Builds** — gear, skills (primary + backup bars), Champion Points, and food for each WW setup; ability icons are discovered from PNG and WebP assets, including scribing skills such as Chilling Throw and Shocking Contingency
 - **Inventory tab** — full cross-character inventory with search, multiselect quality/type/trait/location/character filters, Transmuted and Crafted toggle buttons, Group by Set view, and sortable columns; items show weapon-type and armor-weight tags and slot-specific gear icons
@@ -85,13 +85,7 @@ On first run a `config.json` is created automatically with paths detected for yo
 
 `server` should be `"NA"` or `"EU"`. Leave `ttc_price_table_path` empty to use `PriceTableNA.lua` or `PriceTableEU.lua` automatically from `ttc_addon_path`.
 
-### 4. First run in-game
-
-Load into a character and run `/reloadui`. This flushes SavedVariables to disk and lets iasync export bank currency and ability/CP names.
-
-For accurate currency totals across all characters, log into each character once and `/reloadui`.
-
-### 5. Start the server
+### 4. Start the server
 
 ```bash
 uv run server.py
@@ -169,9 +163,7 @@ uploads/armory.db      # Default SQLite database for uploaded account workspaces
 
 ## Notes
 
-- SavedVariables are only written to disk on `/reloadui` or character logout. The web app shows whatever was last flushed.
 - Bank currency, build metadata, achievements, and stickerbook state come from `iasync.lua`.
-- Ability and CP names in build cards require iasync to have run at least once in-game.
 - Uploaded/browser-backed workspaces now read from SQLite after ingest. Uploading newer files for the same ESO account rewrites that account's stored raw SavedVariables and processed payloads in the DB.
 - If you upload a different ESO account into a session that already has one loaded, it is stored as the session's shadow workspace when available instead of replacing the primary workspace.
 - Collections piece-price tooltips use Tamriel Trade Centre `ItemLookUpTable_EN.lua` and `PriceTableNA.lua`/`PriceTableEU.lua` files from the selected live folder when available, or configured local TTC paths on self-hosted installs; hosted users can also upload those TTC files manually. Restart the server after changing TTC config paths or updating routes. If tooltip prices are missing, check `/api/ttc_price` and server logs first.

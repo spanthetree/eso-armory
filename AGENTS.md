@@ -59,17 +59,6 @@ ESO Armory does not vendor the addon source in this repo. The app consumes the S
 - `SavedVariables/iasync.lua` → `iasync_data`
 - configured in ESO Armory via `iasync_lua_path`
 
-**Triggers:**
-- `EVENT_ADD_ON_LOADED` — initializes `iasync_data` structure
-- `EVENT_PLAYER_ACTIVATED` (2s delay) — scans character bags + build bars + resolves names; (3s delay) scans house chests
-- `EVENT_OPEN_BANK` — scans bank bags + craft bag + records bank currency
-- `EVENT_OPEN_GUILD_BANK` — scans guild bank
-- `EVENT_INVENTORY_SINGLE_SLOT_UPDATE` — real-time single-slot updates for all bag types
-
-**Manual trigger:** `/script iasync_scan()` in-game chat.
-
-**To flush to disk:** `/reloadui` — ESO writes SavedVariables on logout or reloadui. Server picks up within `poll_interval_seconds`.
-
 **ESO Lua version:** Lua 5.1 — no `goto`, no `::labels::`. Use nested `if` guards.
 
 ### iasync_data Structure
@@ -161,7 +150,7 @@ WW item links don't embed `|h[name]|h` so `link_name` is always empty — fall b
 | `GET /api/workspace?session=&share=` | Returns `{primary, shadow, activeSlot, activeAccount}` for the current browser workspace |
 | `POST /api/workspace/slot?session=&slot=` | Switches the active browser workspace slot between `primary` and `shadow` |
 | `DELETE /api/workspace/shadow?session=` | Removes the browser session's shadow workspace; only deletes the canonical account row if it is no longer referenced elsewhere |
-| `POST /api/build_export?session=&share=&character_id=` | Serializes the selected character's current build into a short export code (schema v2 payload: `build` + scoped `ability_names` + `cp_names`; server enriches gear metadata from equipped `/api/data` items before storing). Export persistence is one row per `account_name + character_id` and re-export overwrites that row/code |
+| `POST /api/build_export?session=&share=&character_id=` | Serializes the selected character's current build into a short export code (schema v2 payload: `build` + scoped `ability_names` + `cp_names`; server enriches gear metadata from equipped `/api/data` items before storing). Export persistence is one row per `account_name + character_id`, re-export overwrites that row/code, and hosted/shared exports must resolve through the active `share` workspace context |
 | `GET /api/compare_builds?session=&share=` | Returns imported compare builds keyed by destination `character_id` for the active workspace/account |
 | `POST /api/compare_builds/import?session=&share=&character_id=&code=` | Resolves a build export code and stores/replaces one imported compare build for that destination character |
 | `DELETE /api/compare_builds?session=&share=&character_id=` | Deletes the imported compare build bound to that destination character |
@@ -365,6 +354,7 @@ _applyThemeTailwind(name)    // injects <style id="theme-tw"> with !important ov
 fetchCompareBuilds()         // GET /api/compare_builds
 exportCurrentBuild(charId)   // POST /api/build_export, copies code to clipboard when allowed
                              // export storage is single-code-per-account+character; repeated exports overwrite
+                             // export failures and copy-blocked states toast even outside compare mode
 openCompare(charId)          // opens compare mode for selected character
 returnToCharacterDrilldown() // exits compare mode and returns to normal drilldown layout
 importCompareBuild(charId)   // POST /api/compare_builds/import with build code
