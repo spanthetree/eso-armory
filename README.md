@@ -2,7 +2,7 @@
 
 ![ESO Armory header](header.svg)
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.31-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.33-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
@@ -22,12 +22,12 @@ A local web app that reads your Elder Scrolls Online SavedVariables and presents
 - **Currency totals** — gold, AP, Telvar Stones, and Writ Vouchers across all characters + bank in the header
 - **Color themes** — five palettes (Gold, Light, Dark, Synthwave, Outrun) switchable via a "Theme" dropdown in the header; selection persists across sessions
 - **Live reload** — watches SavedVariables files and updates the browser automatically via SSE
-- **File upload / remote use** — upload `iasync.lua`, `WizardsWardrobe.lua`, and optional Tamriel Trade Centre tables directly via the browser instead of relying on local file paths; hosted users can seed TTC pricing manually even without a live watcher
-- **SQLite-backed uploaded workspaces** — uploaded `iasync.lua` and `WizardsWardrobe.lua` are stored in a local SQLite database along with processed API payloads, so uploaded workspaces reopen from the DB instead of reparsing copied files on each read
+- **File upload / remote use** — upload `iasync.lua` and `WizardsWardrobe.lua` directly via the browser; all payloads (inventory, builds, achievements, stickerbook) are parsed upfront on upload and stored in SQLite — no raw Lua is kept on the server after ingest
+- **SQLite-backed uploaded workspaces** — processed payloads are stored per ESO account name; workspaces reopen from the DB without re-uploading, and data survives server restarts
 - **Workspace sharing** — create a pairing code or share link from the header so another browser or device can join the same uploaded workspace later; private sessions remain the default
 - **Primary + shadow workspaces** — a browser session now keeps one primary account and one optional shadow account; uploading a second distinct ESO account fills the shadow slot instead of replacing the primary account, and you can switch between them from the header
 - **Shared workspace persistence** — pairing codes are backed by a small server-side registry so the same uploaded data can be reopened on another browser later without re-uploading
-- **Folder watcher** (Chrome/Edge) — select your ESO `live` folder once and the app polls for changes every 5 s, re-uploading `SavedVariables/` and Tamriel Trade Centre tables from `AddOns/TamrielTradeCentre/` automatically; directory handle persists across sessions via IndexedDB
+- **Folder watcher** (Chrome/Edge) — select your ESO `live` folder once; the app checks file modification timestamps every 60 s (metadata-only, no content read) and uploads changed files automatically; every 15 minutes it force-syncs even if nothing changed; directory handle persists across sessions via IndexedDB; admin accounts also sync TTC price tables from `AddOns/TamrielTradeCentre/`
 - **Refresh button** — manually check for updated data at any time; toasts "Data updated ✓" or "No updates"
 - **Session isolation** — each browser gets a UUID stored in `localStorage`; multiple users on the same hosted instance see only their own uploaded data by default, but a browser can opt into a shared workspace with a pairing code; private sessions still expire after 2 hours of inactivity
 - **Static serving hardening** — the app shell is explicitly served as `text/html` with `nosniff` headers, Alpine.js is served locally from `static/vendor/`, and upload failures from proxies/CDNs show actionable HTTP/content messages instead of raw JSON parser errors
@@ -66,25 +66,22 @@ Then place the addon in your ESO AddOns directory, for example:
 C:\Users\<you>\Documents\Elder Scrolls Online\live\AddOns\iasync\
 ```
 
-### 3. Configure paths (optional)
+### 3. Configure (optional)
 
-On first run a `config.json` is created automatically with paths detected for your platform. Edit it if needed:
+On first run a `config.json` is created automatically. Edit it if needed:
 
 ```json
 {
-  "iasync_lua_path": "path/to/SavedVariables/iasync.lua",
-  "ww_lua_path":     "path/to/SavedVariables/WizardsWardrobe.lua",
   "ttc_addon_path":  "path/to/AddOns/TamrielTradeCentre",
   "ttc_lookup_table_path": "path/to/AddOns/TamrielTradeCentre/ItemLookUpTable_EN.lua",
   "ttc_price_table_path": "",
   "database_url": "sqlite:///uploads/armory.db",
   "port": 5000,
-  "server": "NA",
-  "poll_interval_seconds": 5
+  "server": "NA"
 }
 ```
 
-`server` should be `"NA"` or `"EU"`. Leave `ttc_price_table_path` empty to use `PriceTableNA.lua` or `PriceTableEU.lua` automatically from `ttc_addon_path`.
+`server` should be `"NA"` or `"EU"`. The TTC paths are only used for server-side TTC lookups — iasync.lua and WizardsWardrobe.lua are uploaded through the browser, not read from disk. Leave `ttc_price_table_path` empty to auto-select `PriceTableNA.lua` or `PriceTableEU.lua` from `ttc_addon_path`.
 
 ### 4. Start the server
 
@@ -106,7 +103,7 @@ uv run server.py --port 8080
 python server.py --port 8080
 ```
 
-The server polls your SavedVariables files every 5 seconds (configurable) and pushes a reload event to the browser when anything changes.
+Data reaches the server via browser upload or the folder watcher — the server does not read SavedVariables from disk directly.
 
 ## Testing
 
@@ -164,7 +161,7 @@ uploads/armory.db      # Default SQLite database for uploaded account workspaces
 
 ## Notes
 
-- Bank currency, build metadata, achievements, and stickerbook state come from `iasync.lua`.
-- Uploaded/browser-backed workspaces now read from SQLite after ingest. Uploading newer files for the same ESO account rewrites that account's stored raw SavedVariables and processed payloads in the DB.
+- Bank currency, build metadata, achievements, and stickerbook state all come from `iasync.lua`; all four payload types are built upfront on upload, so the server never needs to re-parse from source.
+- Uploading newer files for the same ESO account overwrites that account's stored payloads in the DB; raw Lua bytes are not retained after parsing.
 - If you upload a different ESO account into a session that already has one loaded, it is stored as the session's shadow workspace when available instead of replacing the primary workspace.
-- Collections piece-price tooltips use Tamriel Trade Centre `ItemLookUpTable_EN.lua` and `PriceTableNA.lua`/`PriceTableEU.lua` files from the selected live folder when available, or configured local TTC paths on self-hosted installs; hosted users can also upload those TTC files manually. Restart the server after changing TTC config paths or updating routes. If tooltip prices are missing, check `/api/ttc_price` and server logs first.
+- Collections piece-price tooltips use Tamriel Trade Centre data. TTC file upload is restricted to admin accounts; server-side TTC paths in `config.json` are an alternative for self-hosted installs. Restart the server after changing TTC config paths. If tooltip prices are missing, check `/api/ttc_price` and server logs first.

@@ -20,7 +20,7 @@ Before making code or file changes, ask for explicit approval unless the user ha
 | `lua_parser.py` | `parse_lua_variable(path, varname)` |
 | `data_processor.py` | `process_iasync()`, `process_iasync_builds()`, `process_iasync_achievements()`, `process_iasync_stickerbook()`, `process_ww_builds()` |
 | `item_link_decoder.py` | Decodes ESO `\|H1:item:...\|h` links → trait/style/enchant fields |
-| `config.json` | Paths to Lua files, port, server region, poll interval |
+| `config.json` | TTC addon paths, port, server region (`NA`/`EU`), database URL |
 | `static/index.html` | Full SPA (Characters, Inventory, Achievements, Collections tabs) |
 | `tests/fixtures/` | Sanitized deterministic Lua/TTC fixtures; do not commit live user data |
 
@@ -40,7 +40,7 @@ Use `make test-all` before release-style validation. Mutation tests are manually
 | `iasync.lua` | `iasync_data` | Inventory, equipped gear, build bars, currency, ability/CP names |
 | `WizardsWardrobe.lua` | `WizardsWardrobeSV` | Saved build setups (gear, skills, CP, food) |
 
-Server polls both files every `poll_interval_seconds` (default 5s) using mtime — inotify doesn't work on WSL2 `/mnt/c` paths.
+Data reaches the server via browser upload or the folder watcher — the server does not poll SavedVariables from disk directly.
 
 **ESO Lua version:** Lua 5.1 — no `goto`, no `::labels::`. Use nested `if` guards. CharIdToName keys are strings after Lua→Python parsing.
 
@@ -109,8 +109,8 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `POST /api/compare_builds/import?session=&share=&character_id=&code=` | Store imported compare build |
 | `DELETE /api/compare_builds?session=&share=&character_id=` | Delete imported compare build |
 | `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/..."}` — static, built at startup |
-| `GET /api/status?session=&share=` | `{ok, item_count, character_count, last_modified, error}` |
-| `POST /api/upload?session=&share=` | Multipart: `iasync`, `ww`, `ttc_lookup`, `ttc_price` files; stores raw + processed into SQLite by ESO accountName |
+| `GET /api/status?session=&share=` | `{ok, item_count, character_count, last_modified, error, is_admin}` |
+| `POST /api/upload?session=&share=` | Multipart: `iasync`, `ww`, `ttc_lookup`, `ttc_price` files; iasync/WW parsed in memory → all payloads stored to SQLite by ESO accountName (no raw bytes retained); `ttc_lookup`/`ttc_price` admin-only → written to global `uploads/ttc/` |
 | `POST /api/parse_superstar` | Multipart `image` upload → Claude Vision parses SuperStar addon screenshot → `{character, mundus, gear[{slot, slot_id, item_name, set_name, trait, enchantment}]}` — requires `ANTHROPIC_API_KEY` env var or `anthropic_api_key` in `config.json` |
 | `GET /events?session=&share=` | SSE stream; sends `"reload"` on data change (iasync only — not WW) |
 
@@ -120,29 +120,47 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 ```python
 _cache           # global iasync: {data_bytes, builds_bytes, achievements_bytes, stickerbook_bytes, mtime, error}
 _ww_cache        # global WW: {ww_builds_bytes, mtime, error}
-_sessions        # per-browser UUID: {cache, ww_cache, ttc_cache, upload_dir, sse_queues, last_active}
+_sessions        # per-browser UUID: {cache, ww_cache, sse_queues, last_active}
 _ability_icon_map  # built at startup; scans assets/abilities/**/*.{png,webp}
 _set_bonus_cache   # (set_id or name_slug) → {bonuses, url}; mythic set_id=0 so slug is key
 _skill_info_cache  # slug → {details}
-_ttc_tables        # local TTC Lua tables, lazy-loaded
+_ttc_tables        # global TTC state: {lookup_mtime, price_mtime, lookup_path, price_path, db_path, db_ready, price_time, price_cache, error}
+_TTC_BUILD_LOCK    # threading.Lock — serialises SQLite build; double-checked inside lock to avoid race on first load
 ```
 
 ### DB-backed workspaces (`uploads/armory.db`)
-- `account_states`: one row per ESO `accountName`; stores raw Lua + processed API payload blobs
+- `account_states`: one row per ESO `accountName`; stores processed API payload blobs (data, builds, achievements, stickerbook); raw Lua is never persisted
 - `workspace_sessions`: maps browser UUID → `primary_account_id`, `shadow_account_id`, `active_slot`
-- `_resolve_cache(session_id, share)`: shared workspace → session cache → global cache
+- `_resolve_cache(session_id, share)`: shared workspace → DB account state → global cache
 - Share codes in `uploads/share_registry.json`; shared sessions skip the 2-hour idle cleanup
+- All four iasync payloads are built upfront on upload; `_ensure_iasync_aux_bytes` raises 503 if any are missing (re-upload required)
 
 ### Primary/shadow slots
 - Upload matching primary account → updates `primary`; different account → fills `shadow` (if empty)
 - Third unmatched account when both slots occupied → conflict (no silent replace)
 - Only `shadow` is deletable from UI
 
+### TTC storage
+- Uploaded TTC files go to `uploads/ttc/ItemLookUpTable_EN.lua` and `uploads/ttc/PriceTable{NA|EU}.lua` — one global copy, any admin upload upserts it
+- Derived SQLite at `uploads/ttc.sqlite3`; rebuilt by `_ensure_ttc_db()` when raw file mtime is newer than last build
+- Config-path TTC (`ttc_addon_path`, `ttc_lookup_table_path`) is a fallback when no uploaded file exists
+- `_ttc_upload_dir()` returns `UPLOADS_DIR / "ttc"` dynamically (picks up monkeypatched `UPLOADS_DIR` in tests)
+- TTC upload is admin-only (`is_admin` DB column); `@admin_account` auto-granted on first upload
+
+### Admin accounts
+```python
+_ADMIN_ACCOUNTS = frozenset({"@admin_account", "@admin_account_2"})  # auto-granted is_admin on first upload
+db.is_account_admin(account_name)  # check DB flag
+```
+- `/api/status` returns `is_admin` for the current session's account
+- Frontend shows a gold "admin" badge in the header when `isAdmin` is true
+- Admin-only: TTC file upload, TTC sync in folder watcher
+
 ### TTC Config (`config.json`)
 ```json
 { "ttc_addon_path": "...", "ttc_lookup_table_path": "...", "ttc_price_table_path": "" }
 ```
-Leave `ttc_price_table_path` empty to auto-select NA/EU table. Uploaded TTC files take precedence. Restart required after config changes.
+Leave `ttc_price_table_path` empty to auto-select NA/EU table. Uploaded files in `uploads/ttc/` take precedence over config paths. Restart required after config changes.
 
 ## Icon Normalization (Python + JS must match)
 ```python
@@ -157,16 +175,6 @@ Icons served from `assets/` via `app.mount("/assets", ...)`. UESP source: `image
 CSS custom properties (`--t-*`) on `:root`; `[data-theme="name"]` blocks override them. Pre-Alpine `<script>` sets `data-theme` from localStorage before Alpine boots (prevents FOUC). **Progress bars:** always `style="background:var(--t-progress);width:X%"` — never `bg-eso-gold` Tailwind class on a fill. **Adding a theme:** CSS var block + `themes` object entry with `label` + `bgR/cardR/borderR/goldR/textR/mutedR/hoverR` RGB triplets.
 
 **Quality/resource colors are NOT themed** — hardcoded game data (fine `#2dc50e`, superior `#5199ff`, epic `#a02ee4`).
-
-## Platform Detection (server.py)
-```python
-if sys.platform == "win32":
-    return str(Path.home() / "Documents" / eso_rel)
-if "microsoft" in platform.uname().release.lower():  # WSL2
-    skip = {"Public", "Default", "Default User", "All Users"}
-    for u in sorted(Path("/mnt/c/Users").iterdir()):
-        if u.is_dir() and u.name not in skip: ...
-```
 
 ## Restarting the Server
 ```bash

@@ -28,8 +28,6 @@ def test_upload_and_read_workspace(client, uploaded_workspace):
     assert uploaded_workspace["ww"]["ok"] is True
     assert uploaded_workspace["ww"]["builds"] == 1
     assert uploaded_workspace["ww"]["slot_updated"] == "primary"
-    assert uploaded_workspace["ttc_lookup"] == {"ok": True}
-    assert uploaded_workspace["ttc_price"] == {"ok": True}
 
     data = client.get(f"/api/data?session={TEST_SESSION}")
     builds = client.get(f"/api/builds?session={TEST_SESSION}")
@@ -46,7 +44,7 @@ def test_upload_and_read_workspace(client, uploaded_workspace):
 
 
 @pytest.mark.api
-def test_ttc_price_uses_uploaded_tables(client, uploaded_workspace):
+def test_ttc_price_uses_uploaded_tables(client, admin_uploaded_workspace):
     response = client.get(f"/api/ttc_price?session={TEST_SESSION}&name=Mock%20Sword")
 
     assert response.status_code == 200
@@ -127,7 +125,7 @@ def test_external_scraper_endpoints_can_be_mocked(client, isolated_server, monke
 
 
 @pytest.mark.api
-def test_share_and_ttc_error_contracts(client, uploaded_workspace):
+def test_share_and_ttc_error_contracts(client, admin_uploaded_workspace):
     bad_join = client.post(f"/api/share/join?session={TEST_SESSION}&code=bad")
     missing_share = client.get(f"/api/share?session={TEST_SESSION}&share=BAD-CODE")
     missing_price = client.get(f"/api/ttc_price?session={TEST_SESSION}&name=Missing%20Item")
@@ -187,27 +185,9 @@ def test_uploaded_workspace_reads_from_db_when_account_files_are_removed(client,
 
 
 @pytest.mark.api
-def test_uploaded_workspace_recovers_aux_payloads_from_raw_source_when_db_data_bytes_are_missing(client, isolated_server, uploaded_workspace):
-    with db.session_scope() as session:
-        row = session.scalar(select(db.AccountState).where(db.AccountState.account_name == "@test_account"))
-        assert row is not None
-        assert row.raw_iasync_lua is not None
-        row.data_bytes = None
-        row.builds_bytes = None
-        row.achievements_bytes = None
-        row.stickerbook_bytes = None
-
-    isolated_server._sessions.clear()
-
-    achievements = client.get(f"/api/achievements?session={TEST_SESSION}")
-    stickerbook = client.get(f"/api/stickerbook?session={TEST_SESSION}")
-
-    assert achievements.status_code == 200
-    assert stickerbook.status_code == 200
-    assert achievements.json()["earnedPts"] == 10
-    assert stickerbook.json()["sets"][0]["name"] == "Mock Set"
-
-    state = isolated_server._db_get_account_state("@test_account")
+def test_uploaded_workspace_all_payloads_built_upfront(client, uploaded_workspace):
+    # All payloads (including achievements + stickerbook) are built on upload, not lazily.
+    state = db.get_account_state("@test_account")
     assert state is not None
     assert state.data_bytes is not None
     assert state.builds_bytes is not None
@@ -216,7 +196,7 @@ def test_uploaded_workspace_recovers_aux_payloads_from_raw_source_when_db_data_b
 
 
 @pytest.mark.api
-def test_uploaded_workspace_recovery_returns_clear_error_when_raw_source_is_missing(client, isolated_server, uploaded_workspace):
+def test_uploaded_workspace_recovery_returns_clear_error_when_data_missing(client, isolated_server, uploaded_workspace):
     with db.session_scope() as session:
         row = session.scalar(select(db.AccountState).where(db.AccountState.account_name == "@test_account"))
         assert row is not None
@@ -224,11 +204,6 @@ def test_uploaded_workspace_recovery_returns_clear_error_when_raw_source_is_miss
         row.builds_bytes = None
         row.achievements_bytes = None
         row.stickerbook_bytes = None
-        row.raw_iasync_lua = None
-
-    session_iasync = isolated_server.UPLOADS_DIR / TEST_SESSION / "SavedVariables" / "iasync.lua"
-    if session_iasync.exists():
-        session_iasync.unlink()
 
     isolated_server._sessions.clear()
 
@@ -237,8 +212,8 @@ def test_uploaded_workspace_recovery_returns_clear_error_when_raw_source_is_miss
 
     assert achievements.status_code == 503
     assert stickerbook.status_code == 503
-    assert achievements.json()["detail"] == "missing raw iasync source for @test_account"
-    assert stickerbook.json()["detail"] == "missing raw iasync source for @test_account"
+    assert "re-upload" in achievements.json()["detail"]
+    assert "re-upload" in stickerbook.json()["detail"]
 
 
 @pytest.mark.api
@@ -310,25 +285,21 @@ def test_third_unmatched_account_upload_conflicts(client, fixtures_dir):
 
 
 @pytest.mark.api
-def test_ww_transient_parse_keeps_previous_cache(isolated_server, fixtures_dir, tmp_path):
-    ww_path = tmp_path / "WizardsWardrobe.lua"
-    ww_path.write_bytes((fixtures_dir / "WizardsWardrobe.lua").read_bytes())
-
-    cache = {
-        "ww_builds_bytes": None,
-        "mtime": None,
-        "error": None,
-        "source_path": None,
-    }
-    isolated_server._parse_ww_into(str(ww_path), cache)
-    first = json.loads(cache["ww_builds_bytes"])
-
-    ww_path.write_text("-- transient partial save\n", encoding="utf-8")
-    cache["mtime"] = None
-    isolated_server._parse_ww_into(str(ww_path), cache)
-
+def test_ww_parse_from_bytes_sets_error_on_bad_input(isolated_server, fixtures_dir):
+    # Good parse populates the cache
+    good_bytes = (fixtures_dir / "WizardsWardrobe.lua").read_bytes()
+    cache = isolated_server._empty_ww_cache()
+    isolated_server._parse_ww_from_bytes(good_bytes, cache)
     assert cache["error"] is None
-    assert json.loads(cache["ww_builds_bytes"]) == first
+    assert cache["ww_builds_bytes"] is not None
+    first = json.loads(cache["ww_builds_bytes"])
+    assert first["builds"]
+
+    # Bad bytes set an error but do not raise
+    bad_cache = isolated_server._empty_ww_cache()
+    isolated_server._parse_ww_from_bytes(b"-- truncated", bad_cache)
+    assert bad_cache["error"] is not None
+    assert bad_cache["ww_builds_bytes"] is None
 
 
 @pytest.mark.api
