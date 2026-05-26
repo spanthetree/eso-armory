@@ -593,8 +593,30 @@
             </div>
           </template>
           <p class="mt-1.5 text-[10px]" style="color:var(--t-muted)">
-            Automatically re-uploads SavedVariables and TTC tables when the game saves them. Persists across sessions.
+            Automatically re-syncs SavedVariables<span x-show="isAdmin"> and TTC tables</span> when files change or every 15 minutes.
           </p>
+          <!-- Per-file sync status -->
+          <template x-if="dirHandle">
+            <div class="mt-2 space-y-1">
+              <template x-for="row in [
+                { key: 'iasync', label: 'iasync.lua', synced: lastSynced.iasync },
+                { key: 'ww',     label: 'WizardsWardrobe.lua', synced: lastSynced.ww },
+                ...(isAdmin ? [
+                  { key: 'ttcLookup', label: 'ItemLookUpTable_EN.lua', synced: lastSynced.ttcLookup },
+                  { key: 'ttcPrice',  label: 'PriceTable*.lua', synced: lastSynced.ttcPrice },
+                ] : [])
+              ]" :key="row.key">
+                <div class="flex items-center justify-between text-[10px]" style="color:var(--t-muted)">
+                  <span x-text="row.label"></span>
+                  <span x-show="row.synced" x-text="'synced ' + new Date(row.synced).toLocaleTimeString()" style="color:var(--t-gold)"></span>
+                  <span x-show="!row.synced">not yet synced</span>
+                </div>
+              </template>
+              <div class="text-[10px]" style="color:var(--t-muted)" x-show="lastChecked">
+                Last checked: <span x-text="new Date(lastChecked).toLocaleTimeString()"></span>
+              </div>
+            </div>
+          </template>
         </div>
       </template>
 
@@ -645,11 +667,11 @@
         </label>
       </div>
 
-      <!-- Tamriel Trade Centre -->
-      <div class="mb-5">
+      <!-- Tamriel Trade Centre (admin only) -->
+      <div class="mb-5" x-show="isAdmin">
         <div class="text-xs font-semibold mb-1.5 uppercase tracking-wide"
           style="color:var(--t-gold);font-family:'Cinzel',serif">
-          Tamriel Trade Centre <span class="normal-case font-normal" style="color:var(--t-muted)">(optional — pricing)</span>
+          Tamriel Trade Centre <span class="normal-case font-normal" style="color:var(--t-muted)">(pricing — admin only)</span>
         </div>
         <div class="space-y-3">
           <label class="flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer"
@@ -679,10 +701,10 @@
 
       <button
         @click="uploadFiles()"
-        :disabled="uploading || (!uploadIasyncName && !uploadWWName && !uploadTtcLookupName && !uploadTtcPriceName)"
+        :disabled="uploading || (!uploadIasyncName && !uploadWWName && !(isAdmin && (uploadTtcLookupName || uploadTtcPriceName)))"
         class="w-full py-2.5 rounded-lg font-cinzel font-semibold text-sm"
         style="background:var(--t-gold);color:var(--t-bg)"
-        :style="(uploading || (!uploadIasyncName && !uploadWWName && !uploadTtcLookupName && !uploadTtcPriceName)) ? 'opacity:0.4;cursor:not-allowed' : 'opacity:1;cursor:pointer'">
+        :style="(uploading || (!uploadIasyncName && !uploadWWName && !(isAdmin && (uploadTtcLookupName || uploadTtcPriceName)))) ? 'opacity:0.4;cursor:not-allowed' : 'opacity:1;cursor:pointer'">
         <span x-show="!uploading">Load Files</span>
         <span x-show="uploading" class="animate-pulse">Parsing…</span>
       </button>
@@ -869,8 +891,11 @@
         <span class="text-2xl">⚔️</span>
         <div>
           <h1 class="font-cinzel font-bold text-eso-gold text-xl leading-none">ESO Armory</h1>
-          <p class="text-eso-muted text-xs mt-0.5" x-show="data"
-            x-text="data ? `${data.meta.account} · ${data.meta.server} · ${data.meta.item_count.toLocaleString()} items` : ''"></p>
+          <p class="text-eso-muted text-xs mt-0.5 flex items-center gap-1.5" x-show="data">
+            <span x-text="data ? `${data.meta.account} · ${data.meta.server} · ${data.meta.item_count.toLocaleString()} items` : ''"></span>
+            <span x-show="isAdmin" class="rounded px-1 py-px text-[10px] font-semibold leading-none"
+              style="background:var(--t-gold);color:var(--t-bg)">admin</span>
+          </p>
           <div x-show="workspace.primary.account || workspace.shadow.account"
             class="mt-1.5 flex items-center gap-1 rounded border px-1.5 py-1 text-[11px] w-fit"
             style="background:var(--t-bg);border-color:var(--t-border)">
@@ -1096,7 +1121,8 @@
         </p>
 
         <div class="space-y-3 mb-4">
-          <input x-model="loginName" type="text" placeholder="Account name (e.g. @admin_account)"
+          <input x-model="loginName" type="text" placeholder="Account name (e.g.
+          accountname)"
             class="w-full rounded-lg px-3 py-2 text-sm outline-none"
             style="background:var(--t-bg);border:1px solid var(--t-border);color:var(--t-text)"
             @keydown.enter="loginWithPassword()" />
@@ -2981,6 +3007,10 @@ function armory() {
     wwLastMod: 0,
     ttcLookupLastMod: 0,
     ttcPriceLastMod: 0,
+    _lastForceUpload: 0,
+    lastChecked: 0,
+    lastSynced: { iasync: 0, ww: 0, ttcLookup: 0, ttcPrice: 0 },
+    isAdmin: false,
     refreshing: false,
     lastKnownMtime: null,
     hasDirectoryPicker: false,
@@ -3174,6 +3204,7 @@ function armory() {
             const st = await probe.json().catch(() => ({}));
             this.ssHasServerKey = st.has_server_api_key || false;
             this.ssHasSessionKey = st.has_session_api_key || false;
+            this.isAdmin = st.is_admin || false;
             this.serverWaking = false;
             break;
           }
@@ -3840,10 +3871,28 @@ function armory() {
 
     startDirWatch() {
       this.stopDirWatch();
+      this._lastForceUpload = Date.now();
+      // Every 60s: cheap metadata-only check; upload if anything changed or 15min elapsed.
       this.watchInterval = setInterval(async () => {
-        const changed = await this.checkDirForChanges(false);
-        if (changed) this.showToast('Data updated ✓');
-      }, 5000);
+        const now = Date.now();
+        const forceDue = (now - this._lastForceUpload) >= 15 * 60 * 1000;
+        const meta = await this._readDirMeta();
+        this.lastChecked = now;
+        const changed =
+          (meta.iasync && meta.iasync > this.iasyncLastMod) ||
+          (meta.ww && meta.ww > this.wwLastMod) ||
+          (meta.ttcLookup && meta.ttcLookup > this.ttcLookupLastMod) ||
+          (meta.ttcPrice && meta.ttcPrice > this.ttcPriceLastMod);
+        if (changed || forceDue) {
+          const uploaded = await this._uploadFromDir(meta, forceDue);
+          if (uploaded) {
+            this._lastForceUpload = Date.now();
+            this.showToast('Data updated ✓');
+          } else if (forceDue) {
+            this._lastForceUpload = Date.now();
+          }
+        }
+      }, 60 * 1000);
     },
 
     stopDirWatch() {
@@ -3857,80 +3906,106 @@ function armory() {
       this.wwLastMod = 0;
       this.ttcLookupLastMod = 0;
       this.ttcPriceLastMod = 0;
+      this.lastChecked = 0;
+      this.lastSynced = { iasync: 0, ww: 0, ttcLookup: 0, ttcPrice: 0 };
       this.ttcPriceCache = {};
       await this._idbDel('dirHandle').catch(() => {});
     },
 
-    async checkDirForChanges(force = false) {
-      if (!this.dirHandle || this._uploadInProgress) return false;
-      this._uploadInProgress = true;
-      const fd = new FormData();
-      let iasyncFile = null, wwFile = null, ttcLookupFile = null, ttcPriceFile = null;
+    // Lightweight: only reads file metadata (lastModified), no file content.
+    async _readDirMeta() {
+      if (!this.dirHandle) return {};
       const region = (this.data?.meta?.server || 'NA').toUpperCase() === 'EU' ? 'EU' : 'NA';
-      const readFile = async (parts, name) => {
+      const getModified = async (parts, name) => {
         try {
           let cur = this.dirHandle;
-          for (const part of parts) cur = await cur.getDirectoryHandle(part);
+          for (const p of parts) cur = await cur.getDirectoryHandle(p);
+          const fh = await cur.getFileHandle(name);
+          return (await fh.getFile()).lastModified;
+        } catch { return null; }
+      };
+      const [iasync, ww, ttcLookup, ttcPrice] = await Promise.all([
+        getModified(['SavedVariables'], 'iasync.lua'),
+        getModified(['SavedVariables'], 'WizardsWardrobe.lua'),
+        this.isAdmin ? getModified(['AddOns', 'TamrielTradeCentre'], 'ItemLookUpTable_EN.lua') : Promise.resolve(null),
+        this.isAdmin ? getModified(['AddOns', 'TamrielTradeCentre'], `PriceTable${region}.lua`) : Promise.resolve(null),
+      ]);
+      return { iasync, ww, ttcLookup, ttcPrice };
+    },
+
+    // Upload files that have changed (or all if force). Returns true if anything was uploaded.
+    async _uploadFromDir(meta, force = false) {
+      if (!this.dirHandle || this._uploadInProgress) return false;
+      this._uploadInProgress = true;
+      const region = (this.data?.meta?.server || 'NA').toUpperCase() === 'EU' ? 'EU' : 'NA';
+      const getFile = async (parts, name) => {
+        try {
+          let cur = this.dirHandle;
+          for (const p of parts) cur = await cur.getDirectoryHandle(p);
           const fh = await cur.getFileHandle(name);
           return await fh.getFile();
-        } catch(e) {
-          return null;
-        }
+        } catch { return null; }
       };
-      const pick = async (parts, name) => (await readFile(parts, name)) || await readFile([], name);
       try {
-        iasyncFile = await pick(['SavedVariables'], 'iasync.lua');
-        if (force || iasyncFile.lastModified > this.iasyncLastMod) fd.append('iasync', iasyncFile);
-      } catch(e) {}
-      try {
-        wwFile = await pick(['SavedVariables'], 'WizardsWardrobe.lua');
-        if (force || wwFile.lastModified > this.wwLastMod) fd.append('ww', wwFile);
-      } catch(e) {}
-      try {
-        ttcLookupFile = await pick(['AddOns', 'TamrielTradeCentre'], 'ItemLookUpTable_EN.lua');
-        if (force || ttcLookupFile.lastModified > this.ttcLookupLastMod) fd.append('ttc_lookup', ttcLookupFile);
-      } catch(e) {}
-      try {
-        ttcPriceFile = await pick(['AddOns', 'TamrielTradeCentre'], `PriceTable${region}.lua`);
-        if (force || ttcPriceFile.lastModified > this.ttcPriceLastMod) fd.append('ttc_price', ttcPriceFile);
-      } catch(e) {}
-
-      if (!fd.has('iasync') && !fd.has('ww') && !fd.has('ttc_lookup') && !fd.has('ttc_price')) {
-        this._uploadInProgress = false;
-        return false;
-      }
-
-      try {
+        const fd = new FormData();
+        const files = {};
+        if (force || (meta.iasync && meta.iasync > this.iasyncLastMod)) {
+          files.iasync = await getFile(['SavedVariables'], 'iasync.lua');
+          if (files.iasync) fd.append('iasync', files.iasync);
+        }
+        if (force || (meta.ww && meta.ww > this.wwLastMod)) {
+          files.ww = await getFile(['SavedVariables'], 'WizardsWardrobe.lua');
+          if (files.ww) fd.append('ww', files.ww);
+        }
+        if (this.isAdmin) {
+          if (force || (meta.ttcLookup && meta.ttcLookup > this.ttcLookupLastMod)) {
+            files.ttcLookup = await getFile(['AddOns', 'TamrielTradeCentre'], 'ItemLookUpTable_EN.lua');
+            if (files.ttcLookup) fd.append('ttc_lookup', files.ttcLookup);
+          }
+          if (force || (meta.ttcPrice && meta.ttcPrice > this.ttcPriceLastMod)) {
+            files.ttcPrice = await getFile(['AddOns', 'TamrielTradeCentre'], `PriceTable${region}.lua`);
+            if (files.ttcPrice) fd.append('ttc_price', files.ttcPrice);
+          }
+        }
+        if (!fd.has('iasync') && !fd.has('ww') && !fd.has('ttc_lookup') && !fd.has('ttc_price')) return false;
         const r = await fetch(this.apiUrl('/api/upload'), { method: 'POST', body: fd });
         const d = await this.readJsonResponse(r, 'Folder upload');
         await this.fetchWorkspace();
         const tasks = [];
-        if (d.iasync?.ok && iasyncFile) {
-          this.iasyncLastMod = iasyncFile.lastModified;
+        const now = Date.now();
+        if (d.iasync?.ok && files.iasync) {
+          this.iasyncLastMod = files.iasync.lastModified;
+          this.lastSynced = { ...this.lastSynced, iasync: now };
           tasks.push(this.fetchData(true), this.fetchBuilds(), this.fetchAchievements(), this.fetchStickerbook());
         }
-        if (d.ww?.ok && wwFile) {
-          this.wwLastMod = wwFile.lastModified;
+        if (d.ww?.ok && files.ww) {
+          this.wwLastMod = files.ww.lastModified;
+          this.lastSynced = { ...this.lastSynced, ww: now };
           tasks.push(this.fetchWWBuilds());
         }
-        if (d.ttc_lookup?.ok && ttcLookupFile) {
-          this.ttcLookupLastMod = ttcLookupFile.lastModified;
+        if (d.ttc_lookup?.ok && files.ttcLookup) {
+          this.ttcLookupLastMod = files.ttcLookup.lastModified;
+          this.lastSynced = { ...this.lastSynced, ttcLookup: now };
           this.ttcPriceCache = {};
         }
-        if (d.ttc_price?.ok && ttcPriceFile) {
-          this.ttcPriceLastMod = ttcPriceFile.lastModified;
+        if (d.ttc_price?.ok && files.ttcPrice) {
+          this.ttcPriceLastMod = files.ttcPrice.lastModified;
+          this.lastSynced = { ...this.lastSynced, ttcPrice: now };
           this.ttcPriceCache = {};
         }
         if (tasks.length) {
           await Promise.all(tasks);
           await this.fetchCompareBuilds();
         }
-        return true;
-      } catch(e) {
-        return false;
-      } finally {
-        this._uploadInProgress = false;
-      }
+        return tasks.length > 0 || d.ttc_lookup?.ok || d.ttc_price?.ok;
+      } catch { return false; }
+      finally { this._uploadInProgress = false; }
+    },
+
+    async checkDirForChanges(force = false) {
+      const meta = await this._readDirMeta();
+      this.lastChecked = Date.now();
+      return this._uploadFromDir(meta, force);
     },
 
     // ── Manual refresh ────────────────────────────────────

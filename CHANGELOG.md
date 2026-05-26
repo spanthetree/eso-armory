@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.33] - 2026-05-26
+
+### Added
+- **Admin badge in header** — when the active account has `is_admin`, a small gold "admin" badge appears inline after the account · server · items line
+
+### Fixed
+- **TTC concurrent build race** — multiple simultaneous TTC price requests no longer race to build the SQLite database; `_TTC_BUILD_LOCK` serialises the build step with a double-checked guard so only the first thread builds and waiters reuse the finished DB, eliminating "table already exists", "no such table: meta", and "database disk image is malformed" errors on first page load
+
+### Changed
+- **Global TTC storage** — uploaded TTC files are now stored at `uploads/ttc/` (shared across all sessions) instead of per-account or per-session directories; any admin upload upserts the single global copy; the derived SQLite is rebuilt whenever the raw file mtime is newer than the last build
+- **Session simplification** — sessions no longer hold a per-session `ttc_cache`, `upload_dir`, or on-disk directory; TTC lookup always uses the global `_ttc_tables` cache
+
+### Removed
+- Per-account TTC file storage (`uploads/accounts/<account>/AddOns/TamrielTradeCentre/`) — replaced by global `uploads/ttc/`
+- `_empty_ttc_cache`, `_resolve_ttc_cache`, `_rehydrate_session_from_disk` — no longer needed
+- Per-session upload directories — sessions are now purely in-memory
+
+## [0.1.0-beta.32] - 2026-05-26
+
+### Changed
+- **Upload-only data ingestion** — the server no longer reads `iasync.lua` or `WizardsWardrobe.lua` from local disk paths; data reaches the server exclusively via browser upload or the folder watcher, making the app safe to host remotely
+- **Parse-all-upfront on upload** — all four iasync payload types (inventory/data, builds, achievements, stickerbook) are parsed in memory on upload and stored to SQLite immediately; raw Lua bytes are discarded after parsing and never persisted on disk
+- **Admin-only TTC upload** — Tamriel Trade Centre file upload is now restricted to accounts flagged `is_admin` in the database; non-admin uploads receive a clear error; `@admin_account` is auto-granted admin on first upload
+- **Folder watcher timing** — metadata-only `lastModified` check every 60 s (no file content read unless changed); full force-sync every 15 minutes; admin accounts also sync TTC tables from `AddOns/TamrielTradeCentre/`
+- **Per-file sync status** — the folder watcher UI shows last-synced time per file (iasync, WW, TTC lookup, TTC price) and a last-checked timestamp
+- **Recovery error clarity** — if DB payloads are missing and no source is available, endpoints return HTTP 503 with a "please re-upload" message instead of attempting to reconstruct from missing data
+
+### Removed
+- Server-side SavedVariables path detection (WSL2 / Windows auto-discovery) and local file polling — no longer needed
+- `source_path`, `source_bytes`, `ww_source_path`, `ww_source_bytes`, `raw_iasync_lua`, and `raw_ww_lua` from session caches and DB rows — raw data is not retained after parse
+- `poll_interval_seconds` config key
+- `iasync_lua_path` and `ww_lua_path` config keys
+
 ## [0.1.0-beta.31] - 2026-05-25
 
 ### Added

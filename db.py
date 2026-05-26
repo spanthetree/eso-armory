@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlalchemy import Float, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, create_engine, inspect, select, text
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, create_engine, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
 
 
@@ -37,6 +37,7 @@ class AccountState(Base):
     last_ingested_at: Mapped[float] = mapped_column(Float, default=lambda: time.time())
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
 
     primary_sessions: Mapped[list["WorkspaceSession"]] = relationship(
         foreign_keys="WorkspaceSession.primary_account_id",
@@ -167,6 +168,8 @@ def _ensure_schema_columns(engine) -> None:
         ddl.append("ALTER TABLE workspace_sessions ADD COLUMN encrypted_api_key BLOB")
     if "password_hash" not in cols:
         ddl.append("ALTER TABLE account_states ADD COLUMN password_hash TEXT")
+    if "is_admin" not in cols:
+        ddl.append("ALTER TABLE account_states ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
     if not ddl and "account_id" not in sess_cols:
         return
     with engine.begin() as conn:
@@ -199,6 +202,12 @@ def session_scope():
 def get_account_state(account_name: str) -> AccountState | None:
     with session_scope() as db:
         return db.scalar(select(AccountState).where(AccountState.account_name == account_name))
+
+
+def is_account_admin(account_name: str) -> bool:
+    with session_scope() as db:
+        row = db.scalar(select(AccountState.is_admin).where(AccountState.account_name == account_name))
+        return bool(row)
 
 
 def _normalize_slot(slot: str | None) -> SlotName:
@@ -337,6 +346,9 @@ def find_session_for_account(account_name: str) -> str | None:
         return row.session_id if row else None
 
 
+_ADMIN_ACCOUNTS: frozenset[str] = frozenset({"@admin_account", "@admin_account_2"})
+
+
 def upsert_account_payload(payload: AccountPayload) -> None:
     with session_scope() as db:
         row = db.scalar(select(AccountState).where(AccountState.account_name == payload.account_name))
@@ -344,6 +356,8 @@ def upsert_account_payload(payload: AccountPayload) -> None:
             row = AccountState(account_name=payload.account_name)
             db.add(row)
         row.server = payload.server
+        if payload.account_name in _ADMIN_ACCOUNTS:
+            row.is_admin = True
         if payload.data_bytes is not None:
             row.data_bytes = payload.data_bytes
         if payload.builds_bytes is not None:
