@@ -96,8 +96,9 @@ def _eso_addon_path(*parts: str) -> str:
     return ""
 
 
-CONFIG_PATH  = Path("config.json")
-UPLOADS_DIR  = Path("uploads")
+_HERE        = Path(__file__).resolve().parent
+CONFIG_PATH  = _HERE / "config.json"
+UPLOADS_DIR  = _HERE / "uploads"
 SHARE_REGISTRY_PATH = UPLOADS_DIR / "share_registry.json"
 DEFAULT_CONFIG = {
     "ttc_addon_path":  _eso_addon_path("TamrielTradeCentre"),
@@ -759,6 +760,16 @@ def _ensure_ttc_db(cache: dict | None = None) -> tuple[Path, int | None, Path]:
     cache = cache or _ttc_tables
     lookup_path = _ttc_lookup_table_path()
     price_path = _ttc_price_table_path()
+    if not lookup_path.exists():
+        raise FileNotFoundError(
+            f"TTC lookup table not found ({lookup_path}). "
+            "Upload ItemLookUpTable_EN.lua via the admin upload, or set ttc_addon_path / ttc_lookup_table_path in config.json."
+        )
+    if not price_path.exists():
+        raise FileNotFoundError(
+            f"TTC price table not found ({price_path}). "
+            "Upload a PriceTable{{NA|EU}}.lua via the admin upload, or set ttc_addon_path / ttc_price_table_path in config.json."
+        )
     lookup_mtime = os.path.getmtime(lookup_path)
     price_mtime = os.path.getmtime(price_path)
     db_path = _ttc_db_path()
