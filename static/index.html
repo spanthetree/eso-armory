@@ -4739,6 +4739,10 @@ function armory() {
       return this.abilityIcons[key] || null;
     },
 
+    escapeHtml(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    },
+
     abilitySlotHtml(id, isUlt) {
       const name = this.abilityName(id);
       const icon = this.abilityIcon(id);
@@ -4746,7 +4750,7 @@ function armory() {
         return `<img src="${icon}" class="skill-icon" alt="">`;
       }
       const cls = isUlt ? ' text-eso-gold' : '';
-      return `<span class="px-1 py-0.5 text-xs${cls}">${name || ''}</span>`;
+      return `<span class="px-1 py-0.5 text-xs${cls}">${this.escapeHtml(name)}</span>`;
     },
 
     abilitySlotHtmlCompare(id, isUlt, charId) {
@@ -4758,7 +4762,7 @@ function armory() {
       }
       if (icon) return `<img src="${icon}" class="skill-icon" alt="">`;
       const cls = isUlt ? ' text-eso-gold' : '';
-      return `<span class="px-1 py-0.5 text-xs${cls}">${name || ''}</span>`;
+      return `<span class="px-1 py-0.5 text-xs${cls}">${this.escapeHtml(name)}</span>`;
     },
 
     cpName(id) {

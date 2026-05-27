@@ -157,6 +157,20 @@ _EXTERNAL_CACHE_MAX = 256
 _TTC_PRICE_CACHE_MAX = 512
 _IASYNC_PARSE_LOCK = threading.Lock()
 _WW_PARSE_LOCK = threading.Lock()
+
+# Upload limits
+_MAX_UPLOAD_BYTES = 100 * 1024 * 1024   # 100 MB per file
+_MAX_IMAGE_BYTES  = 20  * 1024 * 1024   # 20 MB for SuperStar images
+
+# Login brute-force protection (in-memory, resets on server restart)
+_LOGIN_FAILURES: dict[str, list[float]] = {}  # ip → list of failure timestamps
+_LOGIN_WINDOW   = 60    # seconds to count failures in
+_LOGIN_MAX_FAILS = 5    # failures before lockout
+_LOGIN_LOCKOUT  = 300   # seconds to lock out an IP
+_login_lock     = threading.Lock()
+
+# SSE connection cap per session (prevents trivial connection exhaustion)
+_MAX_SSE_PER_SESSION = 10
 _TTC_BUILD_LOCK = threading.Lock()
 
 
@@ -176,6 +190,30 @@ def _lru_put(cache: collections.OrderedDict, key, value, limit: int) -> None:
     cache.move_to_end(key)
     while len(cache) > limit:
         cache.popitem(last=False)
+
+
+def _check_login_rate_limit(ip: str) -> bool:
+    """Return True if the IP is currently locked out."""
+    now = time.time()
+    with _login_lock:
+        failures = _LOGIN_FAILURES.get(ip, [])
+        # Prune old entries
+        failures = [t for t in failures if now - t < _LOGIN_WINDOW]
+        _LOGIN_FAILURES[ip] = failures
+        if len(failures) >= _LOGIN_MAX_FAILS:
+            # Check if still within lockout window from the first failure in the window
+            if now - failures[0] < _LOGIN_LOCKOUT:
+                return True
+    return False
+
+
+def _record_login_failure(ip: str) -> None:
+    now = time.time()
+    with _login_lock:
+        failures = _LOGIN_FAILURES.get(ip, [])
+        failures = [t for t in failures if now - t < _LOGIN_WINDOW]
+        failures.append(now)
+        _LOGIN_FAILURES[ip] = failures
 
 
 def _account_fs_key(account_name: str) -> str:
@@ -1268,16 +1306,23 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
 
+def _apply_security_headers(response) -> None:
+    """Apply security headers to every response."""
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     if request.url.path.startswith(("/static", "/assets")):
         response = await call_next(request)
-        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        _apply_security_headers(response)
         return response
     t0 = time.monotonic()
     response = await call_next(request)
     ms = int((time.monotonic() - t0) * 1000)
-    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    _apply_security_headers(response)
     logger.info("{} {} → {} {}ms", request.method, request.url.path, response.status_code, ms)
     return response
 
@@ -1754,7 +1799,9 @@ async def api_parse_superstar(
     if not api_key:
         return JSONResponse({"error": "No Anthropic API key configured. Enter your key via the key icon."}, status_code=503)
 
-    image_bytes = await image.read()
+    image_bytes = await image.read(_MAX_IMAGE_BYTES + 1)
+    if len(image_bytes) > _MAX_IMAGE_BYTES:
+        return JSONResponse({"error": f"Image exceeds {_MAX_IMAGE_BYTES // (1024*1024)} MB limit"}, status_code=413)
     media_type = image.content_type or "image/png"
     if media_type not in ("image/png", "image/jpeg", "image/gif", "image/webp"):
         media_type = "image/png"
@@ -1812,16 +1859,20 @@ async def api_upload(
     loop = asyncio.get_event_loop()
     results = {}
 
-    async def _read_upload_bytes(upload: UploadFile) -> bytes:
+    async def _read_upload_bytes(upload: UploadFile, max_bytes: int = _MAX_UPLOAD_BYTES) -> bytes:
         chunks = []
+        total = 0
         while True:
             chunk = await upload.read(1024 * 1024)
             if not chunk:
                 break
+            total += len(chunk)
+            if total > max_bytes:
+                raise ValueError(f"Upload exceeds {max_bytes // (1024*1024)} MB limit")
             chunks.append(chunk)
         return b"".join(chunks)
 
-    async def _stream_to_path(upload: UploadFile, dest: Path) -> int:
+    async def _stream_to_path(upload: UploadFile, dest: Path, max_bytes: int = _MAX_UPLOAD_BYTES) -> int:
         dest.parent.mkdir(parents=True, exist_ok=True)
         if dest.exists():
             dest.unlink()
@@ -1832,11 +1883,17 @@ async def api_upload(
                 if not chunk:
                     break
                 total += len(chunk)
+                if total > max_bytes:
+                    dest.unlink(missing_ok=True)
+                    raise ValueError(f"Upload exceeds {max_bytes // (1024*1024)} MB limit")
                 fh.write(chunk)
         return total
 
     if iasync and iasync.filename:
-        raw_bytes = await _read_upload_bytes(iasync)
+        try:
+            raw_bytes = await _read_upload_bytes(iasync)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=413)
         size = len(raw_bytes)
         s_cache["mtime"] = None
         await loop.run_in_executor(None, lambda: _parse_iasync_from_bytes(raw_bytes, s_cache))
@@ -1884,7 +1941,10 @@ async def api_upload(
         logger.info("Session {} uploaded iasync.lua ({} bytes)", sid[:8], size)
 
     if ww and ww.filename:
-        raw_bytes = await _read_upload_bytes(ww)
+        try:
+            raw_bytes = await _read_upload_bytes(ww)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=413)
         size = len(raw_bytes)
         s_ww_cache["mtime"] = None
         await loop.run_in_executor(None, lambda: _parse_ww_from_bytes(raw_bytes, s_ww_cache))
@@ -1922,12 +1982,16 @@ async def api_upload(
             ttc_dir = _ttc_upload_dir()
             ttc_dir.mkdir(parents=True, exist_ok=True)
             dest = ttc_dir / "ItemLookUpTable_EN.lua"
-            size = await _stream_to_path(ttc_lookup, dest)
-            _ttc_tables["db_ready"] = False
-            _ttc_tables["price_cache"] = collections.OrderedDict()
-            _ttc_tables["error"] = None
-            results["ttc_lookup"] = {"ok": True}
-            logger.info("Session {} uploaded TTC lookup ({} bytes)", sid[:8], size)
+            try:
+                size = await _stream_to_path(ttc_lookup, dest)
+            except ValueError as exc:
+                results["ttc_lookup"] = {"ok": False, "error": str(exc)}
+            else:
+                _ttc_tables["db_ready"] = False
+                _ttc_tables["price_cache"] = collections.OrderedDict()
+                _ttc_tables["error"] = None
+                results["ttc_lookup"] = {"ok": True}
+                logger.info("Session {} uploaded TTC lookup ({} bytes)", sid[:8], size)
 
     if ttc_price and ttc_price.filename:
         if not active_account or not _db_is_account_admin(active_account):
@@ -1937,13 +2001,17 @@ async def api_upload(
             ttc_dir.mkdir(parents=True, exist_ok=True)
             region = "EU" if str(_config.get("server", "NA")).upper() == "EU" else "NA"
             dest = ttc_dir / f"PriceTable{region}.lua"
-            size = await _stream_to_path(ttc_price, dest)
-            _ttc_tables["db_ready"] = False
-            _ttc_tables["price_time"] = None
-            _ttc_tables["price_cache"] = collections.OrderedDict()
-            _ttc_tables["error"] = None
-            results["ttc_price"] = {"ok": True}
-            logger.info("Session {} uploaded TTC price table ({} bytes)", sid[:8], size)
+            try:
+                size = await _stream_to_path(ttc_price, dest)
+            except ValueError as exc:
+                results["ttc_price"] = {"ok": False, "error": str(exc)}
+            else:
+                _ttc_tables["db_ready"] = False
+                _ttc_tables["price_time"] = None
+                _ttc_tables["price_cache"] = collections.OrderedDict()
+                _ttc_tables["error"] = None
+                results["ttc_price"] = {"ok": True}
+                logger.info("Session {} uploaded TTC price table ({} bytes)", sid[:8], size)
 
     if not results:
         return JSONResponse({"error": "No files received"}, status_code=400)
@@ -2057,9 +2125,12 @@ async def api_auth_set_password(request: Request, session: str | None = Query(No
 
 @app.post("/api/auth/login")
 async def api_auth_login(request: Request, session: str | None = Query(None)):
+    client_ip = request.client.host if request.client else "unknown"
     sid = _valid_session(session)
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
+    if _check_login_rate_limit(client_ip):
+        return JSONResponse({"error": "Too many failed attempts. Try again later."}, status_code=429)
     try:
         body = await request.json()
     except Exception:
@@ -2071,9 +2142,14 @@ async def api_auth_login(request: Request, session: str | None = Query(None)):
     account_name = raw_name if raw_name.startswith("@") else f"@{raw_name}"
     stored_hash = _db_get_account_password_hash(account_name)
     _INVALID = {"error": "Invalid account or password"}
-    if stored_hash is None:
-        return JSONResponse(_INVALID, status_code=401)
-    if not bcrypt.checkpw(password.encode(), stored_hash.encode()):
+    # Always run bcrypt to prevent account-existence timing oracle.
+    # If no stored hash, compare against a dummy hash (always fails).
+    _DUMMY_HASH = "$2b$12$GhvMmNVjRW29ulnudl.LbuAnUtN/LRfe1JsBm1Vf3nGJFRtcjpB9."
+    check_hash = stored_hash if stored_hash is not None else _DUMMY_HASH
+    loop = asyncio.get_event_loop()
+    ok = await loop.run_in_executor(None, lambda: bcrypt.checkpw(password.encode(), check_hash.encode()))
+    if stored_hash is None or not ok:
+        _record_login_failure(client_ip)
         return JSONResponse(_INVALID, status_code=401)
     _db_bind_session(sid, account_name, "primary", make_active=True)
     return JSONResponse({"ok": True, "account_name": account_name})
@@ -2160,6 +2236,8 @@ async def sse(request: Request, session: str | None = Query(None), share: str | 
         return JSONResponse({"error": err}, status_code=400)
     if sid and sid in _sessions and _sessions[sid]["cache"]["data_bytes"] is not None:
         target: set = _sessions[sid]["sse_queues"]
+        if len(target) >= _MAX_SSE_PER_SESSION:
+            return JSONResponse({"error": "Too many SSE connections for this session"}, status_code=429)
     else:
         target = _sse_queues
     target.add(q)

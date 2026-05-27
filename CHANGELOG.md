@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.34] - 2026-05-28
+
+### Security
+- **Stored XSS fix** — ability names from uploaded Lua files and imported build payloads are now HTML-escaped before injection via Alpine `x-html` (`abilitySlotHtml` / `abilitySlotHtmlCompare`); a crafted Lua file with HTML in an ability name could previously execute script in any viewer's browser when accessed via a share code or build import code
+- **Upload size limits** — all upload paths now enforce a 100 MB cap per file (iasync, WW, TTC); SuperStar image uploads are capped at 20 MB; oversized requests return HTTP 413
+- **Login rate limiting** — per-IP brute-force protection: 5 failures within 60 s triggers a 5-minute lockout; blocked requests return HTTP 429
+- **Login timing oracle fixed** — when an account does not exist the server now compares the submitted password against a dummy bcrypt hash instead of returning immediately, preventing account-existence enumeration via response timing; the bcrypt check is also offloaded to a thread executor to avoid blocking the event loop
+- **Security response headers** — all responses now include `X-Frame-Options: DENY` (clickjacking prevention) and `Referrer-Policy: no-referrer` in addition to the existing `X-Content-Type-Options: nosniff`
+- **SSE connection cap** — session-scoped SSE connection sets are now capped at 10 concurrent connections; excess attempts return HTTP 429
+
 ## [0.1.0-beta.33] - 2026-05-26
 
 ### Added

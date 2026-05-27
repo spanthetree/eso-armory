@@ -2,7 +2,7 @@
 
 ![ESO Armory header](header.svg)
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.33-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.34-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.

@@ -200,6 +200,34 @@ PRs branch from `master` and target `master` on GitHub.
 
 **20-field bug (deferred):** Some links have 20 fields; flags shift to `[13]`, `[16]` may be missing. Fix: check `len(raw)` and adjust offsets. Transmuted and reconstructed both set bit 11 — no bit-level distinction.
 
+## Security Model
+
+### Response headers
+`_apply_security_headers()` in the middleware sets these on every response:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Referrer-Policy: no-referrer`
+
+### Upload limits
+```python
+_MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB — iasync, WW, TTC
+_MAX_IMAGE_BYTES  =  20 * 1024 * 1024  # 20 MB — SuperStar image
+```
+`_read_upload_bytes()` and `_stream_to_path()` raise `ValueError` on oversize; callers return HTTP 413.
+
+### Login protection
+- **Rate limiting**: `_check_login_rate_limit(ip)` / `_record_login_failure(ip)` — 5 failures in 60 s → 5-min lockout; HTTP 429
+- **Timing oracle**: always runs `bcrypt.checkpw` (against a dummy hash when the account doesn't exist); bcrypt offloaded to thread executor to avoid blocking the event loop
+
+### XSS — `x-html` with user data
+Any function that uses `x-html` to render user-supplied text **must** call `escapeHtml(s)` before interpolating. Example: `abilitySlotHtml` / `abilitySlotHtmlCompare` escape ability names before placing them in `<span>` tags. Ability names come from uploaded Lua data and imported build payloads and are shared across users via share codes — escaping is required.
+
+### SSE connection cap
+Session-scoped SSE queue sets are capped at `_MAX_SSE_PER_SESSION = 10`; excess connections return HTTP 429.
+
+### Encryption
+Per-session Anthropic API keys are Fernet-encrypted in SQLite using a key stored under `db_secret` in `config.json`. `config.json` is gitignored and must not be exposed via the web server document root. HTTPS should be terminated by a reverse proxy (nginx/Caddy) — the app speaks plain HTTP.
+
 ## Known Quirks / Gotchas
 - **WW mythic key**: `gear` dict has `"mythic"` string key alongside integer slot keys — skip via `int(slot_raw)` in try/except.
 - **Mythic `set_id=0`**: Use `set_id || _slugify(set_name)` as cache key everywhere (Python + JS). Server `_fetch_set_bonuses` breaks on second bonus line when `first_pieces==1` to avoid multi-set bleed.
@@ -208,6 +236,6 @@ PRs branch from `master` and target `master` on GitHub.
 - **`weaponType` stale**: recorded per-slot at scan time; discard when it claims "Staff" but item name disagrees, then fall back to name-based detection.
 - **Shields**: `filter_type 2` (Armor) with `weaponType="Shield"` and `armorType=nil` — check `weapon_type === 'Shield'` before armor-weight lookup.
 - **Mundus icon key**: Strip "The " prefix: `name.toLowerCase().replace(/^the\s+/, '')`.
-- **`x-html` for icons**: Use `x-html` (not `x-text`) for location icons and skill chips to render `<img>` tags.
+- **`x-html` for icons**: Use `x-html` (not `x-text`) for location icons and skill chips to render `<img>` tags. **Any user-supplied text interpolated into `x-html` template literals must go through `escapeHtml(s)` first** — see Security Model section.
 - **`GetEquipmentFilterTypeForItemSetCollectionSlot` is misnamed**: returns armor/weapon sub-type integers, not `ITEM_FILTER_TYPE_*`. Use piece names from `GetItemLinkName` instead.
 - **Achievements mixed-persistence**: `achievItemsByCatSubcat()` must merge `account_items` with character-specific `items_by_char` and dedupe by achievement id.
