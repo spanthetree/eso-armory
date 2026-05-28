@@ -593,7 +593,7 @@
             </div>
           </template>
           <p class="mt-1.5 text-[10px]" style="color:var(--t-muted)">
-            Automatically re-syncs SavedVariables<span x-show="isAdmin"> and TTC tables</span> when files change or every 15 minutes.
+            Automatically re-syncs SavedVariables<span x-show="isAdmin"> and TTC tables</span> when files change.
           </p>
           <!-- Per-file sync status -->
           <template x-if="dirHandle">
@@ -3864,33 +3864,25 @@ function armory() {
         if (!handle) return;
         if ((await handle.queryPermission({ mode: 'read' })) !== 'granted') return;
         this.dirHandle = handle;
-        await this.checkDirForChanges(true);
+        await this.checkDirForChanges();
         this.startDirWatch();
       } catch(e) { /* IDB or permission API unavailable */ }
     },
 
     startDirWatch() {
       this.stopDirWatch();
-      this._lastForceUpload = Date.now();
-      // Every 60s: cheap metadata-only check; upload if anything changed or 15min elapsed.
+      // Every 60s: cheap metadata-only check; upload only if files changed.
       this.watchInterval = setInterval(async () => {
-        const now = Date.now();
-        const forceDue = (now - this._lastForceUpload) >= 15 * 60 * 1000;
         const meta = await this._readDirMeta();
-        this.lastChecked = now;
+        this.lastChecked = Date.now();
         const changed =
           (meta.iasync && meta.iasync > this.iasyncLastMod) ||
           (meta.ww && meta.ww > this.wwLastMod) ||
           (meta.ttcLookup && meta.ttcLookup > this.ttcLookupLastMod) ||
           (meta.ttcPrice && meta.ttcPrice > this.ttcPriceLastMod);
-        if (changed || forceDue) {
-          const uploaded = await this._uploadFromDir(meta, forceDue);
-          if (uploaded) {
-            this._lastForceUpload = Date.now();
-            this.showToast('Data updated ✓');
-          } else if (forceDue) {
-            this._lastForceUpload = Date.now();
-          }
+        if (changed) {
+          const uploaded = await this._uploadFromDir(meta);
+          if (uploaded) this.showToast('Data updated ✓');
         }
       }, 60 * 1000);
     },
@@ -3933,8 +3925,8 @@ function armory() {
       return { iasync, ww, ttcLookup, ttcPrice };
     },
 
-    // Upload files that have changed (or all if force). Returns true if anything was uploaded.
-    async _uploadFromDir(meta, force = false) {
+    // Upload files that have changed. Returns true if anything was uploaded.
+    async _uploadFromDir(meta) {
       if (!this.dirHandle || this._uploadInProgress) return false;
       this._uploadInProgress = true;
       const region = (this.data?.meta?.server || 'NA').toUpperCase() === 'EU' ? 'EU' : 'NA';
@@ -3949,20 +3941,20 @@ function armory() {
       try {
         const fd = new FormData();
         const files = {};
-        if (force || (meta.iasync && meta.iasync > this.iasyncLastMod)) {
+        if (meta.iasync && meta.iasync > this.iasyncLastMod) {
           files.iasync = await getFile(['SavedVariables'], 'iasync.lua');
           if (files.iasync) fd.append('iasync', files.iasync);
         }
-        if (force || (meta.ww && meta.ww > this.wwLastMod)) {
+        if (meta.ww && meta.ww > this.wwLastMod) {
           files.ww = await getFile(['SavedVariables'], 'WizardsWardrobe.lua');
           if (files.ww) fd.append('ww', files.ww);
         }
         if (this.isAdmin) {
-          if (force || (meta.ttcLookup && meta.ttcLookup > this.ttcLookupLastMod)) {
+          if (meta.ttcLookup && meta.ttcLookup > this.ttcLookupLastMod) {
             files.ttcLookup = await getFile(['AddOns', 'TamrielTradeCentre'], 'ItemLookUpTable_EN.lua');
             if (files.ttcLookup) fd.append('ttc_lookup', files.ttcLookup);
           }
-          if (force || (meta.ttcPrice && meta.ttcPrice > this.ttcPriceLastMod)) {
+          if (meta.ttcPrice && meta.ttcPrice > this.ttcPriceLastMod) {
             files.ttcPrice = await getFile(['AddOns', 'TamrielTradeCentre'], `PriceTable${region}.lua`);
             if (files.ttcPrice) fd.append('ttc_price', files.ttcPrice);
           }
@@ -4002,10 +3994,10 @@ function armory() {
       finally { this._uploadInProgress = false; }
     },
 
-    async checkDirForChanges(force = false) {
+    async checkDirForChanges() {
       const meta = await this._readDirMeta();
       this.lastChecked = Date.now();
-      return this._uploadFromDir(meta, force);
+      return this._uploadFromDir(meta);
     },
 
     // ── Manual refresh ────────────────────────────────────
@@ -4014,7 +4006,7 @@ function armory() {
       this.refreshing = true;
       try {
         if (this.dirHandle) {
-          const changed = await this.checkDirForChanges(false);
+          const changed = await this.checkDirForChanges();
           this.showToast(changed ? 'Data updated ✓' : 'No updates');
         } else {
           const r = await fetch(this.apiUrl('/api/status'));
