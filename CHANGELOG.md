@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.35] - 2026-05-28
+
+### Changed
+- **Folder watcher — change-detection only** — removed the 15-minute force-sync; the watcher now uploads files only when their `lastModified` timestamp has advanced since the last sync; the manual Refresh button still triggers an immediate check-and-upload pass; eliminates ~50 MB of unnecessary inbound traffic every 15 minutes for admin accounts with large TTC price tables
+
 ## [0.1.0-beta.34] - 2026-05-28
 
 ### Security
