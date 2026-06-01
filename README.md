@@ -2,35 +2,36 @@
 
 ![ESO Armory header](header.svg)
 
-![Version](https://img.shields.io/badge/version-0.1.0--beta.34-orange)
+![Version](https://img.shields.io/badge/version-0.1.0--beta.36-orange)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
 
 > **Beta:** This is early software. Expect rough edges and breaking changes between releases.
 
-A local web app that reads your Elder Scrolls Online SavedVariables and presents your inventory, equipped gear, and WizardsWardrobe builds in a browser — inspired by the old WoW Armory.
+A local web app that reads your Elder Scrolls Online SavedVariables and presents your inventory, equipped gear, and WizardsWardrobe builds in a browser - inspired by the old WoW Armory.
 
 ## Features
 
-- **Characters tab** — all characters at a glance with equipped gear paper-doll using slot-specific gear icons; click any character to see current build details, character-scoped inventory, and WizardsWardrobe builds
-- **Build compare workflow** — from character drilldown, export your current build as a short code, import another build by code, and compare current vs imported gear side-by-side; each account+character keeps a single export code that is updated on re-export, including hosted/shared workspaces
-- **SuperStar Compare** — paste or upload a screenshot from the ESO SuperStar addon; Claude Vision parses the build and produces a slot-by-slot comparison against your currently equipped gear, colour-coded by status: equipped, have it elsewhere, wrong trait, or missing; requires an `ANTHROPIC_API_KEY`
-- **Missing gear planner** — compare mode lists missing imported-build items, uses stickerbook metadata to flag Dungeon/Trial/Arena sources, skips TTC pricing for crafted and source-gated items, and totals only purchasable missing-item cost
-- **Builds** — gear, skills (primary + backup bars), Champion Points, and food for each WW setup; ability icons are discovered from PNG and WebP assets, including scribing skills such as Chilling Throw and Shocking Contingency
-- **Inventory tab** — full cross-character inventory with search, multiselect quality/type/trait/location/character filters, Transmuted and Crafted toggle buttons, Group by Set view, and sortable columns; items show weapon-type and armor-weight tags and slot-specific gear icons
-- **Achievements tab** — account-wide achievement summary with category/subcategory drill-down, a character selector that merges account-wide and character-specific completions, progress bars, recent completions, and completion attribution
-- **Collections tab** — stickerbook set drill-down with TTC links for individual pieces; if Tamriel Trade Centre is installed locally, piece hovers show TTC price data with attribution and timestamps
-- **Currency totals** — gold, AP, Telvar Stones, and Writ Vouchers across all characters + bank in the header
-- **Color themes** — five palettes (Gold, Light, Dark, Synthwave, Outrun) switchable via a "Theme" dropdown in the header; selection persists across sessions
-- **Live reload** — watches SavedVariables files and updates the browser automatically via SSE
-- **File upload / remote use** — upload `iasync.lua` and `WizardsWardrobe.lua` directly via the browser; all payloads (inventory, builds, achievements, stickerbook) are parsed upfront on upload and stored in SQLite — no raw Lua is kept on the server after ingest
-- **SQLite-backed uploaded workspaces** — processed payloads are stored per ESO account name; workspaces reopen from the DB without re-uploading, and data survives server restarts
-- **Workspace sharing** — create a pairing code or share link from the header so another browser or device can join the same uploaded workspace later; private sessions remain the default
-- **Primary + shadow workspaces** — a browser session now keeps one primary account and one optional shadow account; uploading a second distinct ESO account fills the shadow slot instead of replacing the primary account, and you can switch between them from the header
-- **Shared workspace persistence** — pairing codes are backed by a small server-side registry so the same uploaded data can be reopened on another browser later without re-uploading
-- **Folder watcher** (Chrome/Edge) — select your ESO `live` folder once; the app checks file modification timestamps every 60 s (metadata-only, no content read) and uploads only files that have changed; directory handle persists across sessions via IndexedDB; admin accounts also sync TTC price tables from `AddOns/TamrielTradeCentre/`
-- **Refresh button** — manually check for updated data at any time; toasts "Data updated ✓" or "No updates"
-- **Session isolation** — each browser gets a UUID stored in `localStorage`; multiple users on the same hosted instance see only their own uploaded data by default, but a browser can opt into a shared workspace with a pairing code; private sessions still expire after 2 hours of inactivity
-- **Static serving hardening** — the app shell is explicitly served as `text/html` with `nosniff` headers, Alpine.js is served locally from `static/vendor/`, and upload failures from proxies/CDNs show actionable HTTP/content messages instead of raw JSON parser errors
+- **Characters tab** - all characters at a glance with equipped gear paper-doll using slot-specific gear icons; click any character to see current build details, character-scoped inventory, and WizardsWardrobe builds
+- **Build compare workflow** - from character drilldown, export your current build as a short code, import another build by code, and compare current vs imported gear side-by-side; each account+character keeps a single export code that is updated on re-export, including hosted/shared workspaces
+- **SuperStar Compare** - paste or upload a screenshot from the ESO SuperStar addon; Claude Vision parses the build and produces a slot-by-slot comparison against your currently equipped gear, colour-coded by status: equipped, have it elsewhere, wrong trait, or missing; requires an `ANTHROPIC_API_KEY`
+- **Missing gear planner** - compare mode lists missing imported-build items, uses stickerbook metadata to flag Dungeon/Trial/Arena sources, skips TTC pricing for crafted and source-gated items, and totals only purchasable missing-item cost
+- **Builds** - gear, skills (primary + backup bars), Champion Points, and food for each WW setup; ability icons are discovered from PNG and WebP assets, including scribing skills such as Chilling Throw and Shocking Contingency
+- **Inventory tab** - full cross-character inventory with search, multiselect quality/type/trait/location/character filters, Transmuted and Crafted toggle buttons, Group by Set view, and sortable columns; items show weapon-type and armor-weight tags and slot-specific gear icons
+- **Achievements tab** - account-wide achievement summary with category/subcategory drill-down, a character selector that merges account-wide and character-specific completions, progress bars, recent completions, and completion attribution
+- **Collections tab** - stickerbook set drill-down with TTC links for individual pieces; if Tamriel Trade Centre is installed locally, piece hovers show TTC price data with attribution and timestamps
+- **Currency totals** - gold, AP, Telvar Stones, and Writ Vouchers across all characters + bank in the header
+- **Color themes** - five palettes (Gold, Light, Dark, Synthwave, Outrun) switchable via a "Theme" dropdown in the header; selection persists across sessions
+- **Live reload** - watches SavedVariables files and updates the browser automatically via SSE
+- **First-time setup guide** - the empty state walks new users through the three setup steps (log in to ESO, locate SavedVariables, upload); `?` tooltip popovers in the upload modal explain each file and its path on Windows
+- **File upload / remote use** - upload `iasync.lua` and `WizardsWardrobe.lua` directly via the browser; all payloads (inventory, builds, achievements, stickerbook) are parsed upfront on upload and stored in SQLite - no raw Lua is kept on the server after ingest
+- **SQLite-backed uploaded workspaces** - processed payloads are stored per ESO account name; workspaces reopen from the DB without re-uploading, and data survives server restarts
+- **Workspace sharing** - create a pairing code or share link from the header so another browser or device can join the same uploaded workspace later; private sessions remain the default
+- **Primary + shadow workspaces** - a browser session now keeps one primary account and one optional shadow account; uploading a second distinct ESO account fills the shadow slot instead of replacing the primary account, and you can switch between them from the header
+- **Shared workspace persistence** - pairing codes are backed by a small server-side registry so the same uploaded data can be reopened on another browser later without re-uploading
+- **Folder watcher** (Chrome/Edge) - select your ESO `live` folder once; the app checks file modification timestamps every 60 s (metadata-only, no content read) and uploads only files that have changed; directory handle persists across sessions via IndexedDB; admin accounts also sync TTC price tables from `AddOns/TamrielTradeCentre/`
+- **Refresh button** - manually check for updated data at any time; toasts "Data updated ✓" or "No updates"
+- **Session isolation** - each browser gets a UUID stored in `localStorage`; multiple users on the same hosted instance see only their own uploaded data by default, but a browser can opt into a shared workspace with a pairing code; private sessions still expire after 2 hours of inactivity
+- **Static serving hardening** - the app shell is explicitly served as `text/html` with `nosniff` headers, Alpine.js is served locally from `static/vendor/`, and upload failures from proxies/CDNs show actionable HTTP/content messages instead of raw JSON parser errors
 
 ## Requirements
 
@@ -81,7 +82,7 @@ On first run a `config.json` is created automatically. Edit it if needed:
 }
 ```
 
-`server` should be `"NA"` or `"EU"`. The TTC paths are only used for server-side TTC lookups — iasync.lua and WizardsWardrobe.lua are uploaded through the browser, not read from disk. Leave `ttc_price_table_path` empty to auto-select `PriceTableNA.lua` or `PriceTableEU.lua` from `ttc_addon_path`.
+`server` should be `"NA"` or `"EU"`. The TTC paths are only used for server-side TTC lookups - iasync.lua and WizardsWardrobe.lua are uploaded through the browser, not read from disk. Leave `ttc_price_table_path` empty to auto-select `PriceTableNA.lua` or `PriceTableEU.lua` from `ttc_addon_path`.
 
 ### 4. Start the server
 
@@ -103,7 +104,7 @@ uv run server.py --port 8080
 python server.py --port 8080
 ```
 
-Data reaches the server via browser upload or the folder watcher — the server does not read SavedVariables from disk directly.
+Data reaches the server via browser upload or the folder watcher - the server does not read SavedVariables from disk directly.
 
 ## Testing
 

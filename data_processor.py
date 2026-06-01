@@ -93,7 +93,7 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
         "space_max":  0,
     }
 
-    # ── Items — aggregate by link across all storage locations ───────────────────
+    # ── Items: aggregate by link across all storage locations ────────────────────
     item_map: dict[str, dict] = {}
 
     def _add_slot(item_data: dict, slot, loc_type: str, loc_key: str,
@@ -265,7 +265,7 @@ def process_ww_builds(raw: dict) -> dict:
                     if not name or name.lower() == "empty":
                         continue
 
-                    # Gear — sorted by slot
+                    # Gear: sorted by slot
                     gear: list[dict] = []
                     for slot_raw, slot_data in setup.get("gear", {}).items():
                         if not isinstance(slot_data, dict):
@@ -301,7 +301,7 @@ def process_ww_builds(raw: dict) -> dict:
                         })
                     gear.sort(key=lambda g: g["slot"])
 
-                    # Skills — WW bar 0→primary, 1→backup
+                    # Skills: WW bar 0=primary, 1=backup
                     skills: dict[str, dict] = {}
                     for bar_raw, bar_data in setup.get("skills", {}).items():
                         if not isinstance(bar_data, dict):
@@ -312,7 +312,7 @@ def process_ww_builds(raw: dict) -> dict:
                             if aid and int(aid) > 0
                         }
 
-                    # CP — {str(1-12): abilityId}
+                    # CP: {str(1-12): abilityId}
                     cp = {
                         str(k): v for k, v in setup.get("cp", {}).items()
                         if v and int(v) > 0
@@ -382,7 +382,7 @@ def process_iasync_achievements(raw: dict) -> dict:
             "subcats":        subcats,
         })
 
-    # ── Individual achievements — kept per-character ─────────────────────────────
+    # ── Individual achievements, kept per-character ──────────────────────────────
     chars_raw = raw.get("chars", {})
     items_by_char: dict[str, list] = {}
     chars_with_achiev: list[dict] = []
@@ -533,7 +533,7 @@ def process_iasync_builds(raw: dict) -> dict:
         build_cp = c.get("build_cp", {})
         cp = {str(k): v for k, v in build_cp.get("slots", {}).items()}
 
-        # Mundus: stored as {1: "The Lady"} — pull values
+        # Mundus: stored as {1: "The Lady"}, pull values
         build_mundus = c.get("build_mundus") or {}
         mundus = list(build_mundus.values()) if isinstance(build_mundus, dict) else list(build_mundus)
 

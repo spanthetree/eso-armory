@@ -546,7 +546,7 @@
   <div x-show="uploadOpen" x-cloak
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
     style="background:rgba(0,0,0,0.7)"
-    @keydown.escape.window="uploadOpen = false">
+    @keydown.escape.window="uploadOpen = false; helpOpen = ''">
     <div class="w-full max-w-md rounded-xl p-7 relative"
       style="background:var(--t-card);border:1px solid var(--t-border)"
       @click.stop>
@@ -555,10 +555,9 @@
         class="absolute top-4 right-4 text-lg leading-none"
         style="color:var(--t-muted)">&times;</button>
 
-      <h2 class="font-cinzel font-bold text-lg mb-1" style="color:var(--t-gold)">Upload Live Folder</h2>
+      <h2 class="font-cinzel font-bold text-lg mb-1" style="color:var(--t-gold)">Upload ESO Data</h2>
       <p class="text-xs mb-5" style="color:var(--t-muted)">
-        Select your ESO <code class="rounded px-1 py-0.5 inline-block"
-          style="background:var(--t-bg);color:var(--t-text)">live</code> folder, with data under:<br>
+        Find your SavedVariables files at:<br>
         <code class="rounded px-1 py-0.5 mt-0.5 inline-block"
           style="background:var(--t-bg);color:var(--t-text)">
           Documents/Elder Scrolls Online/live/SavedVariables/
@@ -569,8 +568,20 @@
       <template x-if="hasDirectoryPicker">
         <div class="mb-4">
           <div class="flex items-center justify-between mb-1.5">
-            <div class="text-xs font-semibold uppercase tracking-wide"
-              style="color:var(--t-gold);font-family:'Cinzel',serif">Auto-Watch Folder</div>
+            <div class="flex items-center gap-1">
+              <div class="text-xs font-semibold uppercase tracking-wide"
+                style="color:var(--t-gold);font-family:'Cinzel',serif">Auto-Watch Folder</div>
+              <span class="relative inline-block" @click.away="helpOpen = ''">
+                <button @click.stop="toggleHelp('folder')"
+                  class="w-4 h-4 rounded-full border text-[10px] leading-none transition-colors flex items-center justify-center"
+                  :style="helpOpen==='folder' ? 'border-color:var(--t-gold);color:var(--t-gold)' : 'border-color:var(--t-muted);color:var(--t-muted)'">?</button>
+                <div x-show="helpOpen === 'folder'" x-transition
+                  class="absolute z-50 left-0 top-5 w-64 text-xs rounded p-2.5 shadow-lg"
+                  style="background:var(--t-card);border:1px solid var(--t-border);color:var(--t-text)">
+                  Watches your SavedVariables folder and reloads automatically when ESO saves new data. You'll need to re-select it after restarting your browser.
+                </div>
+              </span>
+            </div>
             <span class="text-[10px]" style="color:var(--t-muted)">Chrome / Edge only</span>
           </div>
           <template x-if="!dirHandle">
@@ -631,9 +642,23 @@
 
       <!-- iasync.lua -->
       <div class="mb-3">
-        <div class="text-xs font-semibold mb-1.5 uppercase tracking-wide"
-          style="color:var(--t-gold);font-family:'Cinzel',serif">
-          iasync.lua <span class="normal-case font-normal" style="color:var(--t-muted)">(inventory &amp; characters)</span>
+        <div class="flex items-center gap-1 mb-1.5">
+          <div class="text-xs font-semibold uppercase tracking-wide"
+            style="color:var(--t-gold);font-family:'Cinzel',serif">
+            iasync.lua
+          </div>
+          <span class="text-xs font-normal normal-case" style="color:var(--t-muted)">(inventory &amp; characters)</span>
+          <span class="relative inline-block" @click.away="helpOpen = ''">
+            <button @click.stop="toggleHelp('iasync')"
+              class="w-4 h-4 rounded-full border text-[10px] leading-none transition-colors flex items-center justify-center"
+              :style="helpOpen==='iasync' ? 'border-color:var(--t-gold);color:var(--t-gold)' : 'border-color:var(--t-muted);color:var(--t-muted)'">?</button>
+            <div x-show="helpOpen === 'iasync'" x-transition
+              class="absolute z-50 left-0 top-5 w-72 text-xs rounded p-2.5 shadow-lg"
+              style="background:var(--t-card);border:1px solid var(--t-border);color:var(--t-text)">
+              Your characters, inventory, gear, and currencies - the main data file.<br><br>
+              <code class="block mt-0.5 rounded px-1 py-0.5 break-all" style="background:var(--t-bg)">SavedVariables\iasync.lua</code>
+            </div>
+          </span>
         </div>
         <label class="flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer"
           style="border:1px dashed var(--t-border);background:var(--t-bg)"
@@ -650,9 +675,23 @@
 
       <!-- WizardsWardrobe.lua -->
       <div class="mb-5">
-        <div class="text-xs font-semibold mb-1.5 uppercase tracking-wide"
-          style="color:var(--t-gold);font-family:'Cinzel',serif">
-          WizardsWardrobe.lua <span class="normal-case font-normal" style="color:var(--t-muted)">(optional — builds)</span>
+        <div class="flex items-center gap-1 mb-1.5">
+          <div class="text-xs font-semibold uppercase tracking-wide"
+            style="color:var(--t-gold);font-family:'Cinzel',serif">
+            WizardsWardrobe.lua
+          </div>
+          <span class="text-xs font-normal normal-case" style="color:var(--t-muted)">(optional, builds)</span>
+          <span class="relative inline-block" @click.away="helpOpen = ''">
+            <button @click.stop="toggleHelp('ww')"
+              class="w-4 h-4 rounded-full border text-[10px] leading-none transition-colors flex items-center justify-center"
+              :style="helpOpen==='ww' ? 'border-color:var(--t-gold);color:var(--t-gold)' : 'border-color:var(--t-muted);color:var(--t-muted)'">?</button>
+            <div x-show="helpOpen === 'ww'" x-transition
+              class="absolute z-50 left-0 top-5 w-72 text-xs rounded p-2.5 shadow-lg"
+              style="background:var(--t-card);border:1px solid var(--t-border);color:var(--t-text)">
+              Saved build loadouts, only needed if you use the Wizards Wardrobe addon.<br><br>
+              <code class="block mt-0.5 rounded px-1 py-0.5 break-all" style="background:var(--t-bg)">SavedVariables\WizardsWardrobe.lua</code>
+            </div>
+          </span>
         </div>
         <label class="flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer"
           style="border:1px dashed var(--t-border);background:var(--t-bg)"
@@ -671,7 +710,7 @@
       <div class="mb-5" x-show="isAdmin">
         <div class="text-xs font-semibold mb-1.5 uppercase tracking-wide"
           style="color:var(--t-gold);font-family:'Cinzel',serif">
-          Tamriel Trade Centre <span class="normal-case font-normal" style="color:var(--t-muted)">(pricing — admin only)</span>
+          Tamriel Trade Centre <span class="normal-case font-normal" style="color:var(--t-muted)">(pricing, admin only)</span>
         </div>
         <div class="space-y-3">
           <label class="flex items-center gap-3 rounded-lg px-4 py-3 cursor-pointer"
@@ -718,17 +757,17 @@
           <template x-if="uploadStatus.iasync">
             <div :class="uploadStatus.iasync.ok ? 'text-green-400' : 'text-red-400'">
               <span x-show="uploadStatus.iasync.ok"
-                x-text="`✓ iasync — ${uploadStatus.iasync.chars} characters, ${uploadStatus.iasync.items.toLocaleString()} items → ${uploadStatus.iasync.slot_updated || 'primary'}`"></span>
+                x-text="`✓ iasync: ${uploadStatus.iasync.chars} characters, ${uploadStatus.iasync.items.toLocaleString()} items to ${uploadStatus.iasync.slot_updated || 'primary'}`"></span>
               <span x-show="!uploadStatus.iasync.ok"
-                x-text="`✗ iasync — ${uploadStatus.iasync.error}`"></span>
+                x-text="`✗ iasync: ${uploadStatus.iasync.error}`"></span>
             </div>
           </template>
           <template x-if="uploadStatus.ww">
             <div :class="uploadStatus.ww.ok ? 'text-green-400' : 'text-red-400'">
               <span x-show="uploadStatus.ww.ok"
-                x-text="`✓ WizardsWardrobe — ${uploadStatus.ww.builds} builds → ${uploadStatus.ww.slot_updated || workspace.activeSlot}`"></span>
+                x-text="`✓ WizardsWardrobe: ${uploadStatus.ww.builds} builds to ${uploadStatus.ww.slot_updated || workspace.activeSlot}`"></span>
               <span x-show="!uploadStatus.ww.ok"
-                x-text="`✗ WizardsWardrobe — ${uploadStatus.ww.error}`"></span>
+                x-text="`✗ WizardsWardrobe: ${uploadStatus.ww.error}`"></span>
             </div>
           </template>
           <template x-if="uploadStatus.ttc_lookup">
@@ -736,7 +775,7 @@
               <span x-show="uploadStatus.ttc_lookup.ok"
                 x-text="`✓ TTC lookup table`"></span>
               <span x-show="!uploadStatus.ttc_lookup.ok"
-                x-text="`✗ TTC lookup table — ${uploadStatus.ttc_lookup.error}`"></span>
+                x-text="`✗ TTC lookup table: ${uploadStatus.ttc_lookup.error}`"></span>
             </div>
           </template>
           <template x-if="uploadStatus.ttc_price">
@@ -744,7 +783,7 @@
               <span x-show="uploadStatus.ttc_price.ok"
                 x-text="`✓ TTC price table`"></span>
               <span x-show="!uploadStatus.ttc_price.ok"
-                x-text="`✗ TTC price table — ${uploadStatus.ttc_price.error}`"></span>
+                x-text="`✗ TTC price table: ${uploadStatus.ttc_price.error}`"></span>
             </div>
           </template>
         </div>
@@ -926,7 +965,7 @@
       </div>
       <div class="flex items-center gap-4">
         <span x-show="loading" class="text-eso-muted text-sm animate-pulse">Loading…</span>
-        <span x-show="error && !loading" class="text-red-400 text-sm" x-text="error"></span>
+        <span x-show="error && !loading && data !== null" class="text-red-400 text-sm" x-text="error"></span>
         <span x-show="data && !loading" class="flex items-center gap-4 text-xs text-eso-muted">
           <span><span x-text="data ? data.meta.character_count : 0"></span> characters</span>
           <span class="flex items-center gap-1"><img src="/assets/currencies/gold.png" class="cur-icon"> <span x-text="fmtGold(totalGold)"></span></span>
@@ -1051,15 +1090,23 @@
     <!-- Upload / Setup -->
     <div x-show="!loading && !data" class="max-w-lg mx-auto mt-16">
       <div class="rounded-xl p-8" style="background:var(--t-card);border:1px solid var(--t-border)">
-        <h2 class="font-cinzel font-bold text-2xl mb-1" style="color:var(--t-gold)">Load Your ESO Data</h2>
-        <p class="text-sm mb-6" style="color:var(--t-muted)">
-          Upload your SavedVariables files to browse your armory.
-          Find them at:<br>
-          <code class="text-xs rounded px-1 py-0.5 mt-1 inline-block"
-            style="background:var(--t-bg);color:var(--t-text)">
-            Documents/Elder Scrolls Online/live/SavedVariables/
-          </code>
-        </p>
+        <h2 class="font-cinzel font-bold text-2xl mb-4" style="color:var(--t-gold)">Load Your ESO Data</h2>
+        <ol class="text-sm space-y-3 mb-6 list-none">
+          <li class="flex gap-3">
+            <span class="font-cinzel font-bold text-base shrink-0" style="color:var(--t-gold)">1.</span>
+            <span style="color:var(--t-muted)">Install the <strong style="color:var(--t-text)">iasync</strong> addon (required) and optionally <strong style="color:var(--t-text)">Wizards Wardrobe</strong> for builds. Log into ESO and run <code class="rounded px-1 py-0.5 text-xs" style="background:var(--t-bg);color:var(--t-text)">/reloadui</code> to generate the files.</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="font-cinzel font-bold text-base shrink-0" style="color:var(--t-gold)">2.</span>
+            <span style="color:var(--t-muted)">Find your SavedVariables files at:<br>
+              <code class="text-xs rounded px-1 py-0.5 mt-1 inline-block" style="background:var(--t-bg);color:var(--t-text)">Documents\Elder Scrolls Online\live\SavedVariables\</code>
+            </span>
+          </li>
+          <li class="flex gap-3">
+            <span class="font-cinzel font-bold text-base shrink-0" style="color:var(--t-gold)">3.</span>
+            <span style="color:var(--t-muted)">Use the button below to pick <code class="text-xs rounded px-1 py-0.5" style="background:var(--t-bg);color:var(--t-text)">iasync.lua</code> (required) and optionally <code class="text-xs rounded px-1 py-0.5" style="background:var(--t-bg);color:var(--t-text)">WizardsWardrobe.lua</code> for builds.</span>
+          </li>
+        </ol>
 
         <button @click="uploadOpen = true; uploadStatus = null"
           class="w-full py-2.5 rounded-lg font-cinzel font-semibold text-sm"
@@ -1076,17 +1123,17 @@
             <template x-if="uploadStatus.iasync">
               <div :class="uploadStatus.iasync.ok ? 'text-green-400' : 'text-red-400'">
                 <span x-show="uploadStatus.iasync.ok"
-                  x-text="`✓ iasync — ${uploadStatus.iasync.chars} characters, ${uploadStatus.iasync.items.toLocaleString()} items → ${uploadStatus.iasync.slot_updated || 'primary'}`"></span>
+                  x-text="`✓ iasync: ${uploadStatus.iasync.chars} characters, ${uploadStatus.iasync.items.toLocaleString()} items to ${uploadStatus.iasync.slot_updated || 'primary'}`"></span>
                 <span x-show="!uploadStatus.iasync.ok"
-                  x-text="`✗ iasync — ${uploadStatus.iasync.error}`"></span>
+                  x-text="`✗ iasync: ${uploadStatus.iasync.error}`"></span>
               </div>
             </template>
             <template x-if="uploadStatus.ww">
               <div :class="uploadStatus.ww.ok ? 'text-green-400' : 'text-red-400'">
                 <span x-show="uploadStatus.ww.ok"
-                  x-text="`✓ WizardsWardrobe — ${uploadStatus.ww.builds} builds → ${uploadStatus.ww.slot_updated || workspace.activeSlot}`"></span>
+                  x-text="`✓ WizardsWardrobe: ${uploadStatus.ww.builds} builds to ${uploadStatus.ww.slot_updated || workspace.activeSlot}`"></span>
                 <span x-show="!uploadStatus.ww.ok"
-                  x-text="`✗ WizardsWardrobe — ${uploadStatus.ww.error}`"></span>
+                  x-text="`✗ WizardsWardrobe: ${uploadStatus.ww.error}`"></span>
               </div>
             </template>
             <template x-if="uploadStatus.ttc_lookup">
@@ -1094,7 +1141,7 @@
                 <span x-show="uploadStatus.ttc_lookup.ok"
                   x-text="`✓ TTC lookup table`"></span>
                 <span x-show="!uploadStatus.ttc_lookup.ok"
-                  x-text="`✗ TTC lookup table — ${uploadStatus.ttc_lookup.error}`"></span>
+                  x-text="`✗ TTC lookup table: ${uploadStatus.ttc_lookup.error}`"></span>
               </div>
             </template>
             <template x-if="uploadStatus.ttc_price">
@@ -1102,13 +1149,13 @@
                 <span x-show="uploadStatus.ttc_price.ok"
                   x-text="`✓ TTC price table`"></span>
                 <span x-show="!uploadStatus.ttc_price.ok"
-                  x-text="`✗ TTC price table — ${uploadStatus.ttc_price.error}`"></span>
+                  x-text="`✗ TTC price table: ${uploadStatus.ttc_price.error}`"></span>
               </div>
             </template>
           </div>
         </template>
 
-        <template x-if="error && !uploadStatus">
+        <template x-if="error && !uploadStatus && data !== null">
           <p class="mt-4 text-xs" style="color:var(--t-muted)" x-text="'Server: ' + error"></p>
         </template>
       </div>
@@ -1256,7 +1303,7 @@
               </div>
             </template>
 
-            <!-- Equipment grid — ESO paper-doll layout -->
+            <!-- Equipment grid, ESO paper-doll layout -->
             <div class="border-t border-eso-border pt-3"
                  x-data="{ get sl() { return charMaps[char.id] || {}; } }">
 
@@ -1656,7 +1703,7 @@
           <!-- Upload area (shown until image is parsed) -->
           <template x-if="!ssData">
             <div class="space-y-3" @paste.window="handleSuperStarPaste($event)">
-              <!-- Drop/paste zone — hidden while key entry form is shown -->
+              <!-- Drop/paste zone, hidden while key entry form is shown -->
               <div x-show="!ssNeedKey">
                 <div
                   @click="$refs.ssImageInput.click()"
@@ -1677,7 +1724,7 @@
                 </div>
               </div>
 
-              <!-- API key entry form — shown after image is received but no key is available -->
+              <!-- API key entry form, shown after image is received but no key is available -->
               <div x-show="ssNeedKey" class="space-y-3">
                 <p class="text-xs text-eso-muted">An <span class="text-eso-text">Anthropic API key</span> is required for accurate Claude Vision parsing.</p>
                 <input
@@ -1737,16 +1784,16 @@
                         <td class="py-1 pr-4 text-eso-muted" x-text="row.slot"></td>
                         <!-- Target -->
                         <td class="py-1 pr-4" :class="row.item_name ? 'text-eso-text' : 'text-eso-muted/50'" x-text="row.item_name || 'N/A'"></td>
-                        <td class="py-1 pr-4 text-eso-muted" x-text="row.trait || '—'"></td>
-                        <td class="py-1 pr-4 text-eso-muted" x-text="row.enchantment || '—'"></td>
+                        <td class="py-1 pr-4 text-eso-muted" x-text="row.trait || '-'"></td>
+                        <td class="py-1 pr-4 text-eso-muted" x-text="row.enchantment || '-'"></td>
                         <!-- Currently equipped -->
                         <td class="py-1 pr-4"
                           :class="row.status === 'na' ? 'text-eso-muted/50' : row.curItemMatch ? 'text-green-400' : 'text-yellow-400'"
-                          x-text="row.cur?.name || (row.status === 'na' ? 'N/A' : '— empty —')"></td>
+                          x-text="row.cur?.name || (row.status === 'na' ? 'N/A' : '(empty)')"></td>
                         <td class="py-1 pr-4"
                           :class="!row.cur?.trait ? 'text-eso-muted/50' : row.curTraitMatch ? 'text-green-400' : 'text-yellow-400'"
-                          x-text="row.cur?.trait || '—'"></td>
-                        <td class="py-1 pr-4 text-eso-muted" x-text="row.cur?.enchant || '—'"></td>
+                          x-text="row.cur?.trait || '-'"></td>
+                        <td class="py-1 pr-4 text-eso-muted" x-text="row.cur?.enchant || '-'"></td>
                         <!-- Status -->
                         <td class="py-1 font-semibold"
                           :class="{
@@ -1999,7 +2046,7 @@
                   <!-- Food -->
                   <template x-if="build.food">
                     <div class="mt-3 pt-2 border-t border-eso-border/40 text-xs text-eso-muted">
-                      🍖 <span x-text="build.food.link_name || itemIdMap[build.food.item_id]?.name || (build.food.item_id ? 'Item #' + build.food.item_id : '—')"></span>
+                      🍖 <span x-text="build.food.link_name || itemIdMap[build.food.item_id]?.name || (build.food.item_id ? 'Item #' + build.food.item_id : '-')"></span>
                     </div>
                   </template>
 
@@ -2461,7 +2508,7 @@
       <template x-if="!achievLoading && achievError">
         <div class="flex items-center justify-center h-64">
           <div class="max-w-xl border border-red-400/40 bg-red-950/20 rounded-lg px-5 py-4 text-sm text-red-200">
-            <div class="font-cinzel tracking-wide text-red-100 mb-1">Achievements unavailable</div>
+            <div class="font-cinzel tracking-wide text-red-100 mb-1">User data not loaded</div>
             <div x-text="achievError"></div>
           </div>
         </div>
@@ -2709,7 +2756,7 @@
       <template x-if="!sbLoading && sbError">
         <div class="flex items-center justify-center h-64">
           <div class="max-w-xl border border-red-400/40 bg-red-950/20 rounded-lg px-5 py-4 text-sm text-red-200">
-            <div class="font-cinzel tracking-wide text-red-100 mb-1">Collections unavailable</div>
+            <div class="font-cinzel tracking-wide text-red-100 mb-1">User data not loaded</div>
             <div x-text="sbError"></div>
           </div>
         </div>
@@ -3054,6 +3101,7 @@ function armory() {
     loginPassword: '',
     loginError: null,
     loginBusy: false,
+    helpOpen: '',
 
     theme: (() => { const t = localStorage.getItem('eso-theme'); return (t === 'eso' ? 'gold' : t) || 'gold'; })(),
     themes: {
@@ -3062,6 +3110,10 @@ function armory() {
       dark:      { label: 'Dark',      bgR:'13,17,23',    cardR:'22,27,34',    borderR:'48,54,61',    goldR:'88,166,255', textR:'230,237,243', mutedR:'125,133,144', hoverR:'28,33,40'    },
       synthwave: { label: 'Synthwave', bgR:'13,0,26',     cardR:'22,0,40',     borderR:'61,0,102',    goldR:'191,95,255', textR:'255,230,255', mutedR:'170,119,204', hoverR:'32,0,51'     },
       outrun:    { label: 'Outrun',    bgR:'10,10,30',    cardR:'15,15,46',    borderR:'30,26,74',    goldR:'255,0,144',  textR:'244,234,255', mutedR:'144,128,176', hoverR:'22,22,58'    },
+    },
+
+    toggleHelp(key) {
+      this.helpOpen = this.helpOpen === key ? '' : key;
     },
 
     setTheme(name) {
@@ -3461,14 +3513,21 @@ function armory() {
       this.error = null;
       try {
         const r = await fetch(this.apiUrl('/api/data'));
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const etag = r.headers.get('ETag');
-        if (etag) this.lastKnownMtime = parseFloat(etag);
-        this.data = await r.json();
-        if (this.data.error) throw new Error(this.data.error);
-        if (this.data?.meta?.account) this.workspace.activeAccount = this.data.meta.account;
-        this.buildCharMaps();
-        this.buildItemIdMap();
+        if (!r.ok) {
+          this.data = null;
+          if (r.status !== 503) this.error = `HTTP ${r.status}`;
+        } else {
+          const etag = r.headers.get('ETag');
+          if (etag) this.lastKnownMtime = parseFloat(etag);
+          const d = await r.json();
+          if (d.error) { this.data = null; this.error = d.error; }
+          else {
+            this.data = d;
+            if (this.data?.meta?.account) this.workspace.activeAccount = this.data.meta.account;
+            this.buildCharMaps();
+            this.buildItemIdMap();
+          }
+        }
       } catch(e) {
         this.error = e.message;
       } finally {
@@ -3776,7 +3835,7 @@ function armory() {
     },
 
     wwGearName(g) {
-      if (!g?.item_id) return g?.link_name || '—';
+      if (!g?.item_id) return g?.link_name || '-';
       return this.itemIdMap[g.item_id]?.name ?? g.link_name ?? `Item #${g.item_id}`;
     },
 
@@ -4115,7 +4174,7 @@ function armory() {
       return `https://${region}.tamrieltradecentre.com/pc/Trade/SearchResult?ItemNamePattern=${encodeURIComponent(pieceName)}`;
     },
     fmtGold(v) {
-      if (v === null || v === undefined || Number.isNaN(Number(v))) return '—';
+      if (v === null || v === undefined || Number.isNaN(Number(v))) return '-';
       return Math.round(Number(v)).toLocaleString();
     },
     _setBonusKey(item) {

@@ -92,7 +92,7 @@ def test_achievements_tab_shows_error_when_endpoint_fails(page: Page, app_url: s
     upload_all_fixtures(page, fixtures_dir)
     page.get_by_role("button", name="Achievements").click()
 
-    expect(page.get_by_text("Achievements unavailable")).to_be_visible(timeout=15000)
+    expect(page.get_by_text("User data not loaded")).to_be_visible(timeout=15000)
     expect(page.get_by_text("Achievements backend unavailable")).to_be_visible(timeout=15000)
 
 
@@ -110,7 +110,7 @@ def test_collections_tab_shows_error_when_endpoint_fails(page: Page, app_url: st
     upload_all_fixtures(page, fixtures_dir)
     page.get_by_role("button", name="Collections").click()
 
-    expect(page.get_by_text("Collections unavailable")).to_be_visible(timeout=15000)
+    expect(page.get_by_text("User data not loaded")).to_be_visible(timeout=15000)
     expect(page.get_by_text("Collections backend unavailable")).to_be_visible(timeout=15000)
 
 

@@ -1,11 +1,11 @@
-# ESO Armory — Agent Notes
+# ESO Armory - Agent Notes
 
 ## Project Overview
 Local web app that reads ESO SavedVariables and presents inventory, equipment, and builds in a WoW-Armory-style browser. FastAPI backend, single-file Alpine.js + Tailwind CDN frontend (no build step). Designed for WSL2 on Windows where the ESO client runs natively.
 
 ## Stack
 - **Backend**: Python / FastAPI + Uvicorn (`server.py`)
-- **Frontend**: `static/index.html` — vendored Alpine.js 3.x from `static/vendor/alpine.min.js`, Tailwind CDN
+- **Frontend**: `static/index.html` - vendored Alpine.js 3.x from `static/vendor/alpine.min.js`, Tailwind CDN
 - **Lua parser**: Custom recursive-descent in `lua_parser.py` (stdlib only, no lupa/lark)
 - **Start**: `uv run server.py` → http://localhost:5000 (or `python server.py` if virtualenv active via `uv sync --active`)
 - **Tests**: pytest unit/API, Playwright UI (Chromium + Firefox), mutmut mutation tests
@@ -40,9 +40,9 @@ Use `make test-all` before release-style validation. Mutation tests are manually
 | `iasync.lua` | `iasync_data` | Inventory, equipped gear, build bars, currency, ability/CP names |
 | `WizardsWardrobe.lua` | `WizardsWardrobeSV` | Saved build setups (gear, skills, CP, food) |
 
-Data reaches the server via browser upload or the folder watcher — the server does not poll SavedVariables from disk directly.
+Data reaches the server via browser upload or the folder watcher - the server does not poll SavedVariables from disk directly.
 
-**ESO Lua version:** Lua 5.1 — no `goto`, no `::labels::`. Use nested `if` guards. CharIdToName keys are strings after Lua→Python parsing.
+**ESO Lua version:** Lua 5.1 - no `goto`, no `::labels::`. Use nested `if` guards. CharIdToName keys are strings after Lua→Python parsing.
 
 ## iasync_data Structure
 ```
@@ -61,7 +61,7 @@ iasync_data
     .bags[bagId][slot]   -- bagId: 2=Bank, 5=CraftBag, 6=ESO+ Bank
   .houses[houseKey].name + .chests[bagId].slots[slot] + .capacity/.chestNum/.lastUpdate
   .guildBanks[guildName].slots[slot]
-  .abilityNames[abilityId]  -- GetAbilityName(); also keyed as $abilityNames — both are merged
+  .abilityNames[abilityId]  -- GetAbilityName(); also keyed as $abilityNames - both are merged
   .cpNames[starId]           -- GetChampionSkillName()
   .stickerbook.sets[setId]  -- name, category, subcategory, numCollected, numTotal,
                              --   pieces[i].{collected, name}
@@ -108,11 +108,11 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `GET /api/compare_builds?session=&share=` | Imported compare builds keyed by destination `character_id` |
 | `POST /api/compare_builds/import?session=&share=&character_id=&code=` | Store imported compare build |
 | `DELETE /api/compare_builds?session=&share=&character_id=` | Delete imported compare build |
-| `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/..."}` — static, built at startup |
+| `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/..."}` - static, built at startup |
 | `GET /api/status?session=&share=` | `{ok, item_count, character_count, last_modified, error, is_admin}` |
 | `POST /api/upload?session=&share=` | Multipart: `iasync`, `ww`, `ttc_lookup`, `ttc_price` files; iasync/WW parsed in memory → all payloads stored to SQLite by ESO accountName (no raw bytes retained); `ttc_lookup`/`ttc_price` admin-only → written to global `uploads/ttc/` |
-| `POST /api/parse_superstar` | Multipart `image` upload → Claude Vision parses SuperStar addon screenshot → `{character, mundus, gear[{slot, slot_id, item_name, set_name, trait, enchantment}]}` — requires `ANTHROPIC_API_KEY` env var or `anthropic_api_key` in `config.json` |
-| `GET /events?session=&share=` | SSE stream; sends `"reload"` on data change (iasync only — not WW) |
+| `POST /api/parse_superstar` | Multipart `image` upload → Claude Vision parses SuperStar addon screenshot → `{character, mundus, gear[{slot, slot_id, item_name, set_name, trait, enchantment}]}` - requires `ANTHROPIC_API_KEY` env var or `anthropic_api_key` in `config.json` |
+| `GET /events?session=&share=` | SSE stream; sends `"reload"` on data change (iasync only - not WW) |
 
 ## Server Architecture
 
@@ -125,7 +125,7 @@ _ability_icon_map  # built at startup; scans assets/abilities/**/*.{png,webp}
 _set_bonus_cache   # (set_id or name_slug) → {bonuses, url}; mythic set_id=0 so slug is key
 _skill_info_cache  # slug → {details}
 _ttc_tables        # global TTC state: {lookup_mtime, price_mtime, lookup_path, price_path, db_path, db_ready, price_time, price_cache, error}
-_TTC_BUILD_LOCK    # threading.Lock — serialises SQLite build; double-checked inside lock to avoid race on first load
+_TTC_BUILD_LOCK    # threading.Lock - serialises SQLite build; double-checked inside lock to avoid race on first load
 ```
 
 ### DB-backed workspaces (`uploads/armory.db`)
@@ -141,7 +141,7 @@ _TTC_BUILD_LOCK    # threading.Lock — serialises SQLite build; double-checked 
 - Only `shadow` is deletable from UI
 
 ### TTC storage
-- Uploaded TTC files go to `uploads/ttc/ItemLookUpTable_EN.lua` and `uploads/ttc/PriceTable{NA|EU}.lua` — one global copy, any admin upload upserts it
+- Uploaded TTC files go to `uploads/ttc/ItemLookUpTable_EN.lua` and `uploads/ttc/PriceTable{NA|EU}.lua` - one global copy, any admin upload upserts it
 - Derived SQLite at `uploads/ttc.sqlite3`; rebuilt by `_ensure_ttc_db()` when raw file mtime is newer than last build
 - Config-path TTC (`ttc_addon_path`, `ttc_lookup_table_path`) is a fallback when no uploaded file exists
 - `_ttc_upload_dir()` returns `UPLOADS_DIR / "ttc"` dynamically (picks up monkeypatched `UPLOADS_DIR` in tests)
@@ -169,12 +169,12 @@ key = re.sub(r'[^a-z0-9]+', '_', icon.stem.lower()).strip('_')
 # JS (index.html):
 const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
 ```
-Icons served from `assets/` via `app.mount("/assets", ...)`. UESP source: `images.uesp.net` — needs `curl -sL -A "Mozilla/5.0"`.
+Icons served from `assets/` via `app.mount("/assets", ...)`. UESP source: `images.uesp.net` - needs `curl -sL -A "Mozilla/5.0"`.
 
 ## Theme System
-CSS custom properties (`--t-*`) on `:root`; `[data-theme="name"]` blocks override them. Pre-Alpine `<script>` sets `data-theme` from localStorage before Alpine boots (prevents FOUC). **Progress bars:** always `style="background:var(--t-progress);width:X%"` — never `bg-eso-gold` Tailwind class on a fill. **Adding a theme:** CSS var block + `themes` object entry with `label` + `bgR/cardR/borderR/goldR/textR/mutedR/hoverR` RGB triplets.
+CSS custom properties (`--t-*`) on `:root`; `[data-theme="name"]` blocks override them. Pre-Alpine `<script>` sets `data-theme` from localStorage before Alpine boots (prevents FOUC). **Progress bars:** always `style="background:var(--t-progress);width:X%"` - never `bg-eso-gold` Tailwind class on a fill. **Adding a theme:** CSS var block + `themes` object entry with `label` + `bgR/cardR/borderR/goldR/textR/mutedR/hoverR` RGB triplets.
 
-**Quality/resource colors are NOT themed** — hardcoded game data (fine `#2dc50e`, superior `#5199ff`, epic `#a02ee4`).
+**Quality/resource colors are NOT themed** - hardcoded game data (fine `#2dc50e`, superior `#5199ff`, epic `#a02ee4`).
 
 ## Restarting the Server
 ```bash
@@ -182,7 +182,7 @@ fuser -k 5000/tcp 2>/dev/null; sleep 1 && uv run server.py &
 # If virtualenv active via uv sync --active:
 fuser -k 5000/tcp 2>/dev/null; sleep 1 && python server.py &
 ```
-Use `fuser -k 5000/tcp` (not `pkill`) — targets the port directly, works reliably in WSL2.
+Use `fuser -k 5000/tcp` (not `pkill`) - targets the port directly, works reliably in WSL2.
 
 ## Git Workflow
 The user handles all git actions themselves. For pre-commit checks:
@@ -195,10 +195,10 @@ The user handles all git actions themselves. For pre-commit checks:
 PRs branch from `master` and target `master` on GitHub.
 
 ## Item Link Decoder (`item_link_decoder.py`)
-`|H1:item:F0:F1:...:F20|h[name]|h` — key fields (0-indexed after `item:`):
+`|H1:item:F0:F1:...:F20|h[name]|h` - key fields (0-indexed after `item:`):
 `[0]`=item_id, `[3]`=enchant_id, `[6]`=trait_id, `[14]`=flags (bit8=stolen, bit11=transmuted), `[15]`=style_id, `[16]`=crafted, `[17]`=bound, `[19]`=sell_value
 
-**20-field bug (deferred):** Some links have 20 fields; flags shift to `[13]`, `[16]` may be missing. Fix: check `len(raw)` and adjust offsets. Transmuted and reconstructed both set bit 11 — no bit-level distinction.
+**20-field bug (deferred):** Some links have 20 fields; flags shift to `[13]`, `[16]` may be missing. Fix: check `len(raw)` and adjust offsets. Transmuted and reconstructed both set bit 11 - no bit-level distinction.
 
 ## Security Model
 
@@ -210,32 +210,34 @@ PRs branch from `master` and target `master` on GitHub.
 
 ### Upload limits
 ```python
-_MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB — iasync, WW, TTC
-_MAX_IMAGE_BYTES  =  20 * 1024 * 1024  # 20 MB — SuperStar image
+_MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB - iasync, WW, TTC
+_MAX_IMAGE_BYTES  =  20 * 1024 * 1024  # 20 MB - SuperStar image
 ```
 `_read_upload_bytes()` and `_stream_to_path()` raise `ValueError` on oversize; callers return HTTP 413.
 
 ### Login protection
-- **Rate limiting**: `_check_login_rate_limit(ip)` / `_record_login_failure(ip)` — 5 failures in 60 s → 5-min lockout; HTTP 429
+- **Rate limiting**: `_check_login_rate_limit(ip)` / `_record_login_failure(ip)` - 5 failures in 60 s → 5-min lockout; HTTP 429
 - **Timing oracle**: always runs `bcrypt.checkpw` (against a dummy hash when the account doesn't exist); bcrypt offloaded to thread executor to avoid blocking the event loop
 
-### XSS — `x-html` with user data
-Any function that uses `x-html` to render user-supplied text **must** call `escapeHtml(s)` before interpolating. Example: `abilitySlotHtml` / `abilitySlotHtmlCompare` escape ability names before placing them in `<span>` tags. Ability names come from uploaded Lua data and imported build payloads and are shared across users via share codes — escaping is required.
+### XSS - `x-html` with user data
+Any function that uses `x-html` to render user-supplied text **must** call `escapeHtml(s)` before interpolating. Example: `abilitySlotHtml` / `abilitySlotHtmlCompare` escape ability names before placing them in `<span>` tags. Ability names come from uploaded Lua data and imported build payloads and are shared across users via share codes - escaping is required.
 
 ### SSE connection cap
 Session-scoped SSE queue sets are capped at `_MAX_SSE_PER_SESSION = 10`; excess connections return HTTP 429.
 
 ### Encryption
-Per-session Anthropic API keys are Fernet-encrypted in SQLite using a key stored under `db_secret` in `config.json`. `config.json` is gitignored and must not be exposed via the web server document root. HTTPS should be terminated by a reverse proxy (nginx/Caddy) — the app speaks plain HTTP.
+Per-session Anthropic API keys are Fernet-encrypted in SQLite using a key stored under `db_secret` in `config.json`. `config.json` is gitignored and must not be exposed via the web server document root. HTTPS should be terminated by a reverse proxy (nginx/Caddy) - the app speaks plain HTTP.
 
 ## Known Quirks / Gotchas
-- **WW mythic key**: `gear` dict has `"mythic"` string key alongside integer slot keys — skip via `int(slot_raw)` in try/except.
+- **`helpOpen` tooltip pattern**: upload modal help popovers are controlled by a single `helpOpen: ''` string (key of the open popover; `''` = none) and `toggleHelp(key)` method. Only one open at a time; escape and click-away close it. Separate from `#eso-tip` game-data tooltips.
+- **`fetchData` 503 behavior**: HTTP 503 from `/api/data` means no data has been uploaded yet - treat it silently (`this.data = null`, do NOT set `this.error`). The function uses if/else with no early `return` or `throw` so `finally { loading = false }` always fires. Do not add early returns or rethrows inside the `try` block.
+- **WW mythic key**: `gear` dict has `"mythic"` string key alongside integer slot keys - skip via `int(slot_raw)` in try/except.
 - **Mythic `set_id=0`**: Use `set_id || _slugify(set_name)` as cache key everywhere (Python + JS). Server `_fetch_set_bonuses` breaks on second bonus line when `first_pieces==1` to avoid multi-set bleed.
 - **`getBonusEntry(item)`**: Use this frontend helper (not `setBonusCache[item.set_id]`) to handle mythic `set_id=0`.
-- **Bank currency**: `GetCurrencyAmount(..., CURRENCY_LOCATION_BANK)` returns `nil` outside bank context — guard with `or prevValue` in Lua.
+- **Bank currency**: `GetCurrencyAmount(..., CURRENCY_LOCATION_BANK)` returns `nil` outside bank context - guard with `or prevValue` in Lua.
 - **`weaponType` stale**: recorded per-slot at scan time; discard when it claims "Staff" but item name disagrees, then fall back to name-based detection.
-- **Shields**: `filter_type 2` (Armor) with `weaponType="Shield"` and `armorType=nil` — check `weapon_type === 'Shield'` before armor-weight lookup.
+- **Shields**: `filter_type 2` (Armor) with `weaponType="Shield"` and `armorType=nil` - check `weapon_type === 'Shield'` before armor-weight lookup.
 - **Mundus icon key**: Strip "The " prefix: `name.toLowerCase().replace(/^the\s+/, '')`.
-- **`x-html` for icons**: Use `x-html` (not `x-text`) for location icons and skill chips to render `<img>` tags. **Any user-supplied text interpolated into `x-html` template literals must go through `escapeHtml(s)` first** — see Security Model section.
+- **`x-html` for icons**: Use `x-html` (not `x-text`) for location icons and skill chips to render `<img>` tags. **Any user-supplied text interpolated into `x-html` template literals must go through `escapeHtml(s)` first** - see Security Model section.
 - **`GetEquipmentFilterTypeForItemSetCollectionSlot` is misnamed**: returns armor/weapon sub-type integers, not `ITEM_FILTER_TYPE_*`. Use piece names from `GetItemLinkName` instead.
 - **Achievements mixed-persistence**: `achievItemsByCatSubcat()` must merge `account_items` with character-specific `items_by_char` and dedupe by achievement id.

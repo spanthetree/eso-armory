@@ -1,4 +1,4 @@
-"""ESO Armory — FastAPI server."""
+"""ESO Armory: FastAPI server."""
 
 import asyncio
 import base64
@@ -786,7 +786,7 @@ def _ensure_ttc_db(cache: dict | None = None) -> tuple[Path, int | None, Path]:
         return db_path, cache.get("price_time"), price_path
 
     with _TTC_BUILD_LOCK:
-        # Re-check inside the lock — another thread may have finished the build while we waited.
+        # Re-check inside the lock; another thread may have finished the build while we waited.
         if (
             cache.get("db_ready")
             and cache.get("db_path") == str(db_path)
@@ -1147,7 +1147,7 @@ def _parse_ww_from_bytes(raw_bytes: bytes, cache: dict) -> None:
 def _ensure_iasync_aux_bytes(cache: dict, which: str) -> None:
     if cache.get(which) is not None:
         return
-    raise FileNotFoundError("No iasync source available — please re-upload your data")
+    raise FileNotFoundError("No iasync source available; please re-upload your data")
 
 
 def _recover_uploaded_iasync_cache(
@@ -1193,12 +1193,12 @@ def _recover_uploaded_iasync_cache(
         }
 
     if cache.get("data_bytes") is None:
-        msg = f"no data available for {account_name} — please re-upload your files"
+        msg = f"no data available for {account_name}; please re-upload your files"
         logger.warning("iasync recovery failed: {}", msg)
         return False, msg
 
     if need_aux and cache.get(need_aux) is None:
-        msg = f"no {need_aux} available for {account_name} — please re-upload your files"
+        msg = f"no {need_aux} available for {account_name}; please re-upload your files"
         logger.warning("iasync recovery failed: {}", msg)
         cache["error"] = msg
         return False, msg
@@ -1359,7 +1359,7 @@ async def root_head():
 async def api_data(session: str | None = Query(None), share: str | None = Query(None)):
     cache = _resolve_cache(session, share)
     if cache["data_bytes"] is None:
-        return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
+        return JSONResponse({"error": cache.get("error", "User data not loaded")}, status_code=503)
     return Response(
         content=cache["data_bytes"],
         media_type="application/json",
@@ -1371,7 +1371,7 @@ async def api_data(session: str | None = Query(None), share: str | None = Query(
 async def api_builds(session: str | None = Query(None), share: str | None = Query(None)):
     cache = _resolve_cache(session, share)
     if cache["builds_bytes"] is None:
-        return JSONResponse({"error": cache.get("error", "No data loaded")}, status_code=503)
+        return JSONResponse({"error": cache.get("error", "User data not loaded")}, status_code=503)
     return Response(
         content=cache["builds_bytes"],
         media_type="application/json",
@@ -1410,7 +1410,7 @@ async def api_achievements(session: str | None = Query(None), share: str | None 
             return JSONResponse({"error": str(exc)}, status_code=500)
     if cache["achievements_bytes"] is None:
         return JSONResponse(
-            {"error": "Achievements payload unavailable", "detail": "aux payload was not generated"},
+            {"error": "User data not loaded", "detail": "aux payload was not generated"},
             status_code=503,
         )
     return Response(
@@ -1451,7 +1451,7 @@ async def api_stickerbook(session: str | None = Query(None), share: str | None =
             return JSONResponse({"error": str(exc)}, status_code=500)
     if cache["stickerbook_bytes"] is None:
         return JSONResponse(
-            {"error": "Stickerbook payload unavailable", "detail": "aux payload was not generated"},
+            {"error": "User data not loaded", "detail": "aux payload was not generated"},
             status_code=503,
         )
     return Response(
@@ -1465,7 +1465,7 @@ async def api_stickerbook(session: str | None = Query(None), share: str | None =
 async def api_ww_builds(session: str | None = Query(None), share: str | None = Query(None)):
     ww = _resolve_ww_cache(session, share)
     if ww["ww_builds_bytes"] is None:
-        return JSONResponse({"error": ww.get("error", "No WW data loaded")}, status_code=503)
+        return JSONResponse({"error": ww.get("error", "User data not loaded")}, status_code=503)
     return Response(
         content=ww["ww_builds_bytes"],
         media_type="application/json",
@@ -2181,7 +2181,7 @@ async def api_set_bonus(set_id: int, set_name: str):
         logger.info("Set bonus: {} → {} bonuses", set_name, len(bonuses))
     except Exception as exc:
         result = {"bonuses": [], "url": url, "error": str(exc)}
-        logger.warning("Set bonus fetch failed: {} — {}", set_name, exc)
+        logger.warning("Set bonus fetch failed: {}: {}", set_name, exc)
     _lru_put(_set_bonus_cache, cache_key, result, _EXTERNAL_CACHE_MAX)
     return JSONResponse(result)
 
@@ -2200,7 +2200,7 @@ async def api_skill_info(name: str):
         logger.info("Skill info: {} → {}", name, list(info.keys()))
     except Exception as exc:
         result = {"url": url, "error": str(exc)}
-        logger.warning("Skill info fetch failed: {} — {}", name, exc)
+        logger.warning("Skill info fetch failed: {}: {}", name, exc)
     _lru_put(_skill_info_cache, slug, result, _EXTERNAL_CACHE_MAX)
     return JSONResponse(result)
 
@@ -2224,7 +2224,7 @@ async def api_ttc_price(name: str, session: str | None = Query(None), share: str
             "url": _ttc_search_url(name),
             "error": str(exc),
         }
-        logger.warning("TTC price fetch failed: {} — {}", name, exc)
+        logger.warning("TTC price fetch failed: {}: {}", name, exc)
     return JSONResponse(result)
 
 
