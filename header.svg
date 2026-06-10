@@ -24,28 +24,28 @@
   -->
 
   <!-- Line 1 -->
-  <text font-family="'Courier New',Courier,monospace" font-size="11" y="46" xml:space="preserve">
-    <tspan x="65" fill="#F0D878">███████╗███████╗ ██████╗ </tspan><tspan fill="#D0A84A">    █████╗ ██████╗ ███╗   ███╗ ██████╗ ██████╗ ██╗   ██╗</tspan>
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="46" xml:space="preserve" text-anchor="middle" x="430">
+    <tspan fill="#F0D878">███████╗███████╗ ██████╗ </tspan><tspan fill="#D0A84A">    █████╗ ██████╗ ███╗   ███╗ ██████╗ ██████╗ ██╗   ██╗</tspan>
   </text>
   <!-- Line 2 -->
-  <text font-family="'Courier New',Courier,monospace" font-size="11" y="61" xml:space="preserve">
-    <tspan x="65" fill="#E8C864">██╔════╝██╔════╝██╔═══██╗</tspan><tspan fill="#C89838">   ██╔══██╗██╔══██╗████╗ ████║██╔═══██╗██╔══██╗╚██╗ ██╔╝</tspan>
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="61" xml:space="preserve" text-anchor="middle" x="430">
+    <tspan fill="#E8C864">██╔════╝██╔════╝██╔═══██╗</tspan><tspan fill="#C89838">   ██╔══██╗██╔══██╗████╗ ████║██╔═══██╗██╔══██╗╚██╗ ██╔╝</tspan>
   </text>
   <!-- Line 3 -->
-  <text font-family="'Courier New',Courier,monospace" font-size="11" y="76" xml:space="preserve">
-    <tspan x="65" fill="#D8B450">█████╗  ███████╗██║   ██║</tspan><tspan fill="#B88428">   ███████║██████╔╝██╔████╔██║██║   ██║██████╔╝ ╚████╔╝ </tspan>
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="76" xml:space="preserve" text-anchor="middle" x="430">
+    <tspan fill="#D8B450">█████╗  ███████╗██║   ██║</tspan><tspan fill="#B88428">   ███████║██████╔╝██╔████╔██║██║   ██║██████╔╝ ╚████╔╝ </tspan>
   </text>
   <!-- Line 4 -->
-  <text font-family="'Courier New',Courier,monospace" font-size="11" y="91" xml:space="preserve">
-    <tspan x="65" fill="#C8A040">██╔══╝  ╚════██║██║   ██║</tspan><tspan fill="#A87820">   ██╔══██║██╔══██╗██║╚██╔╝██║██║   ██║██╔══██╗  ╚██╔╝  </tspan>
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="91" xml:space="preserve" text-anchor="middle" x="430">
+    <tspan fill="#C8A040">██╔══╝  ╚════██║██║   ██║</tspan><tspan fill="#A87820">   ██╔══██║██╔══██╗██║╚██╔╝██║██║   ██║██╔══██╗  ╚██╔╝  </tspan>
   </text>
   <!-- Line 5 -->
-  <text font-family="'Courier New',Courier,monospace" font-size="11" y="106" xml:space="preserve">
-    <tspan x="65" fill="#B88C30">███████╗███████║╚██████╔╝</tspan><tspan fill="#967018">   ██║  ██║██║  ██║██║ ╚═╝ ██║╚██████╔╝██║  ██║   ██║   </tspan>
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="106" xml:space="preserve" text-anchor="middle" x="430">
+    <tspan fill="#B88C30">███████╗███████║╚██████╔╝</tspan><tspan fill="#967018">   ██║  ██║██║  ██║██║ ╚═╝ ██║╚██████╔╝██║  ██║   ██║   </tspan>
   </text>
   <!-- Line 6 -->
-  <text font-family="'Courier New',Courier,monospace" font-size="11" y="121" xml:space="preserve">
-    <tspan x="65" fill="#A87820">╚══════╝╚══════╝ ╚═════╝ </tspan><tspan fill="#785008">   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   </tspan>
+  <text font-family="'Courier New',Courier,monospace" font-size="11" y="121" xml:space="preserve" text-anchor="middle" x="430">
+    <tspan fill="#A87820">╚══════╝╚══════╝ ╚═════╝ </tspan><tspan fill="#785008">   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝   </tspan>
   </text>
 
   <!-- tagline -->
