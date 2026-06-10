@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.37] - 2026-06-11
+
+### Added
+- **World ability icons** - icons added for all seven world skill trees: Bestial Transformation, Excavation, Legerdemain, Scrying, Soul Magic, Vampire, and Werewolf
+
+### Fixed
+- **Account name input placeholder** - login input now reads "accountname (case sensitive)" to clarify the expected format and that the value is case-sensitive
+
 ## [0.1.0-beta.36] - 2026-05-28
 
 ### Added
