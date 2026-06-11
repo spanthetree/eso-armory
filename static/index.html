@@ -1264,9 +1264,9 @@
                 <!-- Skills -->
                 <template x-if="buildHasSkills(b)">
                   <div class="space-y-0.5">
-                    <template x-for="bar in ['primary','backup']" :key="bar">
+                    <template x-for="bar in ['primary','backup','werewolf']" :key="bar">
                       <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
-                        <span class="text-eso-muted/50 capitalize shrink-0 w-14" x-text="bar + ':'"></span>
+                        <span class="text-eso-muted/50 capitalize shrink-0 w-16" x-text="bar + ':'"></span>
                         <span class="inline-flex flex-wrap gap-0.5">
                           <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
                             <span x-show="b.skills?.[bar]?.[slot]"
@@ -1493,9 +1493,9 @@
                   </div>
                   <template x-if="buildHasSkills(b)">
                     <div class="space-y-0.5">
-                      <template x-for="bar in ['primary','backup']" :key="bar">
+                      <template x-for="bar in ['primary','backup','werewolf']" :key="bar">
                         <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
-                          <span class="text-eso-muted/50 capitalize shrink-0 w-14" x-text="bar + ':'"></span>
+                          <span class="text-eso-muted/50 capitalize shrink-0 w-16" x-text="bar + ':'"></span>
                           <span class="inline-flex flex-wrap gap-0.5">
                             <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
                               <span x-show="b.skills?.[bar]?.[slot]"
@@ -1613,9 +1613,9 @@
                       </div>
                       <template x-if="buildHasSkills(b)">
                         <div class="space-y-0.5">
-                          <template x-for="bar in ['primary','backup']" :key="bar">
+                          <template x-for="bar in ['primary','backup','werewolf']" :key="bar">
                             <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
-                              <span class="text-eso-muted/50 capitalize shrink-0 w-14" x-text="bar + ':'"></span>
+                              <span class="text-eso-muted/50 capitalize shrink-0 w-16" x-text="bar + ':'"></span>
                               <span class="inline-flex flex-wrap gap-0.5">
                                 <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
                                   <span x-show="b.skills?.[bar]?.[slot]"
@@ -1897,9 +1897,9 @@
                 <!-- Skills -->
                 <template x-if="buildHasSkills(b)">
                   <div class="space-y-0.5">
-                    <template x-for="bar in ['primary','backup']" :key="bar">
+                    <template x-for="bar in ['primary','backup','werewolf']" :key="bar">
                       <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
-                        <span class="text-eso-muted/50 capitalize shrink-0 w-14" x-text="bar + ':'"></span>
+                        <span class="text-eso-muted/50 capitalize shrink-0 w-16" x-text="bar + ':'"></span>
                         <span class="inline-flex flex-wrap gap-0.5">
                           <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
                             <span x-show="b.skills?.[bar]?.[slot]"
@@ -2000,7 +2000,7 @@
                   <template x-if="buildHasSkills(build)">
                     <div class="mt-3 pt-2 border-t border-eso-border/40">
                       <p class="text-xs text-eso-muted uppercase tracking-wider mb-1.5">Skills</p>
-                      <template x-for="bar in ['primary','backup']" :key="bar">
+                      <template x-for="bar in ['primary','backup','werewolf']" :key="bar">
                         <div x-show="build.skills && build.skills[bar] && Object.keys(build.skills[bar]).length"
                           class="mb-1.5">
                           <p class="text-xs text-eso-muted/60 mb-0.5 capitalize" x-text="bar + ' bar'"></p>
@@ -4828,7 +4828,7 @@ function armory() {
 
     buildHasSkills(build) {
       if (!build.skills) return false;
-      for (const bar of ['primary', 'backup'])
+      for (const bar of ['primary', 'backup', 'werewolf'])
         if (build.skills[bar] && Object.keys(build.skills[bar]).length) return true;
       return false;
     },

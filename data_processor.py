@@ -525,8 +525,9 @@ def process_iasync_builds(raw: dict) -> dict:
         # Skills: primary/backup bars; keyed by string slot number
         build_bars = c.get("build_bars", {})
         skills = {
-            "primary": {str(k): v for k, v in build_bars.get("primary", {}).items()},
-            "backup":  {str(k): v for k, v in build_bars.get("backup",  {}).items()},
+            "primary":   {str(k): v for k, v in build_bars.get("primary",   {}).items()},
+            "backup":    {str(k): v for k, v in build_bars.get("backup",    {}).items()},
+            "werewolf":  {str(k): v for k, v in build_bars.get("werewolf",  {}).items()},
         }
 
         # CP: flat slot → abilityId map

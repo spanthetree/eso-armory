@@ -440,7 +440,7 @@ wheels = [
 
 [[package]]
 name = "eso-armory"
-version = "0.1.0b35"
+version = "0.1.0b37"
 source = { virtual = "." }
 dependencies = [
     { name = "anthropic" },
