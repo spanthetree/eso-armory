@@ -12,6 +12,7 @@ mutmut.config = Config(
     also_copy=[
         Path("tests/"),
         Path("server.py"),
+        Path("db.py"),
         Path("static/"),
         Path("assets/"),
         Path("pyproject.toml"),
