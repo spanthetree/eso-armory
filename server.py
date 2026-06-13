@@ -156,6 +156,7 @@ _BUILD_CODE_ALPHABET = _SHARE_CODE_ALPHABET
 _BUILD_CODE_LEN = 8
 _EXTERNAL_CACHE_MAX = 256
 _TTC_PRICE_CACHE_MAX = 512
+_TTC_ATTRIBUTION = "Data from Tamriel Trade Centre"
 _IASYNC_PARSE_LOCK = threading.Lock()
 _WW_PARSE_LOCK = threading.Lock()
 
@@ -944,25 +945,29 @@ def _fetch_ttc_price(name: str, session_id: str | None = None) -> dict:
 
     fetched_at = int(time.time())
     db_path, price_time, price_path = _ensure_ttc_db()
+    source_kind = "uploaded" if (_ttc_upload_dir() / "ItemLookUpTable_EN.lua").exists() else "local"
+    base = {
+        "name": clean_name,
+        "fetchedAt": fetched_at,
+        "fetchedAtText": _fmt_ttc_time(fetched_at),
+        "priceTableTime": price_time,
+        "priceTableTimeText": _fmt_ttc_time(price_time),
+        "source": f"TTC {source_kind} PriceTable",
+        "attribution": _TTC_ATTRIBUTION,
+        "url": url,
+    }
+
+    def _cache_and_return(result: dict) -> dict:
+        _lru_put(price_cache, cache_key, result, _TTC_PRICE_CACHE_MAX)
+        return result
+
     with sqlite3.connect(db_path) as conn:
         row = conn.execute(
             "SELECT item_id FROM lookup WHERE item_name = ?",
             (cache_key,),
         ).fetchone()
         if row is None:
-            result = {
-                "name": clean_name,
-                "fetchedAt": fetched_at,
-                "fetchedAtText": _fmt_ttc_time(fetched_at),
-                "priceTableTime": price_time,
-                "priceTableTimeText": _fmt_ttc_time(price_time),
-                "source": f"TTC {'uploaded' if (_ttc_upload_dir() / 'ItemLookUpTable_EN.lua').exists() else 'local'} PriceTable",
-                "attribution": "Data from Tamriel Trade Centre",
-                "url": url,
-                "error": "No TTC item match",
-            }
-            _lru_put(price_cache, cache_key, result, _TTC_PRICE_CACHE_MAX)
-            return result
+            return _cache_and_return({**base, "error": "No TTC item match"})
 
         item_id = row[0]
         price_row = conn.execute("""
@@ -972,23 +977,10 @@ def _fetch_ttc_price(name: str, session_id: str | None = None) -> dict:
         """, (item_id,)).fetchone()
 
     if price_row is None:
-        result = {
-            "name": clean_name,
-            "itemId": item_id,
-            "fetchedAt": fetched_at,
-            "fetchedAtText": _fmt_ttc_time(fetched_at),
-            "priceTableTime": price_time,
-            "priceTableTimeText": _fmt_ttc_time(price_time),
-            "source": f"TTC {'uploaded' if (_ttc_upload_dir() / 'ItemLookUpTable_EN.lua').exists() else 'local'} PriceTable",
-            "attribution": "Data from Tamriel Trade Centre",
-            "url": url,
-            "error": "No TTC price data",
-        }
-        _lru_put(price_cache, cache_key, result, _TTC_PRICE_CACHE_MAX)
-        return result
+        return _cache_and_return({**base, "itemId": item_id, "error": "No TTC price data"})
 
-    result = {
-        "name": clean_name,
+    return _cache_and_return({
+        **base,
         "itemId": item_id,
         "avg": price_row[0],
         "min": price_row[1],
@@ -1000,16 +992,8 @@ def _fetch_ttc_price(name: str, session_id: str | None = None) -> dict:
         "saleEntryCount": price_row[7],
         "saleAmountCount": price_row[8],
         "variantPath": json.loads(price_row[9]) if price_row[9] else [],
-        "priceTableTime": price_time,
-        "priceTableTimeText": _fmt_ttc_time(price_time),
-        "fetchedAt": fetched_at,
-        "fetchedAtText": _fmt_ttc_time(fetched_at),
-        "source": f"TTC {'uploaded' if (_ttc_upload_dir() / 'ItemLookUpTable_EN.lua').exists() else 'local'} {price_path.name}",
-        "attribution": "Data from Tamriel Trade Centre",
-        "url": url,
-    }
-    _lru_put(price_cache, cache_key, result, _TTC_PRICE_CACHE_MAX)
-    return result
+        "source": f"TTC {source_kind} {price_path.name}",
+    })
 
 
 def _load_config():
@@ -1247,25 +1231,30 @@ def _get_or_create_session(session_id: str) -> dict:
     return sess
 
 
-def _resolve_cache(session_id: str | None, share_code: str | None = None) -> dict:
+def _resolve_cache_and_account(session_id: str | None, share_code: str | None = None) -> tuple[dict, str | None]:
+    """Resolve the active iasync cache and the bound ESO account name in one pass."""
     account_name, account_err = _resolve_account_name(session_id, share_code)
     if account_err:
-        return {"data_bytes": None, "builds_bytes": None, "achievements_bytes": None,
-                "stickerbook_bytes": None, "mtime": None, "error": account_err}
+        return ({"data_bytes": None, "builds_bytes": None, "achievements_bytes": None,
+                 "stickerbook_bytes": None, "mtime": None, "error": account_err}, None)
     if account_name:
         state = _db_get_account_state(account_name)
         if state and state.data_bytes is not None:
-            return _state_to_cache(state)
+            return _state_to_cache(state), account_name
     sid, err = _resolve_session_context(session_id, share_code)
     if err:
-        return {"data_bytes": None, "builds_bytes": None, "achievements_bytes": None,
-                "stickerbook_bytes": None, "mtime": None, "error": err}
+        return ({"data_bytes": None, "builds_bytes": None, "achievements_bytes": None,
+                 "stickerbook_bytes": None, "mtime": None, "error": err}, account_name)
     if sid:
         sess = _get_or_create_session(sid)
         sess["last_active"] = time.time()
         if sess["cache"]["data_bytes"] is not None:
-            return sess["cache"]
-    return _cache
+            return sess["cache"], account_name
+    return _cache, account_name
+
+
+def _resolve_cache(session_id: str | None, share_code: str | None = None) -> dict:
+    return _resolve_cache_and_account(session_id, share_code)[0]
 
 
 def _resolve_ww_cache(session_id: str | None, share_code: str | None = None) -> dict:
@@ -1381,8 +1370,7 @@ async def api_builds(session: str | None = Query(None), share: str | None = Quer
 
 @app.get("/api/achievements")
 async def api_achievements(session: str | None = Query(None), share: str | None = Query(None)):
-    cache = _resolve_cache(session, share)
-    account_name, _ = _resolve_account_name(session, share)
+    cache, account_name = _resolve_cache_and_account(session, share)
     if cache["data_bytes"] is None:
         recovered, reason = await asyncio.get_event_loop().run_in_executor(
             None,
@@ -1422,8 +1410,7 @@ async def api_achievements(session: str | None = Query(None), share: str | None 
 
 @app.get("/api/stickerbook")
 async def api_stickerbook(session: str | None = Query(None), share: str | None = Query(None)):
-    cache = _resolve_cache(session, share)
-    account_name, _ = _resolve_account_name(session, share)
+    cache, account_name = _resolve_cache_and_account(session, share)
     if cache["data_bytes"] is None:
         recovered, reason = await asyncio.get_event_loop().run_in_executor(
             None,
@@ -1475,11 +1462,10 @@ async def api_ww_builds(session: str | None = Query(None), share: str | None = Q
 
 @app.get("/api/status")
 async def api_status(session: str | None = Query(None), share: str | None = Query(None)):
-    cache = _resolve_cache(session, share)
+    cache, account_name = _resolve_cache_and_account(session, share)
     sid = _valid_session(session) if session else None
     has_server_key = bool(os.environ.get("ANTHROPIC_API_KEY") or _config.get("anthropic_api_key", ""))
     has_session_key = bool(_db_get_session_api_key(sid)) if sid else False
-    account_name, _ = _resolve_account_name(sid, share)
     is_admin = _db_is_account_admin(account_name) if account_name else False
     if cache["data_bytes"] is None:
         return {"ok": False, "item_count": 0, "character_count": 0,
@@ -1845,6 +1831,146 @@ async def api_parse_superstar(
     return JSONResponse(parsed)
 
 
+async def _read_upload_bytes(upload: UploadFile, max_bytes: int = _MAX_UPLOAD_BYTES) -> bytes:
+    chunks = []
+    total = 0
+    while True:
+        chunk = await upload.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise ValueError(f"Upload exceeds {max_bytes // (1024*1024)} MB limit")
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+async def _stream_to_path(upload: UploadFile, dest: Path, max_bytes: int = _MAX_UPLOAD_BYTES) -> int:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        dest.unlink()
+    total = 0
+    with dest.open("wb") as fh:
+        while True:
+            chunk = await upload.read(1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_bytes:
+                dest.unlink(missing_ok=True)
+                raise ValueError(f"Upload exceeds {max_bytes // (1024*1024)} MB limit")
+            fh.write(chunk)
+    return total
+
+
+async def _handle_iasync_upload(upload: UploadFile, sid: str, sess: dict, active_account: str | None) -> dict:
+    """Parse an uploaded iasync.lua, persist payloads, bind the session. Raises ValueError on oversize."""
+    s_cache = sess["cache"]
+    raw_bytes = await _read_upload_bytes(upload)
+    size = len(raw_bytes)
+    s_cache["mtime"] = None
+    await asyncio.get_event_loop().run_in_executor(None, lambda: _parse_iasync_from_bytes(raw_bytes, s_cache))
+    del raw_bytes
+    if s_cache["error"]:
+        result = {"ok": False, "error": s_cache["error"]}
+    else:
+        meta = s_cache.get("meta") or {}
+        account_name = meta.get("account") or active_account
+        if not account_name:
+            result = {"ok": False, "error": "account name missing from upload"}
+        else:
+            slot, conflict = _select_upload_slot(sid, account_name)
+            if not slot:
+                result = {"ok": False, "error": conflict, "conflict": True, "account_name": account_name}
+            else:
+                _db_upsert_account_payload(AccountPayload(
+                    account_name=account_name,
+                    server=str(meta.get("server") or _config.get("server", "NA")),
+                    data_bytes=s_cache["data_bytes"],
+                    builds_bytes=s_cache["builds_bytes"],
+                    achievements_bytes=s_cache["achievements_bytes"],
+                    stickerbook_bytes=s_cache["stickerbook_bytes"],
+                    data_mtime=s_cache["mtime"],
+                    item_count=meta.get("item_count"),
+                    character_count=meta.get("character_count"),
+                    parse_ms=meta.get("parse_ms"),
+                    source_last_update=meta.get("last_modified"),
+                ))
+                _db_bind_session(sid, account_name, slot, make_active=True)
+                result = {
+                    "ok": True,
+                    "items": meta["item_count"],
+                    "chars": meta["character_count"],
+                    "account_name": account_name,
+                    "slot_updated": slot,
+                }
+                for q in list(sess["sse_queues"]):
+                    try:
+                        q.put_nowait("reload")
+                    except asyncio.QueueFull:
+                        pass
+    logger.info("Session {} uploaded iasync.lua ({} bytes)", sid[:8], size)
+    return result
+
+
+async def _handle_ww_upload(upload: UploadFile, sid: str, sess: dict, active_account: str | None) -> dict:
+    """Parse an uploaded WizardsWardrobe.lua, persist builds, bind the session. Raises ValueError on oversize."""
+    s_ww_cache = sess["ww_cache"]
+    raw_bytes = await _read_upload_bytes(upload)
+    size = len(raw_bytes)
+    s_ww_cache["mtime"] = None
+    await asyncio.get_event_loop().run_in_executor(None, lambda: _parse_ww_from_bytes(raw_bytes, s_ww_cache))
+    account_name = _extract_ww_account_name_from_bytes(raw_bytes) or active_account
+    del raw_bytes
+    if s_ww_cache["error"]:
+        result = {"ok": False, "error": s_ww_cache["error"]}
+    elif not account_name:
+        result = {"ok": False, "error": "account name missing from upload"}
+    else:
+        slot, conflict = _select_upload_slot(sid, account_name)
+        if not slot:
+            result = {"ok": False, "error": conflict, "conflict": True, "account_name": account_name}
+        else:
+            _db_upsert_account_payload(AccountPayload(
+                account_name=account_name,
+                server=str(_config.get("server", "NA")),
+                ww_builds_bytes=s_ww_cache["ww_builds_bytes"],
+                ww_mtime=s_ww_cache["mtime"],
+            ))
+            _db_bind_session(sid, account_name, slot, make_active=True)
+            builds = json.loads(s_ww_cache["ww_builds_bytes"])
+            n = sum(len(v) for v in builds["builds"].values())
+            result = {"ok": True, "builds": n, "account_name": account_name, "slot_updated": slot}
+    logger.info("Session {} uploaded WizardsWardrobe.lua ({} bytes)", sid[:8], size)
+    return result
+
+
+async def _handle_ttc_upload(upload: UploadFile, sid: str, active_account: str | None, kind: str) -> dict:
+    """Store an uploaded TTC table (kind: 'lookup' or 'price') and invalidate the derived DB. Admin only."""
+    if not active_account or not _db_is_account_admin(active_account):
+        return {"ok": False, "error": "TTC upload requires admin account"}
+    ttc_dir = _ttc_upload_dir()
+    ttc_dir.mkdir(parents=True, exist_ok=True)
+    if kind == "lookup":
+        dest = ttc_dir / "ItemLookUpTable_EN.lua"
+        label = "lookup"
+    else:
+        region = "EU" if str(_config.get("server", "NA")).upper() == "EU" else "NA"
+        dest = ttc_dir / f"PriceTable{region}.lua"
+        label = "price table"
+    try:
+        size = await _stream_to_path(upload, dest)
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc)}
+    _ttc_tables["db_ready"] = False
+    if kind == "price":
+        _ttc_tables["price_time"] = None
+    _ttc_tables["price_cache"] = collections.OrderedDict()
+    _ttc_tables["error"] = None
+    logger.info("Session {} uploaded TTC {} ({} bytes)", sid[:8], label, size)
+    return {"ok": True}
+
+
 @app.post("/api/upload")
 async def api_upload(
     iasync: UploadFile | None = File(None),
@@ -1862,167 +1988,28 @@ async def api_upload(
         return JSONResponse({"error": "valid session required"}, status_code=400)
 
     sess = _get_or_create_session(sid)
-    s_cache    = sess["cache"]
-    s_ww_cache = sess["ww_cache"]
-    workspace = _workspace_info(sid)
-    active_account = _active_account_label(workspace)
-
-    loop = asyncio.get_event_loop()
+    active_account = _active_account_label(_workspace_info(sid))
     results = {}
-
-    async def _read_upload_bytes(upload: UploadFile, max_bytes: int = _MAX_UPLOAD_BYTES) -> bytes:
-        chunks = []
-        total = 0
-        while True:
-            chunk = await upload.read(1024 * 1024)
-            if not chunk:
-                break
-            total += len(chunk)
-            if total > max_bytes:
-                raise ValueError(f"Upload exceeds {max_bytes // (1024*1024)} MB limit")
-            chunks.append(chunk)
-        return b"".join(chunks)
-
-    async def _stream_to_path(upload: UploadFile, dest: Path, max_bytes: int = _MAX_UPLOAD_BYTES) -> int:
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        if dest.exists():
-            dest.unlink()
-        total = 0
-        with dest.open("wb") as fh:
-            while True:
-                chunk = await upload.read(1024 * 1024)
-                if not chunk:
-                    break
-                total += len(chunk)
-                if total > max_bytes:
-                    dest.unlink(missing_ok=True)
-                    raise ValueError(f"Upload exceeds {max_bytes // (1024*1024)} MB limit")
-                fh.write(chunk)
-        return total
 
     if iasync and iasync.filename:
         try:
-            raw_bytes = await _read_upload_bytes(iasync)
+            results["iasync"] = await _handle_iasync_upload(iasync, sid, sess, active_account)
         except ValueError as exc:
             return JSONResponse({"error": str(exc)}, status_code=413)
-        size = len(raw_bytes)
-        s_cache["mtime"] = None
-        await loop.run_in_executor(None, lambda: _parse_iasync_from_bytes(raw_bytes, s_cache))
-        del raw_bytes
-        if s_cache["error"]:
-            results["iasync"] = {"ok": False, "error": s_cache["error"]}
-        else:
-            meta = s_cache.get("meta") or {}
-            account_name = meta.get("account") or active_account
-            if account_name:
-                slot, conflict = _select_upload_slot(sid, account_name)
-                if not slot:
-                    results["iasync"] = {"ok": False, "error": conflict, "conflict": True, "account_name": account_name}
-                else:
-                    _db_upsert_account_payload(AccountPayload(
-                        account_name=account_name,
-                        server=str(meta.get("server") or _config.get("server", "NA")),
-                        data_bytes=s_cache["data_bytes"],
-                        builds_bytes=s_cache["builds_bytes"],
-                        achievements_bytes=s_cache["achievements_bytes"],
-                        stickerbook_bytes=s_cache["stickerbook_bytes"],
-                        data_mtime=s_cache["mtime"],
-                        item_count=meta.get("item_count"),
-                        character_count=meta.get("character_count"),
-                        parse_ms=meta.get("parse_ms"),
-                        source_last_update=meta.get("last_modified"),
-                    ))
-                    _db_bind_session(sid, account_name, slot, make_active=True)
-                    workspace = _workspace_info(sid)
-                    active_account = _active_account_label(workspace)
-                    results["iasync"] = {
-                        "ok": True,
-                        "items": meta["item_count"],
-                        "chars": meta["character_count"],
-                        "account_name": account_name,
-                        "slot_updated": slot,
-                    }
-                    for q in list(sess["sse_queues"]):
-                        try:
-                            q.put_nowait("reload")
-                        except asyncio.QueueFull:
-                            pass
-            else:
-                results["iasync"] = {"ok": False, "error": "account name missing from upload"}
-        logger.info("Session {} uploaded iasync.lua ({} bytes)", sid[:8], size)
+        active_account = _active_account_label(_workspace_info(sid))
 
     if ww and ww.filename:
         try:
-            raw_bytes = await _read_upload_bytes(ww)
+            results["ww"] = await _handle_ww_upload(ww, sid, sess, active_account)
         except ValueError as exc:
             return JSONResponse({"error": str(exc)}, status_code=413)
-        size = len(raw_bytes)
-        s_ww_cache["mtime"] = None
-        await loop.run_in_executor(None, lambda: _parse_ww_from_bytes(raw_bytes, s_ww_cache))
-        account_name_for_ww = _extract_ww_account_name_from_bytes(raw_bytes) or active_account
-        del raw_bytes
-        if s_ww_cache["error"]:
-            results["ww"] = {"ok": False, "error": s_ww_cache["error"]}
-        else:
-            account_name = account_name_for_ww
-            if account_name:
-                slot, conflict = _select_upload_slot(sid, account_name)
-                if not slot:
-                    results["ww"] = {"ok": False, "error": conflict, "conflict": True, "account_name": account_name}
-                else:
-                    _db_upsert_account_payload(AccountPayload(
-                        account_name=account_name,
-                        server=str(_config.get("server", "NA")),
-                        ww_builds_bytes=s_ww_cache["ww_builds_bytes"],
-                        ww_mtime=s_ww_cache["mtime"],
-                    ))
-                    _db_bind_session(sid, account_name, slot, make_active=True)
-                    workspace = _workspace_info(sid)
-                    active_account = _active_account_label(workspace)
-                    builds = json.loads(s_ww_cache["ww_builds_bytes"])
-                    n = sum(len(v) for v in builds["builds"].values())
-                    results["ww"] = {"ok": True, "builds": n, "account_name": account_name, "slot_updated": slot}
-            else:
-                results["ww"] = {"ok": False, "error": "account name missing from upload"}
-        logger.info("Session {} uploaded WizardsWardrobe.lua ({} bytes)", sid[:8], size)
+        active_account = _active_account_label(_workspace_info(sid))
 
     if ttc_lookup and ttc_lookup.filename:
-        if not active_account or not _db_is_account_admin(active_account):
-            results["ttc_lookup"] = {"ok": False, "error": "TTC upload requires admin account"}
-        else:
-            ttc_dir = _ttc_upload_dir()
-            ttc_dir.mkdir(parents=True, exist_ok=True)
-            dest = ttc_dir / "ItemLookUpTable_EN.lua"
-            try:
-                size = await _stream_to_path(ttc_lookup, dest)
-            except ValueError as exc:
-                results["ttc_lookup"] = {"ok": False, "error": str(exc)}
-            else:
-                _ttc_tables["db_ready"] = False
-                _ttc_tables["price_cache"] = collections.OrderedDict()
-                _ttc_tables["error"] = None
-                results["ttc_lookup"] = {"ok": True}
-                logger.info("Session {} uploaded TTC lookup ({} bytes)", sid[:8], size)
+        results["ttc_lookup"] = await _handle_ttc_upload(ttc_lookup, sid, active_account, "lookup")
 
     if ttc_price and ttc_price.filename:
-        if not active_account or not _db_is_account_admin(active_account):
-            results["ttc_price"] = {"ok": False, "error": "TTC upload requires admin account"}
-        else:
-            ttc_dir = _ttc_upload_dir()
-            ttc_dir.mkdir(parents=True, exist_ok=True)
-            region = "EU" if str(_config.get("server", "NA")).upper() == "EU" else "NA"
-            dest = ttc_dir / f"PriceTable{region}.lua"
-            try:
-                size = await _stream_to_path(ttc_price, dest)
-            except ValueError as exc:
-                results["ttc_price"] = {"ok": False, "error": str(exc)}
-            else:
-                _ttc_tables["db_ready"] = False
-                _ttc_tables["price_time"] = None
-                _ttc_tables["price_cache"] = collections.OrderedDict()
-                _ttc_tables["error"] = None
-                results["ttc_price"] = {"ok": True}
-                logger.info("Session {} uploaded TTC price table ({} bytes)", sid[:8], size)
+        results["ttc_price"] = await _handle_ttc_upload(ttc_price, sid, active_account, "price")
 
     if not results:
         return JSONResponse({"error": "No files received"}, status_code=400)
@@ -2220,7 +2207,7 @@ async def api_ttc_price(name: str, session: str | None = Query(None), share: str
             "fetchedAt": int(time.time()),
             "fetchedAtText": _fmt_ttc_time(int(time.time())),
             "source": "TTC",
-            "attribution": "Data from Tamriel Trade Centre",
+            "attribution": _TTC_ATTRIBUTION,
             "url": _ttc_search_url(name),
             "error": str(exc),
         }

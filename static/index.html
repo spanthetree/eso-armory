@@ -1453,89 +1453,15 @@
                   </div>
                 </div>
               </div>
-              <div class="border-t border-eso-border pt-3">
-                <p class="eq-section-label">Apparel</p>
-                <div style="display:grid;grid-template-columns:40px 28px 40px;grid-template-rows:repeat(4,40px);gap:4px;margin-bottom:8px;">
-                  <div class="eq-slot" style="grid-column:1;grid-row:1" :class="!sl[0]&&'eq-empty'" :style="sl[0]?`background:${sl[0].item.quality_color}18;border-color:${sl[0].item.quality_color}55`:''" @mouseenter="sl[0]&&tipShowSlot(sl[0].item,slotLabel(0),$event)" @mouseleave="tipHide()"><span x-show="!!sl[0]" x-html="sl[0]?slotEquipIcon(0,sl[0].item):''"></span></div>
-                  <div class="eq-slot" style="grid-column:1;grid-row:2" :class="!sl[3]&&'eq-empty'" :style="sl[3]?`background:${sl[3].item.quality_color}18;border-color:${sl[3].item.quality_color}55`:''" @mouseenter="sl[3]&&tipShowSlot(sl[3].item,slotLabel(3),$event)" @mouseleave="tipHide()"><span x-show="!!sl[3]" x-html="sl[3]?slotEquipIcon(3,sl[3].item):''"></span></div>
-                  <div class="eq-slot" style="grid-column:1;grid-row:3" :class="!sl[16]&&'eq-empty'" :style="sl[16]?`background:${sl[16].item.quality_color}18;border-color:${sl[16].item.quality_color}55`:''" @mouseenter="sl[16]&&tipShowSlot(sl[16].item,slotLabel(16),$event)" @mouseleave="tipHide()"><span x-show="!!sl[16]" x-html="sl[16]?slotEquipIcon(16,sl[16].item):''"></span></div>
-                  <div style="grid-column:2;grid-row:1/span 4;display:flex;align-items:center;justify-content:center;"><div style="width:1px;height:88%;background:var(--t-border-line);border-radius:1px;"></div></div>
-                  <div class="eq-slot" style="grid-column:3;grid-row:1" :class="!sl[2]&&'eq-empty'" :style="sl[2]?`background:${sl[2].item.quality_color}18;border-color:${sl[2].item.quality_color}55`:''" @mouseenter="sl[2]&&tipShowSlot(sl[2].item,slotLabel(2),$event)" @mouseleave="tipHide()"><span x-show="!!sl[2]" x-html="sl[2]?slotEquipIcon(2,sl[2].item):''"></span></div>
-                  <div class="eq-slot" style="grid-column:3;grid-row:2" :class="!sl[6]&&'eq-empty'" :style="sl[6]?`background:${sl[6].item.quality_color}18;border-color:${sl[6].item.quality_color}55`:''" @mouseenter="sl[6]&&tipShowSlot(sl[6].item,slotLabel(6),$event)" @mouseleave="tipHide()"><span x-show="!!sl[6]" x-html="sl[6]?slotEquipIcon(6,sl[6].item):''"></span></div>
-                  <div class="eq-slot" style="grid-column:3;grid-row:3" :class="!sl[8]&&'eq-empty'" :style="sl[8]?`background:${sl[8].item.quality_color}18;border-color:${sl[8].item.quality_color}55`:''" @mouseenter="sl[8]&&tipShowSlot(sl[8].item,slotLabel(8),$event)" @mouseleave="tipHide()"><span x-show="!!sl[8]" x-html="sl[8]?slotEquipIcon(8,sl[8].item):''"></span></div>
-                  <div class="eq-slot" style="grid-column:3;grid-row:4" :class="!sl[9]&&'eq-empty'" :style="sl[9]?`background:${sl[9].item.quality_color}18;border-color:${sl[9].item.quality_color}55`:''" @mouseenter="sl[9]&&tipShowSlot(sl[9].item,slotLabel(9),$event)" @mouseleave="tipHide()"><span x-show="!!sl[9]" x-html="sl[9]?slotEquipIcon(9,sl[9].item):''"></span></div>
-                </div>
-                <p class="eq-section-label">Accessories</p>
-                <div class="flex gap-1 mb-2">
-                  <template x-for="s in [1,11,12]" :key="'ca'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
-                </div>
-                <p class="eq-section-label">Weapons</p>
-                <div class="flex gap-1 items-center">
-                  <template x-for="s in [4,5]" :key="'cw1'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
-                  <div class="w-px bg-eso-border self-stretch mx-0.5"></div>
-                  <template x-for="s in [20,21]" :key="'cw2'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
-                </div>
-              </div>
+              <div class="border-t border-eso-border pt-3" x-init="injectTpl($el,'tpl-eq-grid')"></div>
               <template x-if="charBuilds(selectedChar?.id)[0]">
-                <div class="border-t border-eso-border mt-3 pt-3 space-y-2 text-xs"
-                  x-data="{ get b() { return charBuilds(selectedChar.id)[0]; } }">
-                  <p class="eq-section-label">Build</p>
-                  <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-eso-muted">
-                    <template x-if="b.mundus && b.mundus.length">
-                      <span class="flex items-center gap-1">
-                        <img :src="mundusIcon(b.mundus[0])" class="cur-icon" :title="b.mundus[0]">
-                        <span x-text="b.mundus.join(', ')"></span>
-                      </span>
-                    </template>
-                    <span class="flex items-center gap-1" style="color:#5199ff99"><img src="/assets/interface/magicka.png" class="cur-icon"><span x-text="b.attributes?.magicka ?? 0"></span></span>
-                    <span class="flex items-center gap-1 text-red-400/80"><img src="/assets/interface/health.png" class="cur-icon"><span x-text="b.attributes?.health ?? 0"></span></span>
-                    <span class="flex items-center gap-1" style="color:#2dc50e99"><img src="/assets/interface/stamina.png" class="cur-icon"><span x-text="b.attributes?.stamina ?? 0"></span></span>
-                  </div>
-                  <template x-if="buildHasSkills(b)">
-                    <div class="space-y-0.5">
-                      <template x-for="bar in ['primary','backup','werewolf']" :key="bar">
-                        <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
-                          <span class="text-eso-muted/50 capitalize shrink-0 w-16" x-text="bar + ':'"></span>
-                          <span class="inline-flex flex-wrap gap-0.5">
-                            <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
-                              <span x-show="b.skills?.[bar]?.[slot]"
-                                class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text"
-                                :class="slot===8?'border-eso-gold/40 text-eso-gold':''"
-                                @mouseenter="tipShowSkill(b.skills?.[bar]?.[slot], $event)"
-                                @mouseleave="tipHide()"
-                                @click="openSkillbook(b.skills?.[bar]?.[slot])"
-                                x-html="abilitySlotHtml(b.skills?.[bar]?.[slot], slot===8)"></span>
-                            </template>
-                          </span>
-                        </div>
-                      </template>
-                    </div>
-                  </template>
-                  <template x-if="buildHasCP(b)">
-                    <div class="grid grid-cols-3 gap-x-4 gap-y-0.5">
-                      <template x-for="group in cpGroups(b)" :key="group.label">
-                        <div>
-                          <span class="flex items-center gap-1 font-medium" :style="`color:${group.color}`">
-                            <img :src="group.icon" class="cur-icon"><span x-text="group.label"></span>
-                          </span>
-                          <template x-for="slot in group.slots" :key="slot">
-                            <div x-show="b.cp?.[slot]" class="text-eso-muted whitespace-nowrap" x-text="cpName(b.cp?.[slot])"></div>
-                          </template>
-                        </div>
-                      </template>
-                    </div>
-                  </template>
-                  <template x-if="b.cp_earned > 0">
-                    <div class="flex items-center gap-1 text-eso-muted">
-                      <img src="/assets/interface/system.png" class="cur-icon">
-                      <span x-text="b.cp_earned.toLocaleString()"></span>
-                    </div>
-                  </template>
-                </div>
+                <div class="border-t border-eso-border mt-3 pt-3 text-xs"
+                  x-data="{ get b() { return charBuilds(selectedChar.id)[0]; }, cmpId: null }"
+                  x-init="injectTpl($el,'tpl-build-summary')"></div>
               </template>
             </div>
             <div class="bg-eso-card border border-eso-border rounded-lg p-4 max-h-[35rem] overflow-y-auto"
-              x-data="{ get b(){ return compareBuildRecord(selectedChar?.id,'imported'); }, get sl(){ return compareSlotMap(selectedChar?.id,'imported'); } }">
+              x-data="{ get b(){ return compareBuildRecord(selectedChar?.id,'imported'); }, get sl(){ return compareSlotMap(selectedChar?.id,'imported'); }, get cmpId(){ return selectedChar?.id; } }">
               <div class="flex items-center justify-between mb-2">
                 <span class="font-cinzel text-xs text-eso-muted uppercase tracking-wider">Imported Build</span>
                 <button x-show="compareImportedBuild(selectedChar?.id)" @click="deleteCompareBuild(selectedChar?.id)"
@@ -1574,84 +1500,10 @@
                       </div>
                     </div>
                   </div>
-                  <div class="border-t border-eso-border pt-3">
-                    <p class="eq-section-label">Apparel</p>
-                    <div style="display:grid;grid-template-columns:40px 28px 40px;grid-template-rows:repeat(4,40px);gap:4px;margin-bottom:8px;">
-                      <div class="eq-slot" style="grid-column:1;grid-row:1" :class="!sl[0]&&'eq-empty'" :style="sl[0]?`background:${sl[0].item.quality_color}18;border-color:${sl[0].item.quality_color}55`:''" @mouseenter="sl[0]&&tipShowSlot(sl[0].item,slotLabel(0),$event)" @mouseleave="tipHide()"><span x-show="!!sl[0]" x-html="sl[0]?slotEquipIcon(0,sl[0].item):''"></span></div>
-                      <div class="eq-slot" style="grid-column:1;grid-row:2" :class="!sl[3]&&'eq-empty'" :style="sl[3]?`background:${sl[3].item.quality_color}18;border-color:${sl[3].item.quality_color}55`:''" @mouseenter="sl[3]&&tipShowSlot(sl[3].item,slotLabel(3),$event)" @mouseleave="tipHide()"><span x-show="!!sl[3]" x-html="sl[3]?slotEquipIcon(3,sl[3].item):''"></span></div>
-                      <div class="eq-slot" style="grid-column:1;grid-row:3" :class="!sl[16]&&'eq-empty'" :style="sl[16]?`background:${sl[16].item.quality_color}18;border-color:${sl[16].item.quality_color}55`:''" @mouseenter="sl[16]&&tipShowSlot(sl[16].item,slotLabel(16),$event)" @mouseleave="tipHide()"><span x-show="!!sl[16]" x-html="sl[16]?slotEquipIcon(16,sl[16].item):''"></span></div>
-                      <div style="grid-column:2;grid-row:1/span 4;display:flex;align-items:center;justify-content:center;"><div style="width:1px;height:88%;background:var(--t-border-line);border-radius:1px;"></div></div>
-                      <div class="eq-slot" style="grid-column:3;grid-row:1" :class="!sl[2]&&'eq-empty'" :style="sl[2]?`background:${sl[2].item.quality_color}18;border-color:${sl[2].item.quality_color}55`:''" @mouseenter="sl[2]&&tipShowSlot(sl[2].item,slotLabel(2),$event)" @mouseleave="tipHide()"><span x-show="!!sl[2]" x-html="sl[2]?slotEquipIcon(2,sl[2].item):''"></span></div>
-                      <div class="eq-slot" style="grid-column:3;grid-row:2" :class="!sl[6]&&'eq-empty'" :style="sl[6]?`background:${sl[6].item.quality_color}18;border-color:${sl[6].item.quality_color}55`:''" @mouseenter="sl[6]&&tipShowSlot(sl[6].item,slotLabel(6),$event)" @mouseleave="tipHide()"><span x-show="!!sl[6]" x-html="sl[6]?slotEquipIcon(6,sl[6].item):''"></span></div>
-                      <div class="eq-slot" style="grid-column:3;grid-row:3" :class="!sl[8]&&'eq-empty'" :style="sl[8]?`background:${sl[8].item.quality_color}18;border-color:${sl[8].item.quality_color}55`:''" @mouseenter="sl[8]&&tipShowSlot(sl[8].item,slotLabel(8),$event)" @mouseleave="tipHide()"><span x-show="!!sl[8]" x-html="sl[8]?slotEquipIcon(8,sl[8].item):''"></span></div>
-                      <div class="eq-slot" style="grid-column:3;grid-row:4" :class="!sl[9]&&'eq-empty'" :style="sl[9]?`background:${sl[9].item.quality_color}18;border-color:${sl[9].item.quality_color}55`:''" @mouseenter="sl[9]&&tipShowSlot(sl[9].item,slotLabel(9),$event)" @mouseleave="tipHide()"><span x-show="!!sl[9]" x-html="sl[9]?slotEquipIcon(9,sl[9].item):''"></span></div>
-                    </div>
-                    <p class="eq-section-label">Accessories</p>
-                    <div class="flex gap-1 mb-2">
-                      <template x-for="s in [1,11,12]" :key="'ia'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
-                    </div>
-                    <p class="eq-section-label">Weapons</p>
-                    <div class="flex gap-1 items-center">
-                      <template x-for="s in [4,5]" :key="'iw1'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
-                      <div class="w-px bg-eso-border self-stretch mx-0.5"></div>
-                      <template x-for="s in [20,21]" :key="'iw2'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
-                    </div>
-                  </div>
+                  <div class="border-t border-eso-border pt-3" x-init="injectTpl($el,'tpl-eq-grid')"></div>
                   <template x-if="b">
-                    <div class="border-t border-eso-border mt-3 pt-3 space-y-2 text-xs">
-                      <p class="eq-section-label">Build</p>
-                      <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-eso-muted">
-                        <template x-if="b.mundus && b.mundus.length">
-                          <span class="flex items-center gap-1">
-                            <img :src="mundusIcon(b.mundus[0])" class="cur-icon" :title="b.mundus[0]">
-                            <span x-text="b.mundus.join(', ')"></span>
-                          </span>
-                        </template>
-                        <span class="flex items-center gap-1" style="color:#5199ff99"><img src="/assets/interface/magicka.png" class="cur-icon"><span x-text="b.attributes?.magicka ?? 0"></span></span>
-                        <span class="flex items-center gap-1 text-red-400/80"><img src="/assets/interface/health.png" class="cur-icon"><span x-text="b.attributes?.health ?? 0"></span></span>
-                        <span class="flex items-center gap-1" style="color:#2dc50e99"><img src="/assets/interface/stamina.png" class="cur-icon"><span x-text="b.attributes?.stamina ?? 0"></span></span>
-                      </div>
-                      <template x-if="buildHasSkills(b)">
-                        <div class="space-y-0.5">
-                          <template x-for="bar in ['primary','backup','werewolf']" :key="bar">
-                            <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
-                              <span class="text-eso-muted/50 capitalize shrink-0 w-16" x-text="bar + ':'"></span>
-                              <span class="inline-flex flex-wrap gap-0.5">
-                                <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
-                                  <span x-show="b.skills?.[bar]?.[slot]"
-                                    class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text"
-                                    :class="slot===8?'border-eso-gold/40 text-eso-gold':''"
-                                    @mouseenter="tipShowSkill(b.skills?.[bar]?.[slot], $event)"
-                                    @mouseleave="tipHide()"
-                                    @click="openSkillbook(b.skills?.[bar]?.[slot])"
-                                    x-html="abilitySlotHtmlCompare(b.skills?.[bar]?.[slot], slot===8, selectedChar?.id)"></span>
-                                </template>
-                              </span>
-                            </div>
-                          </template>
-                        </div>
-                      </template>
-                      <template x-if="buildHasCP(b)">
-                        <div class="grid grid-cols-3 gap-x-4 gap-y-0.5">
-                          <template x-for="group in cpGroups(b)" :key="group.label">
-                            <div>
-                              <span class="flex items-center gap-1 font-medium" :style="`color:${group.color}`">
-                                <img :src="group.icon" class="cur-icon"><span x-text="group.label"></span>
-                              </span>
-                              <template x-for="slot in group.slots" :key="slot">
-                                <div x-show="b.cp?.[slot]" class="text-eso-muted whitespace-nowrap" x-text="cpNameForCompare(b.cp?.[slot], selectedChar?.id)"></div>
-                              </template>
-                            </div>
-                          </template>
-                        </div>
-                      </template>
-                    </div>
-                  </template>
-                  <template x-if="b.cp_earned > 0">
-                    <div class="flex items-center gap-1 text-eso-muted">
-                      <img src="/assets/interface/system.png" class="cur-icon">
-                      <span x-text="b.cp_earned.toLocaleString()"></span>
-                    </div>
+                    <div class="border-t border-eso-border mt-3 pt-3 text-xs"
+                      x-init="injectTpl($el,'tpl-build-summary')"></div>
                   </template>
                 </div>
               </template>
@@ -1845,101 +1697,13 @@
                 </div>
               </div>
             </div>
-            <div class="border-t border-eso-border pt-3">
-              <p class="eq-section-label">Apparel</p>
-              <div style="display:grid;grid-template-columns:40px 28px 40px;grid-template-rows:repeat(4,40px);gap:4px;margin-bottom:8px;">
-                <div class="eq-slot" style="grid-column:1;grid-row:1" :class="!sl[0]&&'eq-empty'" :style="sl[0]?`background:${sl[0].item.quality_color}18;border-color:${sl[0].item.quality_color}55`:''" @mouseenter="sl[0]&&tipShowSlot(sl[0].item,slotLabel(0),$event)" @mouseleave="tipHide()"><span x-show="!!sl[0]" x-html="sl[0]?slotEquipIcon(0,sl[0].item):''"></span></div>
-                <div class="eq-slot" style="grid-column:1;grid-row:2" :class="!sl[3]&&'eq-empty'" :style="sl[3]?`background:${sl[3].item.quality_color}18;border-color:${sl[3].item.quality_color}55`:''" @mouseenter="sl[3]&&tipShowSlot(sl[3].item,slotLabel(3),$event)" @mouseleave="tipHide()"><span x-show="!!sl[3]" x-html="sl[3]?slotEquipIcon(3,sl[3].item):''"></span></div>
-                <div class="eq-slot" style="grid-column:1;grid-row:3" :class="!sl[16]&&'eq-empty'" :style="sl[16]?`background:${sl[16].item.quality_color}18;border-color:${sl[16].item.quality_color}55`:''" @mouseenter="sl[16]&&tipShowSlot(sl[16].item,slotLabel(16),$event)" @mouseleave="tipHide()"><span x-show="!!sl[16]" x-html="sl[16]?slotEquipIcon(16,sl[16].item):''"></span></div>
-                <div style="grid-column:2;grid-row:1/span 4;display:flex;align-items:center;justify-content:center;"><div style="width:1px;height:88%;background:var(--t-border-line);border-radius:1px;"></div></div>
-                <div class="eq-slot" style="grid-column:3;grid-row:1" :class="!sl[2]&&'eq-empty'" :style="sl[2]?`background:${sl[2].item.quality_color}18;border-color:${sl[2].item.quality_color}55`:''" @mouseenter="sl[2]&&tipShowSlot(sl[2].item,slotLabel(2),$event)" @mouseleave="tipHide()"><span x-show="!!sl[2]" x-html="sl[2]?slotEquipIcon(2,sl[2].item):''"></span></div>
-                <div class="eq-slot" style="grid-column:3;grid-row:2" :class="!sl[6]&&'eq-empty'" :style="sl[6]?`background:${sl[6].item.quality_color}18;border-color:${sl[6].item.quality_color}55`:''" @mouseenter="sl[6]&&tipShowSlot(sl[6].item,slotLabel(6),$event)" @mouseleave="tipHide()"><span x-show="!!sl[6]" x-html="sl[6]?slotEquipIcon(6,sl[6].item):''"></span></div>
-                <div class="eq-slot" style="grid-column:3;grid-row:3" :class="!sl[8]&&'eq-empty'" :style="sl[8]?`background:${sl[8].item.quality_color}18;border-color:${sl[8].item.quality_color}55`:''" @mouseenter="sl[8]&&tipShowSlot(sl[8].item,slotLabel(8),$event)" @mouseleave="tipHide()"><span x-show="!!sl[8]" x-html="sl[8]?slotEquipIcon(8,sl[8].item):''"></span></div>
-                <div class="eq-slot" style="grid-column:3;grid-row:4" :class="!sl[9]&&'eq-empty'" :style="sl[9]?`background:${sl[9].item.quality_color}18;border-color:${sl[9].item.quality_color}55`:''" @mouseenter="sl[9]&&tipShowSlot(sl[9].item,slotLabel(9),$event)" @mouseleave="tipHide()"><span x-show="!!sl[9]" x-html="sl[9]?slotEquipIcon(9,sl[9].item):''"></span></div>
-              </div>
-              <p class="eq-section-label">Accessories</p>
-              <div class="flex gap-1 mb-2">
-                <template x-for="s in [1,11,12]" :key="'da'+s">
-                  <div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div>
-                </template>
-              </div>
-              <p class="eq-section-label">Weapons</p>
-              <div class="flex gap-1 items-center">
-                <template x-for="s in [4,5]" :key="'dw1'+s">
-                  <div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div>
-                </template>
-                <div class="w-px bg-eso-border self-stretch mx-0.5"></div>
-                <template x-for="s in [20,21]" :key="'dw2'+s">
-                  <div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div>
-                </template>
-              </div>
-            </div>
+            <div class="border-t border-eso-border pt-3" x-init="injectTpl($el,'tpl-eq-grid')"></div>
 
             <!-- Build summary: mundus, attributes, skills, CP -->
             <template x-if="charBuilds(selectedChar?.id)[0]">
-              <div class="border-t border-eso-border mt-3 pt-3 space-y-2 text-xs"
-                x-data="{ get b() { return charBuilds(selectedChar.id)[0]; } }">
-                <p class="eq-section-label">Build</p>
-
-                <!-- Mundus + attributes -->
-                <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-eso-muted">
-                  <template x-if="b.mundus && b.mundus.length">
-                    <span class="flex items-center gap-1">
-                      <img :src="mundusIcon(b.mundus[0])" class="cur-icon" :title="b.mundus[0]">
-                      <span x-text="b.mundus.join(', ')"></span>
-                    </span>
-                  </template>
-                  <span class="flex items-center gap-1" style="color:#5199ff99"><img src="/assets/interface/magicka.png" class="cur-icon"><span x-text="b.attributes?.magicka ?? 0"></span></span>
-                  <span class="flex items-center gap-1 text-red-400/80"><img src="/assets/interface/health.png" class="cur-icon"><span x-text="b.attributes?.health ?? 0"></span></span>
-                  <span class="flex items-center gap-1" style="color:#2dc50e99"><img src="/assets/interface/stamina.png" class="cur-icon"><span x-text="b.attributes?.stamina ?? 0"></span></span>
-                </div>
-
-                <!-- Skills -->
-                <template x-if="buildHasSkills(b)">
-                  <div class="space-y-0.5">
-                    <template x-for="bar in ['primary','backup','werewolf']" :key="bar">
-                      <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
-                        <span class="text-eso-muted/50 capitalize shrink-0 w-16" x-text="bar + ':'"></span>
-                        <span class="inline-flex flex-wrap gap-0.5">
-                          <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
-                            <span x-show="b.skills?.[bar]?.[slot]"
-                              class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text cursor-pointer"
-                              :class="slot===8?'border-eso-gold/40 text-eso-gold':''"
-                              @mouseenter="tipShowSkill(b.skills?.[bar]?.[slot], $event)"
-                              @mouseleave="tipHide()"
-                              @click="openSkillbook(b.skills?.[bar]?.[slot])"
-                              x-html="abilitySlotHtml(b.skills?.[bar]?.[slot], slot===8)"></span>
-                          </template>
-                        </span>
-                      </div>
-                    </template>
-                  </div>
-                </template>
-
-                <!-- Champion Points -->
-                <template x-if="buildHasCP(b)">
-                  <div class="grid grid-cols-3 gap-x-4 gap-y-0.5">
-                    <template x-for="group in cpGroups(b)" :key="group.label">
-                      <div>
-                        <span class="flex items-center gap-1 font-medium" :style="`color:${group.color}`">
-                          <img :src="group.icon" class="cur-icon"><span x-text="group.label"></span>
-                        </span>
-                        <template x-for="slot in group.slots" :key="slot">
-                          <div x-show="b.cp?.[slot]" class="text-eso-muted whitespace-nowrap"
-                            x-text="cpName(b.cp?.[slot])"></div>
-                        </template>
-                      </div>
-                    </template>
-                  </div>
-                </template>
-
-                <!-- CP total -->
-                <template x-if="b.cp_earned > 0">
-                  <div class="flex items-center gap-1 text-eso-muted">
-                    <img src="/assets/interface/system.png" class="cur-icon">
-                    <span x-text="b.cp_earned.toLocaleString()"></span>
-                  </div>
-                </template>
+              <div class="border-t border-eso-border mt-3 pt-3 text-xs"
+                x-data="{ get b() { return charBuilds(selectedChar.id)[0]; }, cmpId: null }"
+                x-init="injectTpl($el,'tpl-build-summary')">
               </div>
             </template>
           </div>
@@ -2584,7 +2348,7 @@
                         <div class="w-14 h-14 rounded border flex items-center justify-center relative overflow-hidden"
                           style="background:var(--t-achiev-bg);border-color:var(--t-gold-dim)">
                           <img :src="achievIconUrl(a.icon)" class="absolute inset-0 w-full h-full object-cover"
-                            @error="$el.style.visibility='hidden'" alt="">
+                            loading="lazy" @error="$el.style.visibility='hidden'" alt="">
                           <span class="text-2xl" style="color:var(--t-gold-faint);pointer-events:none">★</span>
                         </div>
                         <span class="text-[9px] text-eso-muted text-center leading-tight group-hover:text-eso-text transition-colors"
@@ -2692,7 +2456,7 @@
                         <div class="w-9 h-9 rounded shrink-0 relative overflow-hidden flex items-center justify-center border"
                           :style="a.complete ? 'border-color:var(--t-gold-dim);background:var(--t-achiev-bg)' : 'border-color:var(--t-border-line);background:var(--t-bg)'">
                           <img :src="achievIconUrl(a.icon)" class="absolute inset-0 w-full h-full object-cover"
-                            @error="$el.style.visibility='hidden'" alt="">
+                            loading="lazy" @error="$el.style.visibility='hidden'" alt="">
                           <span class="text-lg" style="pointer-events:none"
                             :style="a.complete ? 'color:var(--t-gold-faint)' : 'color:var(--t-border-ghost)'">★</span>
                         </div>
@@ -3010,10 +2774,174 @@
 
   </main>
 
+  <!-- Shared equipment-grid markup, cloned via injectTpl() into the three build
+       views (drilldown, compare-current, compare-imported). Scope requirements:
+       `sl` (slot → {slot, item} map) from the enclosing x-data. -->
+  <template id="tpl-eq-grid">
+    <div>
+      <p class="eq-section-label">Apparel</p>
+      <div style="display:grid;grid-template-columns:40px 28px 40px;grid-template-rows:repeat(4,40px);gap:4px;margin-bottom:8px;">
+        <template x-for="cfg in APPAREL_SLOTS" :key="'ap'+cfg.s">
+          <div class="eq-slot" :class="!sl[cfg.s]&&'eq-empty'" :style="`grid-column:${cfg.c};grid-row:${cfg.r};` + (sl[cfg.s]?`background:${sl[cfg.s].item.quality_color}18;border-color:${sl[cfg.s].item.quality_color}55`:'')" @mouseenter="sl[cfg.s]&&tipShowSlot(sl[cfg.s].item,slotLabel(cfg.s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[cfg.s]" x-html="sl[cfg.s]?slotEquipIcon(cfg.s,sl[cfg.s].item):''"></span></div>
+        </template>
+        <div style="grid-column:2;grid-row:1/span 4;display:flex;align-items:center;justify-content:center;"><div style="width:1px;height:88%;background:var(--t-border-line);border-radius:1px;"></div></div>
+      </div>
+      <p class="eq-section-label">Accessories</p>
+      <div class="flex gap-1 mb-2">
+        <template x-for="s in [1,11,12]" :key="'ea'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
+      </div>
+      <p class="eq-section-label">Weapons</p>
+      <div class="flex gap-1 items-center">
+        <template x-for="s in [4,5]" :key="'ew1'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
+        <div class="w-px bg-eso-border self-stretch mx-0.5"></div>
+        <template x-for="s in [20,21]" :key="'ew2'+s"><div class="eq-slot" :class="!sl[s]&&'eq-empty'" :style="sl[s]?`background:${sl[s].item.quality_color}18;border-color:${sl[s].item.quality_color}55`:''" @mouseenter="sl[s]&&tipShowSlot(sl[s].item,slotLabel(s),$event)" @mouseleave="tipHide()"><span x-show="!!sl[s]" x-html="sl[s]?slotEquipIcon(s,sl[s].item):''"></span></div></template>
+      </div>
+    </div>
+  </template>
+
+  <!-- Shared build summary (mundus, attributes, skills, CP). Scope requirements:
+       `b` (build record) and `cmpId` (null for local builds, character id for
+       imported compare builds) from the enclosing x-data. -->
+  <template id="tpl-build-summary">
+    <div class="space-y-2">
+      <p class="eq-section-label">Build</p>
+      <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-eso-muted">
+        <template x-if="b.mundus && b.mundus.length">
+          <span class="flex items-center gap-1">
+            <img :src="mundusIcon(b.mundus[0])" class="cur-icon" :title="b.mundus[0]">
+            <span x-text="b.mundus.join(', ')"></span>
+          </span>
+        </template>
+        <span class="flex items-center gap-1" style="color:#5199ff99"><img src="/assets/interface/magicka.png" class="cur-icon"><span x-text="b.attributes?.magicka ?? 0"></span></span>
+        <span class="flex items-center gap-1 text-red-400/80"><img src="/assets/interface/health.png" class="cur-icon"><span x-text="b.attributes?.health ?? 0"></span></span>
+        <span class="flex items-center gap-1" style="color:#2dc50e99"><img src="/assets/interface/stamina.png" class="cur-icon"><span x-text="b.attributes?.stamina ?? 0"></span></span>
+      </div>
+      <template x-if="buildHasSkills(b)">
+        <div class="space-y-0.5">
+          <template x-for="bar in ['primary','backup','werewolf']" :key="bar">
+            <div x-show="b.skills?.[bar] && Object.keys(b.skills[bar]).length" class="flex items-center gap-1">
+              <span class="text-eso-muted/50 capitalize shrink-0 w-16" x-text="bar + ':'"></span>
+              <span class="inline-flex flex-wrap gap-0.5">
+                <template x-for="slot in [3,4,5,6,7,8]" :key="slot">
+                  <span x-show="b.skills?.[bar]?.[slot]"
+                    class="bg-eso-bg border border-eso-border rounded px-1 py-0.5 text-eso-text cursor-pointer"
+                    :class="slot===8?'border-eso-gold/40 text-eso-gold':''"
+                    @mouseenter="tipShowSkill(b.skills?.[bar]?.[slot], $event)"
+                    @mouseleave="tipHide()"
+                    @click="openSkillbook(b.skills?.[bar]?.[slot])"
+                    x-html="abilitySlotHtml(b.skills?.[bar]?.[slot], slot===8, cmpId)"></span>
+                </template>
+              </span>
+            </div>
+          </template>
+        </div>
+      </template>
+      <template x-if="buildHasCP(b)">
+        <div class="grid grid-cols-3 gap-x-4 gap-y-0.5">
+          <template x-for="group in cpGroups(b)" :key="group.label">
+            <div>
+              <span class="flex items-center gap-1 font-medium" :style="`color:${group.color}`">
+                <img :src="group.icon" class="cur-icon"><span x-text="group.label"></span>
+              </span>
+              <template x-for="slot in group.slots" :key="slot">
+                <div x-show="b.cp?.[slot]" class="text-eso-muted whitespace-nowrap" x-text="cpNameFor(b.cp?.[slot], cmpId)"></div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+      <template x-if="b.cp_earned > 0">
+        <div class="flex items-center gap-1 text-eso-muted">
+          <img src="/assets/interface/system.png" class="cur-icon">
+          <span x-text="b.cp_earned.toLocaleString()"></span>
+        </div>
+      </template>
+    </div>
+  </template>
+
 <script>
+// ── Static icon lookups (shared by slotEquipIcon / itemIconHtml) ──
+const GEAR_PATH   = '/assets/gear';
+const WEAPON_PATH = `${GEAR_PATH}/weapon`;
+const STAFF_SRC   = `${WEAPON_PATH}/gear_breton_staff_d.webp`;
+const WEAPON_ICONS = {
+  'Dagger':            `${WEAPON_PATH}/gear_breton_dagger_d.webp`,
+  'Sword':             `${WEAPON_PATH}/gear_breton_1hsword_d.webp`,
+  'Axe':               `${WEAPON_PATH}/gear_breton_1haxe_d.webp`,
+  'Hammer':            `${WEAPON_PATH}/gear_breton_1hhammer_d.webp`,
+  'Two-Handed Sword':  `${WEAPON_PATH}/gear_breton_2hsword_d.webp`,
+  'Two-Handed Axe':    `${WEAPON_PATH}/gear_breton_2haxe_d.webp`,
+  'Two-Handed Hammer': `${WEAPON_PATH}/gear_breton_2hhammer_d.webp`,
+  'Bow':               `${WEAPON_PATH}/gear_breton_bow_d.webp`,
+  'Shield':            `${WEAPON_PATH}/gear_breton_shield_d.webp`,
+};
+// slot → armor piece name (light chest is "shirt")
+const ARMOR_SLOT = {
+  0: 'head', 2: 'chest', 3: 'shoulders',
+  6: 'waist', 8: 'legs', 9: 'feet', 16: 'hands',
+};
+const ARMOR_ICONS = {
+  'Heavy':  `${GEAR_PATH}/armor/heavy/gear_breton_heavy_chest_d.webp`,
+  'Medium': `${GEAR_PATH}/armor/medium/gear_breton_medium_chest_d.webp`,
+  'Light':  `${GEAR_PATH}/armor/light/gear_breton_light_shirt_d.webp`,
+};
+const FALLBACK_ICONS = {
+  1: '/assets/interface/inventory_weapons.png',
+  2: '/assets/interface/inventory_armor.png',
+  3: '/assets/interface/inventory_consumables.png',
+  4: '/assets/interface/inventory_materials.png',
+  5: '/assets/interface/inventory_miscellaneous.png',
+  6: '/assets/interface/enchanting_potency.png',
+};
+// Name-based fallback: ordered so longer/more-specific matches come first
+function weaponNameToSrc(n) {
+  if (n.includes('greatsword') || n.includes('great sword'))      return WEAPON_ICONS['Two-Handed Sword'];
+  if (n.includes('battle axe') || n.includes('battleaxe') || n.includes('great axe')) return WEAPON_ICONS['Two-Handed Axe'];
+  if (n.includes('maul'))                                         return WEAPON_ICONS['Two-Handed Hammer'];
+  if (n.includes('staff'))                                        return STAFF_SRC;
+  if (n.includes('dagger'))                                       return WEAPON_ICONS['Dagger'];
+  if (n.includes('sword') || n.includes('blade') || n.includes('saber') || n.includes('sabre') || n.includes('machete')) return WEAPON_ICONS['Sword'];
+  if (n.includes('axe'))                                          return WEAPON_ICONS['Axe'];
+  if (n.includes('hammer') || n.includes('mace'))                 return WEAPON_ICONS['Hammer'];
+  if (n.includes('bow'))                                          return WEAPON_ICONS['Bow'];
+  if (n.includes('shield'))                                       return WEAPON_ICONS['Shield'];
+  return null;
+}
+// iasync stores weapon type per-slot; discard it if it claims Staff but item name disagrees
+function resolveWeaponType(wt, nameLower) {
+  return (wt && wt.includes('Staff') && !nameLower.includes('staff')) ? null : wt;
+}
+
+// ── Static filter-label lookups ──
+const FILTER_TYPE_LABELS = {'1':'Weapons','2':'Armor','25':'Jewelry','3':'Consumables','4':'Materials','6':'Glyphs','21':'Furnishings','5':'Misc'};
+const LOC_TYPE_LABELS    = {'character':'Characters','bank':'Bank','craftbag':'Craft Bag','house_chest':'House Chests'};
+const CHAR_BAG_LABELS    = {'0':'Equipped','1':'Backpack'};
+const TRAIT_NAMES = {'18':'Divines','16':'Infused','25':'Nirnhoned','13':'Reinforced','11':'Sturdy','14':'Well-Fitted','12':'Impenetrable','15':'Training','4':'Infused','26':'Nirnhoned','5':'Defending','2':'Charged','7':'Sharpened','1':'Powered','3':'Precise','8':'Decisive','6':'Training','32':'Protective','29':'Harmony','31':'Bloodthirsty','30':'Triune','33':'Infused','28':'Swift','22':'Arcane','21':'Healthy','23':'Robust'};
+// "A, B" for up to two names, "A +N" beyond that
+function labelSummary(names) {
+  return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+}
+
+// Apparel slot layout for tpl-eq-grid: s=equip slot id, c/r=grid column/row
+const APPAREL_SLOTS = [
+  { s: 0,  c: 1, r: 1 }, { s: 3, c: 1, r: 2 }, { s: 16, c: 1, r: 3 },
+  { s: 2,  c: 3, r: 1 }, { s: 6, c: 3, r: 2 }, { s: 8,  c: 3, r: 3 }, { s: 9, c: 3, r: 4 },
+];
+
+// ── Memo cache for the filtered/grouped item getters ──
+// Lives outside the Alpine component so cached arrays stay un-proxied and
+// writing to it inside a getter doesn't mutate reactive state mid-render.
+// Invalidation: key strings built from _dataVersion + every filter input.
+const EMPTY_ITEMS = Object.freeze([]);
+const _itemMemo = {
+  inv:  { key: null, items: null, dispSrc: null, dispGrp: null, disp: null },
+  char: { key: null, items: null, dispSrc: null, dispGrp: null, disp: null },
+};
+
 function armory() {
   return {
     data: null,
+    _dataVersion: 0,  // bumped on every this.data assignment; read by memo keys
     charMaps: {},
     itemIdMap: {},
     builds: null,
@@ -3515,14 +3443,16 @@ function armory() {
         const r = await fetch(this.apiUrl('/api/data'));
         if (!r.ok) {
           this.data = null;
+          this._dataVersion++;
           if (r.status !== 503) this.error = `HTTP ${r.status}`;
         } else {
           const etag = r.headers.get('ETag');
           if (etag) this.lastKnownMtime = parseFloat(etag);
           const d = await r.json();
-          if (d.error) { this.data = null; this.error = d.error; }
+          if (d.error) { this.data = null; this._dataVersion++; this.error = d.error; }
           else {
             this.data = d;
+            this._dataVersion++;
             if (this.data?.meta?.account) this.workspace.activeAccount = this.data.meta.account;
             this.buildCharMaps();
             this.buildItemIdMap();
@@ -4793,18 +4723,11 @@ function armory() {
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     },
 
-    abilitySlotHtml(id, isUlt) {
-      const name = this.abilityName(id);
-      const icon = this.abilityIcon(id);
-      if (icon) {
-        return `<img src="${icon}" class="skill-icon" alt="">`;
-      }
-      const cls = isUlt ? ' text-eso-gold' : '';
-      return `<span class="px-1 py-0.5 text-xs${cls}">${this.escapeHtml(name)}</span>`;
-    },
-
-    abilitySlotHtmlCompare(id, isUlt, charId) {
-      const name = this.abilityNameForCompare(id, charId);
+    // cmpId === null → local build (names from this.builds); otherwise imported
+    // compare build for that character (falls back to imported names / #id).
+    // escapeHtml is required: imported ability names are user-supplied via share codes.
+    abilitySlotHtml(id, isUlt, cmpId = null) {
+      const name = cmpId == null ? this.abilityName(id) : this.abilityNameForCompare(id, cmpId);
       let icon = null;
       if (name && !name.startsWith('#')) {
         const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
@@ -4824,6 +4747,10 @@ function armory() {
     cpNameForCompare(id, charId) {
       if (!id) return '';
       return this.cpName(id) || this._importedCpName(charId, id) || `#${id}`;
+    },
+
+    cpNameFor(id, cmpId = null) {
+      return cmpId == null ? this.cpName(id) : this.cpNameForCompare(id, cmpId);
     },
 
     buildHasSkills(build) {
@@ -4865,55 +4792,32 @@ function armory() {
       return this.slotLabels[slot] || `Slot ${slot}`;
     },
 
+    // Clone a shared <template id=...> into el and init it against el's scope
+    // chain (so it picks up local x-data like sl/b/cmpId). Must init explicitly
+    // inside mutateDom: nodes appended from x-init run after Alpine's tree walk,
+    // and inside an x-if clone the mutation observer is paused, so they would
+    // otherwise never initialize.
+    injectTpl(el, id) {
+      Alpine.mutateDom(() => {
+        el.appendChild(document.getElementById(id).content.cloneNode(true));
+        for (const child of el.children) Alpine.initTree(child);
+      });
+    },
+
     // HTML img tag for an item in a specific equipment SLOT (character sheet).
     // Off-hand slots (5, 21) are ambiguous (weapon or shield) so fall back to item type.
     slotEquipIcon(slot, item) {
-      const G = '/assets/gear';
-      const W = `${G}/weapon`;
       const img   = (src) => `<img src="${src}" class="w-8 h-8 object-contain" alt="">`;
       const iface = (name) => `<img src="/assets/interface/${name}.png" class="w-6 h-6 opacity-75" alt="">`;
 
-      const WEAPON_ICONS = {
-        'Dagger':            `${W}/gear_breton_dagger_d.webp`,
-        'Sword':             `${W}/gear_breton_1hsword_d.webp`,
-        'Axe':               `${W}/gear_breton_1haxe_d.webp`,
-        'Hammer':            `${W}/gear_breton_1hhammer_d.webp`,
-        'Two-Handed Sword':  `${W}/gear_breton_2hsword_d.webp`,
-        'Two-Handed Axe':    `${W}/gear_breton_2haxe_d.webp`,
-        'Two-Handed Hammer': `${W}/gear_breton_2hhammer_d.webp`,
-        'Bow':               `${W}/gear_breton_bow_d.webp`,
-        'Shield':            `${W}/gear_breton_shield_d.webp`,
-      };
-      // slot → armor piece name (light chest is "shirt")
-      const ARMOR_SLOT = {
-        0: 'head', 2: 'chest', 3: 'shoulders',
-        6: 'waist', 8: 'legs', 9: 'feet', 16: 'hands',
-      };
-
-      const staffSrc = `${W}/gear_breton_staff_d.webp`;
-      // Name-based fallback: ordered so longer/more-specific matches come first
-      const nameToSrc = (n) => {
-        if (n.includes('greatsword') || n.includes('great sword'))      return WEAPON_ICONS['Two-Handed Sword'];
-        if (n.includes('battle axe') || n.includes('battleaxe') || n.includes('great axe')) return WEAPON_ICONS['Two-Handed Axe'];
-        if (n.includes('maul'))                                         return WEAPON_ICONS['Two-Handed Hammer'];
-        if (n.includes('staff'))                                        return staffSrc;
-        if (n.includes('dagger'))                                       return WEAPON_ICONS['Dagger'];
-        if (n.includes('sword') || n.includes('blade') || n.includes('saber') || n.includes('sabre') || n.includes('machete')) return WEAPON_ICONS['Sword'];
-        if (n.includes('axe'))                                          return WEAPON_ICONS['Axe'];
-        if (n.includes('hammer') || n.includes('mace'))                 return WEAPON_ICONS['Hammer'];
-        if (n.includes('bow'))                                          return WEAPON_ICONS['Bow'];
-        if (n.includes('shield'))                                       return WEAPON_ICONS['Shield'];
-        return null;
-      };
       const weaponImg = (wt, name) => {
         const nameLower = (name || '').toLowerCase();
-        // iasync stores weapon type per-slot; discard it if it claims Staff but item name disagrees
-        const resolvedWt = (wt && wt.includes('Staff') && !nameLower.includes('staff')) ? null : wt;
+        const resolvedWt = resolveWeaponType(wt, nameLower);
         if (!resolvedWt) {
-          const src = nameToSrc(nameLower);
+          const src = weaponNameToSrc(nameLower);
           return src ? img(src) : iface('inventory_weapons');
         }
-        const src = WEAPON_ICONS[resolvedWt] ?? (resolvedWt.includes('Staff') ? staffSrc : null);
+        const src = WEAPON_ICONS[resolvedWt] ?? (resolvedWt.includes('Staff') ? STAFF_SRC : null);
         return src ? img(src) : iface('inventory_weapons');
       };
       const armorImg = (s, at) => {
@@ -4921,83 +4825,41 @@ function armory() {
         if (!piece || !at) return iface('inventory_armor');
         const w = at.toLowerCase();
         const p = (w === 'light' && piece === 'chest') ? 'shirt' : piece;
-        return img(`${G}/armor/${w}/gear_breton_${w}_${p}_d.webp`);
+        return img(`${GEAR_PATH}/armor/${w}/gear_breton_${w}_${p}_d.webp`);
       };
 
       if (slot in ARMOR_SLOT)                    return armorImg(slot, item.armor_type);
-      if (slot === 1)                            return img(`${G}/jewelry/gear_breton_neck_a.webp`);
-      if (slot === 11 || slot === 12)            return img(`${G}/jewelry/gear_breton_ring_a.webp`);
+      if (slot === 1)                            return img(`${GEAR_PATH}/jewelry/gear_breton_neck_a.webp`);
+      if (slot === 11 || slot === 12)            return img(`${GEAR_PATH}/jewelry/gear_breton_ring_a.webp`);
       if (slot===4||slot===5||slot===20||slot===21) return weaponImg(item.weapon_type, item.name);
       if (slot === 10)                           return iface('character_creation_body');
       if (slot === 13 || slot === 14)            return iface('inventory_consumables');
       // fallback by filter type (e.g. unrecognised slot numbers)
       if (item.filter_type === 1)  return weaponImg(item.weapon_type, item.name);
       if (item.filter_type === 2)  return armorImg(slot, item.armor_type);
-      if (item.filter_type === 25) return img(`${G}/jewelry/gear_breton_neck_a.webp`);
+      if (item.filter_type === 25) return img(`${GEAR_PATH}/jewelry/gear_breton_neck_a.webp`);
       return iface('inventory_miscellaneous');
     },
 
     // Icon for an item anywhere in inventory / location lists.
     itemIconHtml(item) {
-      const G = '/assets/gear';
-      const W = `${G}/weapon`;
-      const WEAPON_ICONS = {
-        'Dagger':           `${W}/gear_breton_dagger_d.webp`,
-        'Sword':            `${W}/gear_breton_1hsword_d.webp`,
-        'Axe':              `${W}/gear_breton_1haxe_d.webp`,
-        'Hammer':           `${W}/gear_breton_1hhammer_d.webp`,
-        'Two-Handed Sword': `${W}/gear_breton_2hsword_d.webp`,
-        'Two-Handed Axe':   `${W}/gear_breton_2haxe_d.webp`,
-        'Two-Handed Hammer':`${W}/gear_breton_2hhammer_d.webp`,
-        'Bow':              `${W}/gear_breton_bow_d.webp`,
-        'Shield':           `${W}/gear_breton_shield_d.webp`,
-      };
-      const ARMOR_ICONS = {
-        'Heavy':  `${G}/armor/heavy/gear_breton_heavy_chest_d.webp`,
-        'Medium': `${G}/armor/medium/gear_breton_medium_chest_d.webp`,
-        'Light':  `${G}/armor/light/gear_breton_light_shirt_d.webp`,
-      };
-      const FALLBACK = {
-        1: '/assets/interface/inventory_weapons.png',
-        2: '/assets/interface/inventory_armor.png',
-        3: '/assets/interface/inventory_consumables.png',
-        4: '/assets/interface/inventory_materials.png',
-        5: '/assets/interface/inventory_miscellaneous.png',
-        6: '/assets/interface/enchanting_potency.png',
-      };
-
-      const staffSrc = `${W}/gear_breton_staff_d.webp`;
-      const nameToSrc = (n) => {
-        if (n.includes('greatsword') || n.includes('great sword'))           return WEAPON_ICONS['Two-Handed Sword'];
-        if (n.includes('battle axe') || n.includes('battleaxe') || n.includes('great axe')) return WEAPON_ICONS['Two-Handed Axe'];
-        if (n.includes('maul'))                                              return WEAPON_ICONS['Two-Handed Hammer'];
-        if (n.includes('staff'))                                             return staffSrc;
-        if (n.includes('dagger'))                                            return WEAPON_ICONS['Dagger'];
-        if (n.includes('sword') || n.includes('blade') || n.includes('saber') || n.includes('sabre') || n.includes('machete')) return WEAPON_ICONS['Sword'];
-        if (n.includes('axe'))                                               return WEAPON_ICONS['Axe'];
-        if (n.includes('hammer') || n.includes('mace'))                      return WEAPON_ICONS['Hammer'];
-        if (n.includes('bow'))                                               return WEAPON_ICONS['Bow'];
-        if (n.includes('shield'))                                            return WEAPON_ICONS['Shield'];
-        return null;
-      };
       let src = null;
       if (item.filter_type === 1) {
         const nameLower = (item.name || '').toLowerCase();
-        const wt = (item.weapon_type && item.weapon_type.includes('Staff') && !nameLower.includes('staff'))
-          ? null : item.weapon_type;
+        const wt = resolveWeaponType(item.weapon_type, nameLower);
         src = WEAPON_ICONS[wt]
-          ?? (wt && wt.includes('Staff') ? staffSrc : null)
-          ?? nameToSrc(nameLower)
-          ?? FALLBACK[1];
+          ?? (wt && wt.includes('Staff') ? STAFF_SRC : null)
+          ?? weaponNameToSrc(nameLower)
+          ?? FALLBACK_ICONS[1];
       } else if (item.filter_type === 2) {
-        if (item.weapon_type === 'Shield') src = `${W}/gear_breton_shield_d.webp`;
-        else src = ARMOR_ICONS[item.armor_type] ?? FALLBACK[2];
+        if (item.weapon_type === 'Shield') src = WEAPON_ICONS['Shield'];
+        else src = ARMOR_ICONS[item.armor_type] ?? FALLBACK_ICONS[2];
       } else if (item.filter_type === 25) {
-        src = `${G}/jewelry/gear_breton_neck_a.webp`;
+        src = `${GEAR_PATH}/jewelry/gear_breton_neck_a.webp`;
       } else {
-        src = FALLBACK[item.filter_type];
+        src = FALLBACK_ICONS[item.filter_type];
       }
-      if (src) return `<img src="${src}" class="w-7 h-7 object-contain" alt="">`;
+      if (src) return `<img src="${src}" class="w-7 h-7 object-contain" loading="lazy" alt="">`;
       return item.filter_type_icon;
     },
 
@@ -5022,8 +4884,20 @@ function armory() {
       return this.sortKey === key ? (this.sortDir === 'asc' ? ' ↑' : ' ↓') : '';
     },
 
+    // Reads every reactive dependency unconditionally so Alpine keeps tracking
+    // them even on memo hits (toggleFilter mutates arrays in place; JSON.stringify
+    // reads each element, registering the deps).
+    _invKey() {
+      return JSON.stringify([this._dataVersion, this.search, this.filterQuality,
+        this.filterTypes, this.filterLocTypes, this.filterChars, this.filterTraits,
+        this.filterTransmuted, this.filterCrafted, this.sortKey, this.sortDir]);
+    },
+
     get filteredItems() {
-      if (!this.data) return [];
+      const m = _itemMemo.inv;
+      const key = this._invKey();
+      if (!this.data) { m.key = key; m.items = EMPTY_ITEMS; return EMPTY_ITEMS; }
+      if (m.key === key) return m.items;
       let items = this.data.items;
       const q = this.search.toLowerCase().trim();
       if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
@@ -5045,10 +4919,12 @@ function armory() {
       if (this.filterTransmuted) items = items.filter(i => i.is_transmuted);
       if (this.filterCrafted)    items = items.filter(i => i.is_crafted);
       const k = this.sortKey, dir = this.sortDir === 'asc' ? 1 : -1;
-      return [...items].sort((a, b) => {
+      const result = [...items].sort((a, b) => {
         const av = a[k], bv = b[k];
         return typeof av === 'string' ? dir * av.localeCompare(bv) : dir * (av - bv);
       });
+      m.key = key; m.items = result;
+      return result;
     },
 
     get groupedItems() {
@@ -5068,12 +4944,21 @@ function armory() {
     },
 
     get displayItems() {
-      if (!this.filterGroupBySet) return this.filteredItems.map(item => ({ t: 'item', item }));
-      const result = [];
-      for (const group of this.groupedItems) {
-        result.push({ t: 'h', set: group.set || 'No Set', count: group.count });
-        for (const item of group.items) result.push({ t: 'item', item });
+      // Memoized by identity of the upstream cached array + group flag, so x-for
+      // sees a stable array and skips DOM diffing when nothing changed.
+      const src = this.filteredItems, grp = this.filterGroupBySet;
+      const m = _itemMemo.inv;
+      if (m.disp && m.dispSrc === src && m.dispGrp === grp) return m.disp;
+      let result;
+      if (!grp) result = src.map(item => ({ t: 'item', item }));
+      else {
+        result = [];
+        for (const group of this.groupedItems) {
+          result.push({ t: 'h', set: group.set || 'No Set', count: group.count });
+          for (const item of group.items) result.push({ t: 'item', item });
+        }
       }
+      m.dispSrc = src; m.dispGrp = grp; m.disp = result;
       return result;
     },
 
@@ -5097,7 +4982,17 @@ function armory() {
       return result;
     },
 
+    // Char-inventory analogue of _invKey (the char view shares sortKey/sortDir).
+    _charInvKey() {
+      return JSON.stringify([this._dataVersion, this.selectedChar?.id, this.charInvSearch,
+        this.charInvQuality, this.charInvTypes, this.charInvLocTypes, this.charInvTraits,
+        this.charInvTransmuted, this.charInvCrafted, this.sortKey, this.sortDir]);
+    },
+
     get charFilteredItems() {
+      const m = _itemMemo.char;
+      const key = this._charInvKey();
+      if (m.key === key) return m.items;
       let items = this.charInventoryItems;
       const q = this.charInvSearch.toLowerCase().trim();
       if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
@@ -5115,10 +5010,12 @@ function armory() {
       if (this.charInvTransmuted) items = items.filter(i => i.is_transmuted);
       if (this.charInvCrafted)    items = items.filter(i => i.is_crafted);
       const k = this.sortKey, dir = this.sortDir === 'asc' ? 1 : -1;
-      return [...items].sort((a, b) => {
+      const result = [...items].sort((a, b) => {
         const av = a[k], bv = b[k];
         return typeof av === 'string' ? dir * av.localeCompare(bv) : dir * (av - bv);
       });
+      m.key = key; m.items = result;
+      return result;
     },
 
     get charGroupedItems() {
@@ -5138,12 +5035,19 @@ function armory() {
     },
 
     get charDisplayItems() {
-      if (!this.charInvGroupBySet) return this.charFilteredItems.map(item => ({ t: 'item', item }));
-      const result = [];
-      for (const group of this.charGroupedItems) {
-        result.push({ t: 'h', set: group.set || 'No Set', count: group.count });
-        for (const item of group.items) result.push({ t: 'item', item });
+      const src = this.charFilteredItems, grp = this.charInvGroupBySet;
+      const m = _itemMemo.char;
+      if (m.disp && m.dispSrc === src && m.dispGrp === grp) return m.disp;
+      let result;
+      if (!grp) result = src.map(item => ({ t: 'item', item }));
+      else {
+        result = [];
+        for (const group of this.charGroupedItems) {
+          result.push({ t: 'h', set: group.set || 'No Set', count: group.count });
+          for (const item of group.items) result.push({ t: 'item', item });
+        }
       }
+      m.dispSrc = src; m.dispGrp = grp; m.disp = result;
       return result;
     },
 
@@ -5159,16 +5063,12 @@ function armory() {
 
     get filterTypeLabel() {
       if (!this.filterTypes.length) return 'All Types';
-      const map = {'1':'Weapons','2':'Armor','25':'Jewelry','3':'Consumables','4':'Materials','6':'Glyphs','21':'Furnishings','5':'Misc'};
-      const names = this.filterTypes.map(v => map[v] || v);
-      return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+      return labelSummary(this.filterTypes.map(v => FILTER_TYPE_LABELS[v] || v));
     },
 
     get filterLocTypeLabel() {
       if (!this.filterLocTypes.length) return 'All Locations';
-      const map = {'character':'Characters','bank':'Bank','craftbag':'Craft Bag','house_chest':'House Chests'};
-      const names = this.filterLocTypes.map(v => map[v] || v);
-      return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+      return labelSummary(this.filterLocTypes.map(v => LOC_TYPE_LABELS[v] || v));
     },
 
     get filterCharLabel() {
@@ -5177,7 +5077,7 @@ function armory() {
         const c = this.sortedCharacters.find(c => c.id === id);
         return c ? c.name.split(' ')[0] : id;
       });
-      return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+      return labelSummary(names);
     },
 
     get filterTraitLabel() {
@@ -5189,16 +5089,12 @@ function armory() {
 
     get charInvTypeLabel() {
       if (!this.charInvTypes.length) return 'Type';
-      const map = {'1':'Weapons','2':'Armor','25':'Jewelry','3':'Consumables','4':'Materials','6':'Glyphs','21':'Furnishings','5':'Misc'};
-      const names = this.charInvTypes.map(v => map[v] || v);
-      return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+      return labelSummary(this.charInvTypes.map(v => FILTER_TYPE_LABELS[v] || v));
     },
 
     get charInvLocLabel() {
       if (!this.charInvLocTypes.length) return 'Slots';
-      const map = {'0':'Equipped','1':'Backpack'};
-      const names = this.charInvLocTypes.map(v => map[v] || v);
-      return names.length <= 2 ? names.join(', ') : `${names[0]} +${names.length - 1}`;
+      return labelSummary(this.charInvLocTypes.map(v => CHAR_BAG_LABELS[v] || v));
     },
 
     get charInvTraitLabel() {
@@ -5217,12 +5113,11 @@ function armory() {
       if (this.charInvTransmuted) parts.push('Transmuted');
       if (this.charInvCrafted) parts.push('Crafted');
       if (!parts.length) return 'More';
-      return parts.length <= 2 ? parts.join(', ') : `${parts[0]} +${parts.length - 1}`;
+      return labelSummary(parts);
     },
 
     _traitName(v) {
-      const m = {'18':'Divines','16':'Infused','25':'Nirnhoned','13':'Reinforced','11':'Sturdy','14':'Well-Fitted','12':'Impenetrable','15':'Training','4':'Infused','26':'Nirnhoned','5':'Defending','2':'Charged','7':'Sharpened','1':'Powered','3':'Precise','8':'Decisive','6':'Training','32':'Protective','29':'Harmony','31':'Bloodthirsty','30':'Triune','33':'Infused','28':'Swift','22':'Arcane','21':'Healthy','23':'Robust'};
-      return m[v] || v;
+      return TRAIT_NAMES[v] || v;
     },
 
     get hasActiveFilters() {

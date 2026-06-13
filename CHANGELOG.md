@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.38] - 2026-06-13
+
+### Changed
+- **Frontend performance** - inventory filter/sort results are memoized at module scope so large item lists no longer re-filter on every Alpine reactive render; `x-for` receives stable array identity to skip DOM diffing
+- **Build view dedup** - the equipment grid and build summary (skills, CP, mundus, attributes) are now shared `<template>` blocks injected via `injectTpl`/`Alpine.initTree`, replacing three near-identical copies across the drilldown, compare-current, and compare-imported panes
+- **Unified ability slot helper** - `abilitySlotHtml` handles both local and compare-imported builds via an optional `cmpId` argument; `abilitySlotHtmlCompare` removed
+- **Backend upload handler split** - `api_upload` refactored into `_handle_iasync_upload`, `_handle_ww_upload`, and `_handle_ttc_upload` helpers; endpoint is now a short orchestrator
+- **`process_iasync` split** - character, bank, house chest, and guild bank collection extracted into named module-level helpers in `data_processor.py`
+- **Double session lookup eliminated** - `_resolve_cache_and_account` returns cache + account name in one DB round-trip; `api_achievements`, `api_stickerbook`, and `api_status` use it
+- **Icon/label tables hoisted** - `WEAPON_ICONS`, `ARMOR_ICONS`, `FALLBACK_ICONS`, filter-label maps, and trait name table moved to module scope above `armory()` so they aren't rebuilt on every render call
+- **TTC result dedup** - `_fetch_ttc_price` builds a shared `base` dict and `_TTC_ATTRIBUTION` constant; three result branches use spread instead of repeating every field
+- **Lazy image loading** - item icon `<img>` tags in inventory and achievement rows now carry `loading="lazy"`
+
+### Added
+- **Compare-mode Playwright test** - new `test_compare_mode_renders_current_and_imported_builds` covers drilldown equipment grid (14 slots), build summary visibility, export/import build code round-trip, and both-pane rendering after import
+
 ## [0.1.0-beta.37] - 2026-06-11
 
 ### Added
