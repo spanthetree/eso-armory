@@ -1,4 +1,4 @@
-.PHONY: assets ui-install ui-dev ui-build test test-fast test-ui test-ui-chromium test-ui-firefox test-all playwright-install playwright-install-deps
+.PHONY: assets ui-install ui-dev ui-build frontend-test test test-fast test-ui test-ui-chromium test-ui-firefox test-all playwright-install playwright-install-deps
 
 assets:
 	uv run scripts/download_assets.py
@@ -12,6 +12,9 @@ ui-dev:
 
 ui-build:
 	cd frontend && npm run build
+
+frontend-test:
+	cd frontend && npm test
 
 test: test-fast
 

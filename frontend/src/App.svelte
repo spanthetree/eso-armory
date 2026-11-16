@@ -7,6 +7,10 @@
   import AllianceSwitch from './lib/ui/AllianceSwitch.svelte';
   import Banners from './lib/ui/Banners.svelte';
   import TooltipHost from './lib/ui/TooltipHost.svelte';
+  import { app, start, refresh } from './lib/store.svelte.js';
+
+  start();
+  const chars = $derived(Object.values(app.data.value?.characters ?? {}));
 
   // Phase 1 component preview with sample data; replaced by the app shell in Phase 2.
   let al = $state(/** @type {'ad' | 'dc' | 'ep'} */ ('ep'));
@@ -60,6 +64,16 @@
 <Banners cls="Arcanist" alliance={ALLIANCE[al]} />
 
 <main>
+  <div class="status" data-testid="status">
+    {#if app.waking}Waking the server…{:else if !app.ready}Loading…{:else}
+      {app.data.value ? `${chars.length} characters · ${app.data.value?.meta?.item_count ?? '?'} items` : app.data.error || 'No data uploaded yet'}
+      · live: {app.live ? 'on' : 'off'} · share: {app.shareCode || 'none'}
+      · achievements: {app.achievements.error || (app.achievements.value ? 'ok' : '—')}
+      · collections: {app.stickerbook.error || (app.stickerbook.value ? 'ok' : '—')}
+      <button class="link" onclick={refresh}>Refresh</button>
+    {/if}
+    {#key app.toast.seq}{#if app.toast.msg}<span class="toast">{app.toast.msg}</span>{/if}{/key}
+  </div>
   <div class="top">
     <button class="link" onclick={() => replay++}>↻ Replay intro</button>
     <AllianceSwitch bind:value={al} />
@@ -107,6 +121,8 @@
   @media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
   .slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .bars { display: grid; gap: 12px; }
+  .status { font-size: 13px; color: var(--muted); text-align: center; position: relative; z-index: 1; }
+  .toast { color: var(--accent-hi); margin-left: 8px; }
   .link { all: unset; cursor: pointer; color: var(--muted); font-size: 14px; }
   .link:hover { color: var(--fg); }
 </style>
