@@ -9,6 +9,7 @@
 [Getting started](#getting-started) ·
 [Configuration](#configuration) ·
 [Development](#development) ·
+[Architecture](docs/architecture.md) ·
 [Changelog](CHANGELOG.md)
 
 </div>
@@ -92,6 +93,8 @@ make test-fast           # unit + API tests
 make test-ui             # Playwright, Chromium + Firefox
 make test-all            # both
 ```
+
+How the server, storage and API fit together: [docs/architecture.md](docs/architecture.md).
 
 Test fixtures in `tests/fixtures/` are sanitized. Do not commit live account data.
 
