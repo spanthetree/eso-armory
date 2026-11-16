@@ -325,3 +325,35 @@ def test_build_export_and_compare_import_cycle(client, uploaded_workspace):
     listed_after = client.get(f"/api/compare_builds?session={TEST_SESSION}")
     assert listed_after.status_code == 200
     assert "char-a" not in listed_after.json()["imported"]
+
+
+OTHER_SESSION = "00000000-0000-4000-8000-000000000002"
+
+
+def _upload_iasync(client, fixtures_dir, session):
+    files = {"iasync": ("iasync.lua", fixtures_dir.joinpath("iasync.lua").read_bytes(), "text/plain")}
+    return client.post(f"/api/upload?session={session}", files=files).json()
+
+
+@pytest.mark.api
+def test_upload_for_password_protected_account_requires_login(client, uploaded_workspace, fixtures_dir):
+    assert client.post(f"/api/auth/set_password?session={TEST_SESSION}", json={"password": "password123"}).status_code == 200
+
+    forged = _upload_iasync(client, fixtures_dir, OTHER_SESSION)
+    assert forged["iasync"]["ok"] is False
+    assert "password-protected" in forged["iasync"]["error"]
+    assert client.get(f"/api/workspace?session={OTHER_SESSION}").json()["primary"]["account"] is None
+
+    login = client.post(f"/api/auth/login?session={OTHER_SESSION}", json={"account_name": "@test_account", "password": "password123"})
+    assert login.status_code == 200
+    assert _upload_iasync(client, fixtures_dir, OTHER_SESSION)["iasync"]["ok"] is True
+
+
+@pytest.mark.api
+def test_admin_requires_config_entry_and_password(client, isolated_server, uploaded_workspace):
+    status = lambda: client.get(f"/api/status?session={TEST_SESSION}").json()["is_admin"]
+    assert status() is False
+    isolated_server._config["admin_accounts"] = ["@test_account"]
+    assert status() is False  # listed but no password: a forged upload must not get admin
+    client.post(f"/api/auth/set_password?session={TEST_SESSION}", json={"password": "password123"})
+    assert status() is True

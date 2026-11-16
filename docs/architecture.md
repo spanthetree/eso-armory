@@ -112,6 +112,7 @@ _TTC_BUILD_LOCK    # threading.Lock - serialises SQLite build; double-checked in
 ### Primary/shadow slots
 - Upload matching primary account → updates `primary`; different account → fills `shadow` (if empty)
 - Third unmatched account when both slots occupied → conflict (no silent replace)
+- Account already has a password and this session is not bound to it → rejected; the user must log in first (`_select_upload_slot`)
 - Only `shadow` is deletable from UI
 
 ### TTC storage
@@ -119,13 +120,11 @@ _TTC_BUILD_LOCK    # threading.Lock - serialises SQLite build; double-checked in
 - Derived SQLite at `uploads/ttc.sqlite3`; rebuilt by `_ensure_ttc_db()` when raw file mtime is newer than last build
 - Config-path TTC (`ttc_addon_path`, `ttc_lookup_table_path`) is a fallback when no uploaded file exists
 - `_ttc_upload_dir()` returns `UPLOADS_DIR / "ttc"` dynamically (picks up monkeypatched `UPLOADS_DIR` in tests)
-- TTC upload is admin-only (`is_admin` DB column); `@admin_account` auto-granted on first upload
+- TTC upload is admin-only (`_is_admin`)
 
 ### Admin accounts
-```python
-_ADMIN_ACCOUNTS = frozenset({"@admin_account", "@admin_account_2"})  # auto-granted is_admin on first upload
-db.is_account_admin(account_name)  # check DB flag
-```
+- `_is_admin(account)`: the account is listed in `config.json` `admin_accounts` **and** has a password set
+- The password requirement matters: account names come from uploaded files, so a name alone proves nothing
 - `/api/status` returns `is_admin` for the current session's account
 - Frontend shows a gold "admin" badge in the header when `isAdmin` is true
 - Admin-only: TTC file upload, TTC sync in folder watcher
@@ -151,6 +150,9 @@ _MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB - iasync, WW, TTC
 _MAX_IMAGE_BYTES  =  20 * 1024 * 1024  # 20 MB - SuperStar image
 ```
 `_read_upload_bytes()` and `_stream_to_path()` raise `ValueError` on oversize; callers return HTTP 413.
+
+### Account ownership
+The ESO account name in an upload is not proof of ownership. An account with no password can be claimed by any upload that names it; once a password is set, only sessions that logged in (or were already bound) can upload to, read, or re-password it. Users should set a password after their first upload.
 
 ### Login protection
 - **Rate limiting**: `_check_login_rate_limit(ip)` / `_record_login_failure(ip)` - 5 failures in 60 s → 5-min lockout; HTTP 429

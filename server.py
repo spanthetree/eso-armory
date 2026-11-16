@@ -56,7 +56,6 @@ from db import (
     delete_session_api_key as _db_delete_session_api_key,
     set_account_password as _db_set_account_password,
     get_account_password_hash as _db_get_account_password_hash,
-    is_account_admin as _db_is_account_admin,
 )
 
 
@@ -107,6 +106,7 @@ DEFAULT_CONFIG = {
     "port": 5000,
     "server": "NA",
     "database_url": "sqlite:///uploads/armory.db",
+    "admin_accounts": [],
 }
 
 _config: dict = {}
@@ -355,10 +355,18 @@ def _workspace_info(session_id: str | None) -> dict:
     return _db_get_workspace_binding(sid)
 
 
+def _is_admin(account_name: str | None) -> bool:
+    # Account names come from uploaded files, so a configured name only counts once the account has a password.
+    return bool(account_name) and account_name in _config.get("admin_accounts", []) \
+        and bool(_db_get_account_password_hash(account_name))
+
+
 def _select_upload_slot(session_id: str, account_name: str) -> tuple[str | None, str | None]:
     slot = _db_session_slot_for_account(session_id, account_name)
     if slot:
         return slot, None
+    if _db_get_account_password_hash(account_name):
+        return None, f"{account_name} is password-protected. Log in as {account_name} before uploading."
     workspace = _db_get_workspace_binding(session_id)
     if not workspace["primary_account"]:
         return "primary", None
@@ -1466,7 +1474,7 @@ async def api_status(session: str | None = Query(None), share: str | None = Quer
     sid = _valid_session(session) if session else None
     has_server_key = bool(os.environ.get("ANTHROPIC_API_KEY") or _config.get("anthropic_api_key", ""))
     has_session_key = bool(_db_get_session_api_key(sid)) if sid else False
-    is_admin = _db_is_account_admin(account_name) if account_name else False
+    is_admin = _is_admin(account_name)
     if cache["data_bytes"] is None:
         return {"ok": False, "item_count": 0, "character_count": 0,
                 "last_modified": None, "error": cache.get("error"),
@@ -1947,7 +1955,7 @@ async def _handle_ww_upload(upload: UploadFile, sid: str, sess: dict, active_acc
 
 async def _handle_ttc_upload(upload: UploadFile, sid: str, active_account: str | None, kind: str) -> dict:
     """Store an uploaded TTC table (kind: 'lookup' or 'price') and invalidate the derived DB. Admin only."""
-    if not active_account or not _db_is_account_admin(active_account):
+    if not _is_admin(active_account):
         return {"ok": False, "error": "TTC upload requires admin account"}
     ttc_dir = _ttc_upload_dir()
     ttc_dir.mkdir(parents=True, exist_ok=True)

@@ -68,6 +68,7 @@ Open the server's address in a browser. The setup screen walks through the uploa
   "ttc_lookup_table_path": "path/to/AddOns/TamrielTradeCentre/ItemLookUpTable_EN.lua",
   "ttc_price_table_path": "",
   "database_url": "sqlite:///uploads/armory.db",
+  "admin_accounts": [],
   "port": 5000,
   "server": "NA"
 }
@@ -79,6 +80,7 @@ Open the server's address in a browser. The setup screen walks through the uploa
 | `ttc_*` | Tamriel Trade Centre files for price lookups. Leave `ttc_price_table_path` empty to pick the table for `server`. Admin accounts can upload these files instead. |
 | `database_url` | Where workspaces are stored |
 | `port` | HTTP port |
+| `admin_accounts` | ESO account names (e.g. `@name`) allowed to upload TTC files. An account only counts as admin after it sets a password. |
 
 Set `ANTHROPIC_API_KEY` (or `anthropic_api_key` in `config.json`) to enable SuperStar import. Restart the server after changing the config.
 
