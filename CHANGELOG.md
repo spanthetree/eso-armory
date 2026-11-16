@@ -16,10 +16,15 @@
 - **Lazy image loading** - item icon `<img>` tags in inventory and achievement rows now carry `loading="lazy"`
 - **README** - rewritten: what the app does, the problem it solves, how data flows, and how to run, configure and test it
 
+### Security
+- **Forged uploads could take over accounts** - the ESO account name in an uploaded file was trusted, so any upload could bind a browser to another account, read or overwrite its data, set its password and inherit hardcoded admin rights. Uploading to a password-protected account now requires logging in, and admin accounts are set in `config.json` `admin_accounts` and must have a password
+
 ### Removed
 - **Mutation testing** - dropped mutmut (Makefile targets, runner script, config, dev dependency, CI job); most mutants timed out and results were never actioned. Unit, API, and Playwright suites remain
 
 ### Added
+- **License and policies** - PolyForm Noncommercial 1.0.0 `LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`, and `docs/architecture.md`
+- **`make assets`** - game icons are downloaded from UESP (`scripts/download_assets.py`, `scripts/assets_manifest.json`) instead of being committed; gear icons switch from WebP to the original PNGs
 - **Compare-mode Playwright test** - new `test_compare_mode_renders_current_and_imported_builds` covers drilldown equipment grid (14 slots), build summary visibility, export/import build code round-trip, and both-pane rendering after import
 
 ## [0.1.0-beta.37] - 2026-06-11

@@ -5,12 +5,14 @@
 
 [![Tests](https://github.com/spanthetree/eso-armory/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/spanthetree/eso-armory/actions/workflows/tests.yml)
 ![Status](https://img.shields.io/badge/status-beta-yellow)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-lightgrey)](LICENSE)
 
 [Getting started](#getting-started) ·
 [Configuration](#configuration) ·
 [Development](#development) ·
 [Architecture](docs/architecture.md) ·
-[Changelog](CHANGELOG.md)
+[Changelog](CHANGELOG.md) ·
+[Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -110,6 +112,14 @@ Test fixtures in `tests/fixtures/` are sanitized. Do not commit live account dat
 | `item_link_decoder.py` | ESO item link decoder |
 | `static/index.html` | Single-file frontend (Alpine.js + Tailwind) |
 | `scripts/assets_manifest.json` | Game icon sources; `make assets` downloads them into `assets/` |
+
+## Contributing
+
+Bug reports, ideas and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md), and report security issues privately as described in [SECURITY.md](SECURITY.md).
+
+## License
+
+ESO Armory is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE): free to use, modify and share for any noncommercial purpose. Commercial use needs a separate license.
 
 ## Status
 
