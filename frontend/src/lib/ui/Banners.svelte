@@ -4,7 +4,7 @@
   /**
    * Backdrop: two worn obsidian swallowtail banners hanging by loops from gilt rods.
    * Class emblem on the left, faction on the right. Emblems are the game's white-on-black icons
-   * used as luminance masks, so they keep their inner detail and take the alliance accent colour.
+   * used as luminance masks, so they keep their inner detail and render in gilt.
    * @type {{ cls?: string, alliance?: string }}
    */
   let { cls = '', alliance = '' } = $props();
@@ -165,17 +165,17 @@
   }
   .banner.l { left: 2%; }
   .banner.r { right: 2%; animation-delay: -4.5s, 0.15s; }
-  /* Obsidian cloth like the panels, with a hint of the alliance colour. */
-  .cloth { fill: color-mix(in srgb, var(--accent) 20%, #0b0a09); }
-  .trim { fill: none; stroke: var(--accent); stroke-width: 1.2; opacity: 0.75; }
-  .edge { fill: none; stroke: var(--accent); stroke-width: 2.4; opacity: 0.35; }
-  .emblem { fill: var(--accent-hi); opacity: 0.9; }
-  .loop { fill: color-mix(in srgb, var(--accent) 22%, #0b0a09); stroke: color-mix(in srgb, var(--accent) 55%, transparent); stroke-width: 0.8; }
-  .cord { fill: none; stroke: var(--accent); stroke-width: 1.2; opacity: 0.8; }
-  .ring { fill: none; stroke: var(--accent-hi); stroke-width: 1.6; }
-  .m-hi { stop-color: var(--accent-hi); }
-  .m-mid { stop-color: var(--accent); }
-  .m-lo { stop-color: color-mix(in srgb, var(--accent) 40%, #000); }
+  /* Obsidian cloth and fixed gilt; banners do not follow the alliance tint. */
+  .cloth { fill: #0d0c0b; }
+  .trim { fill: none; stroke: var(--gilt); stroke-width: 1.2; opacity: 0.75; }
+  .edge { fill: none; stroke: var(--gilt); stroke-width: 2.4; opacity: 0.35; }
+  .emblem { fill: var(--gilt-hi); opacity: 0.9; }
+  .loop { fill: #100e0c; stroke: color-mix(in srgb, var(--gilt) 55%, transparent); stroke-width: 0.8; }
+  .cord { fill: none; stroke: var(--gilt); stroke-width: 1.2; opacity: 0.8; }
+  .ring { fill: none; stroke: var(--gilt-hi); stroke-width: 1.6; }
+  .m-hi { stop-color: var(--gilt-hi); }
+  .m-mid { stop-color: var(--gilt); }
+  .m-lo { stop-color: color-mix(in srgb, var(--gilt) 40%, #000); }
   @keyframes sway { from { transform: rotate(-1.2deg); } to { transform: rotate(1.2deg); } }
   @keyframes drop { from { translate: 0 -30%; opacity: 0; } }
   @media (max-width: 560px) { .banner { opacity: 0.45; } }

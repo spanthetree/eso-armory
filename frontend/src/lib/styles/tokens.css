@@ -21,10 +21,14 @@
   --fg: #e8dfc9;
   --muted: #8c8371;
 
+  /* fixed gilt for ornament that never follows the alliance (banners, top glow) */
+  --gilt: #c9a65b;
+  --gilt-hi: #f3d999;
+  --glow: #24190c;
+
   /* alliance accent (default: Aldmeri gold) */
   --accent: #c9a65b;
   --accent-hi: #f3d999;
-  --accent-glow: #2c1f0c;
 
   /* game data: item quality */
   --q-trash: #8b8b8b;
@@ -50,12 +54,11 @@
   --tint-time: 0.7s;
 }
 
-/* Registered so alliance changes animate everywhere, gradients included. */
+/* Registered so alliance changes animate everywhere, including inside gradients. */
 @property --accent { syntax: '<color>'; inherits: true; initial-value: #c9a65b; }
 @property --accent-hi { syntax: '<color>'; inherits: true; initial-value: #f3d999; }
-@property --accent-glow { syntax: '<color>'; inherits: true; initial-value: #2c1f0c; }
-:root { transition: --accent var(--tint-time), --accent-hi var(--tint-time), --accent-glow var(--tint-time); }
+:root { transition: --accent var(--tint-time), --accent-hi var(--tint-time); }
 
-:root[data-al='ad'] { --accent: #c9a65b; --accent-hi: #f3d999; --accent-glow: #2c1f0c; }
-:root[data-al='dc'] { --accent: #6f97d6; --accent-hi: #c3d8f7; --accent-glow: #0f1c30; }
-:root[data-al='ep'] { --accent: #c65f48; --accent-hi: #f2b3a2; --accent-glow: #2e110b; }
+:root[data-al='ad'] { --accent: #c9a65b; --accent-hi: #f3d999; }
+:root[data-al='dc'] { --accent: #6f97d6; --accent-hi: #c3d8f7; }
+:root[data-al='ep'] { --accent: #c65f48; --accent-hi: #f2b3a2; }
