@@ -28,7 +28,7 @@
     {#if icon}<img src={icon} alt="" loading="lazy" />{:else}<span>{name}</span>{/if}
   </a>
 {:else}
-  <span class="skill empty" class:ult={ultimate} style="--d: {delay}s" title={name || 'Empty'}>{name ? '?' : ''}</span>
+  <span class="skill empty" class:ult={ultimate} style="--d: {delay}s" title={name ? `Unknown ability ${name}: no name from iasync or UESP` : 'Empty slot'}>{name ? '?' : ''}</span>
 {/if}
 
 <style>

@@ -137,6 +137,8 @@ _share_registry: dict = {"codes": {}}
 _ability_icon_map: dict = {}
 _set_bonus_cache: collections.OrderedDict = collections.OrderedDict()  # set_id -> payload
 _skill_info_cache: collections.OrderedDict = collections.OrderedDict()  # slug -> payload
+_ability_name_cache: collections.OrderedDict = collections.OrderedDict()  # ability id -> name ('' = unknown)
+_ABILITY_NAMES_MAX_PER_REQUEST = 40
 _ttc_tables: dict = {
     "lookup_mtime": None,
     "price_mtime": None,
@@ -659,6 +661,18 @@ def _fetch_set_bonuses(slug: str) -> list[dict]:
 _SKILL_STOP = re.compile(
     r'^(?:New effect|Name:|Other morph|Base ability|Found a mistake|Discord|Skills and icons)'
 )
+
+
+def _fetch_ability_name(ability_id: int) -> str:
+    """Name for an ESO ability id from UESP's mined skill data; '' when UESP has no record."""
+    url = f"https://esolog.uesp.net/exportJson.php?table=minedSkills&fields=id,name&id={ability_id}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 ESO-Armory/1.0"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        data = json.loads(resp.read().decode("utf-8", errors="replace"))
+    for rec in data.get("minedSkills") or []:
+        if str(rec.get("id")) == str(ability_id):
+            return str(rec.get("name") or "")
+    return ""
 
 
 def _fetch_skill_info(slug: str) -> dict:
@@ -2212,6 +2226,33 @@ async def api_skill_info(name: str):
         logger.warning("Skill info fetch failed: {}: {}", name, exc)
     _lru_put(_skill_info_cache, slug, result, _EXTERNAL_CACHE_MAX)
     return JSONResponse(result)
+
+
+@app.get("/api/ability_names")
+async def api_ability_names(ids: str = Query("")):
+    """Resolve ability ids iasync could not name (e.g. skills only seen in Wizards Wardrobe setups)."""
+    try:
+        wanted = list(dict.fromkeys(int(x) for x in ids.split(",") if x.strip()))
+    except ValueError:
+        return JSONResponse({"error": "ids must be comma-separated integers"}, status_code=400)
+    if len(wanted) > _ABILITY_NAMES_MAX_PER_REQUEST:
+        return JSONResponse({"error": f"at most {_ABILITY_NAMES_MAX_PER_REQUEST} ids per request"}, status_code=400)
+    names: dict[str, str] = {}
+    loop = asyncio.get_event_loop()
+    for aid in wanted:
+        if aid <= 0:
+            continue
+        cached = _lru_get(_ability_name_cache, aid)
+        if cached is None:
+            try:
+                cached = await loop.run_in_executor(None, _fetch_ability_name, aid)
+            except Exception as exc:
+                logger.warning("Ability name lookup failed: {}: {}", aid, exc)
+                continue  # not cached, so a later request retries
+            _lru_put(_ability_name_cache, aid, cached, _EXTERNAL_CACHE_MAX * 4)
+        if cached:
+            names[str(aid)] = cached
+    return JSONResponse({"names": names})
 
 
 @app.get("/api/ttc_price")

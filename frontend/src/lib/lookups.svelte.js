@@ -41,3 +41,22 @@ export async function loadSkillInfo(name) {
 
 /** @param {string} name */
 export const skillbookUrl = (name) => `https://eso-skillbook.com/skill/${slugify(name)}`;
+
+/** Names for ability ids iasync couldn't resolve, filled from UESP via the server. */
+export const extraAbilityNames = $state(/** @type {Record<string, string>} */ ({}));
+const askedAbilityIds = new Set();
+
+/** Look up names for ability ids not yet known or asked for. @param {(number | string)[]} ids */
+export async function loadAbilityNames(ids) {
+  const todo = [...new Set(ids.map(String))].filter((id) => id && id !== '0' && !askedAbilityIds.has(id));
+  for (let i = 0; i < todo.length; i += 40) {
+    const batch = todo.slice(i, i + 40);
+    batch.forEach((id) => askedAbilityIds.add(id));
+    try {
+      const d = await api.get('/api/ability_names', { label: 'Ability names', params: { ids: batch.join(',') }, share: false });
+      Object.assign(extraAbilityNames, d.names ?? {});
+    } catch {
+      batch.forEach((id) => askedAbilityIds.delete(id)); // retry on a later view
+    }
+  }
+}

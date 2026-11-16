@@ -72,6 +72,7 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `GET /api/ww_builds` | `{builds: {charId: [build, ...]}}` |
 | `GET /api/set_bonus?set_id=&set_name=` | Set bonuses from eso-sets.com (memory cached) |
 | `GET /api/skill_info?name=` | Skill details from eso-skillbook.com (memory cached) |
+| `GET /api/ability_names?ids=` | Names for up to 40 ability ids iasync could not resolve (e.g. skills only in Wizards Wardrobe setups), from UESP's mined skill data (memory cached) |
 | `GET /api/ttc_price?name=&session=&share=` | TTC price from uploaded or local price tables |
 | `GET/POST /api/share?session=&share=` | Get/create pairing code for workspace sharing |
 | `POST /api/share/join?session=&code=` | Bind browser to shared workspace via pairing code |
@@ -98,6 +99,7 @@ _sessions        # per-browser UUID: {cache, ww_cache, sse_queues, last_active}
 _ability_icon_map  # built at startup; scans assets/abilities/**/*.{png,webp}; empty until `make assets` runs
 _set_bonus_cache   # (set_id or name_slug) → {bonuses, url}; mythic set_id=0 so slug is key
 _skill_info_cache  # slug → {details}
+_ability_name_cache  # ability id → name ('' when UESP has none); failed lookups are not cached
 _ttc_tables        # global TTC state: {lookup_mtime, price_mtime, lookup_path, price_path, db_path, db_ready, price_time, price_cache, error}
 _TTC_BUILD_LOCK    # threading.Lock - serialises SQLite build; double-checked inside lock to avoid race on first load
 ```

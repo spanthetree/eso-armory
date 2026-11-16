@@ -372,3 +372,26 @@ def test_next_ui_serves_build_or_explains_missing_build(client, tmp_path, monkey
     assert built.status_code == 200
     assert built.headers["content-type"].startswith("text/html")
     assert built.headers["cache-control"] == "no-store"
+
+
+@pytest.mark.api
+def test_ability_names_resolves_and_validates(client, isolated_server, monkeypatch):
+    calls = []
+
+    def fake_fetch(aid):
+        calls.append(aid)
+        return {20323: "Shatterspike Mantle"}.get(aid, "")
+
+    monkeypatch.setattr(isolated_server, "_fetch_ability_name", fake_fetch)
+    isolated_server._ability_name_cache.clear()
+
+    first = client.get("/api/ability_names?ids=20323,99,20323")
+    again = client.get("/api/ability_names?ids=20323")
+    bad = client.get("/api/ability_names?ids=1,abc")
+    too_many = client.get("/api/ability_names?ids=" + ",".join(str(i) for i in range(1, 50)))
+
+    assert first.json() == {"names": {"20323": "Shatterspike Mantle"}}
+    assert again.json() == {"names": {"20323": "Shatterspike Mantle"}}
+    assert calls == [20323, 99]  # deduped, and cached across requests (unknown ids too)
+    assert bad.status_code == 400
+    assert too_many.status_code == 400
