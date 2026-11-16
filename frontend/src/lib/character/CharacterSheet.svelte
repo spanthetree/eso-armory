@@ -124,9 +124,11 @@
           {#each CP as g (g.label)}
             <div class="cpgroup">
               <div class="cphead" style="color: {g.color}"><img src={g.icon} alt="" />{g.label}</div>
-              {#each g.slots as s (s)}
-                {#if build.cp?.[s]}<div class="cpname">{cpNames[String(build.cp[s])] || `#${build.cp[s]}`}</div>{/if}
-              {/each}
+              <div class="cpnames">
+                {#each g.slots as s (s)}
+                  {#if build.cp?.[s]}<span>{cpNames[String(build.cp[s])] || `#${build.cp[s]}`}</span>{/if}
+                {/each}
+              </div>
             </div>
           {/each}
         </div>
@@ -166,11 +168,11 @@
   @media (max-width: 420px) { .skillrow { grid-template-columns: 1fr; } }
 
   .cp { display: grid; gap: 10px; }
-  .cpgroup { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 12px; }
-  .cpgroup .cphead { grid-column: 1 / -1; }
   .cphead { display: flex; align-items: center; justify-content: center; gap: 5px; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
   .cphead img { width: 18px; height: 18px; }
-  .cpname { font-size: 13px; color: #cfcfcf; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Up to 4 slotted stars per tree, on one centred line (wraps only if the panel is too narrow). */
+  .cpnames { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 14px; font-size: 13px; color: #cfcfcf; }
+  .cpnames span { white-space: nowrap; }
 
   .sets { display: grid; gap: 3px; }
   .set { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; border-left: 2px solid var(--accent); background: #ffffff06; font-size: 14px; }
