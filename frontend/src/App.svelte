@@ -88,14 +88,15 @@
 
 <style>
   .stage { position: relative; isolation: isolate; }
-  main { max-width: 1240px; margin: 0 auto; padding: 22px max(16px, env(safe-area-inset-right, 0px)) 64px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 18px; }
-  .hero { position: relative; isolation: isolate; text-align: center; display: grid; gap: 4px; padding-top: 10px; }
-  .hero h1 { color: var(--fg); font-size: clamp(26px, 4vw, 38px); letter-spacing: 0.12em; text-shadow: 0 0 18px #ffffff26; text-wrap: balance; }
+  main { max-width: 1240px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 12px; }
+  .hero { position: relative; isolation: isolate; text-align: center; display: grid; gap: 2px; padding-top: 4px; }
+  .hero h1 { color: var(--fg); font-size: clamp(24px, 3.4vw, 34px); letter-spacing: 0.12em; text-shadow: 0 0 18px #ffffff26; text-wrap: balance; }
   .sub { color: var(--muted); text-transform: uppercase; letter-spacing: 0.2em; font-size: 13px; }
   .orn { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--accent); font-size: 12px; }
   .orn::before, .orn::after { content: ''; width: 90px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent)); }
   .orn::after { transform: scaleX(-1); }
-  .back { all: unset; justify-self: center; cursor: pointer; font-size: 14px; color: var(--muted); margin-bottom: 4px; }
+  .back { all: unset; position: absolute; left: 0; top: 4px; cursor: pointer; font-size: 14px; color: var(--muted); }
+  @media (max-width: 700px) { .back { position: static; justify-self: center; } }
   .back:hover, .back:focus-visible { color: var(--fg); }
   .pane { animation: pane 0.45s var(--ease-out) both; }
   .pane.from-l { --dx: -40px; }

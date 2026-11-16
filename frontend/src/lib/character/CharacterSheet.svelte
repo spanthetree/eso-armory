@@ -1,11 +1,10 @@
 <script>
   import Frame from '../ui/Frame.svelte';
-  import Slot from '../ui/Slot.svelte';
+  import PaperDoll from './PaperDoll.svelte';
   import ResourceBar from '../ui/ResourceBar.svelte';
-  import ItemTip from '../tips/ItemTip.svelte';
   import SkillSlot from './SkillSlot.svelte';
   import { app } from '../store.svelte.js';
-  import { SLOT_LABELS, APPAREL, JEWELRY, FRONT_BAR, BACK_BAR, slotIcon, equipped, mundusIcon } from '../gear.js';
+  import { equipped, mundusIcon } from '../gear.js';
 
   /** @type {{ char: any }} */
   let { char } = $props();
@@ -46,23 +45,10 @@
   const setCount = (item) => (item?.set_name ? sets.find(([s]) => s === item.set_name)?.[1] ?? 0 : 0);
 </script>
 
-{#snippet slots(/** @type {number[]} */ list, /** @type {number} */ start)}
-  {#each list as s, i (s)}
-    {@const item = gear[s]}
-    <Slot
-      label={item ? `${SLOT_LABELS[s]}: ${item.name}` : `${SLOT_LABELS[s]}: empty`}
-      icon={item ? slotIcon(s, item) : ''}
-      color={item?.quality_color}
-      delay={start + i * 0.04}
-      tip={item ? { component: ItemTip, props: { item, slotLabel: SLOT_LABELS[s], equippedFromSet: setCount(item) } } : null} />
-  {/each}
-{/snippet}
 
 <div class="sheet">
   <div class="col">
-    <Frame title="APPAREL" delay={0.05}>
-      <div class="grid g2">{@render slots(APPAREL, 0.25)}</div>
-    </Frame>
+    <PaperDoll {gear} race={char.race} {setCount} />
   </div>
 
   <div class="col">
@@ -100,8 +86,20 @@
       </Frame>
     {/if}
 
+    {#if sets.length}
+      <Frame title="SETS" delay={0.35}>
+        <div class="sets">
+          {#each sets as [name, n] (name)}
+            <div class="set"><span>{name}</span><span class="num">{n}</span></div>
+          {/each}
+        </div>
+      </Frame>
+    {/if}
+  </div>
+
+  <div class="col">
     {#if hasSkills}
-      <Frame title="SKILLS" delay={0.35}>
+      <Frame title="SKILLS" delay={0.25}>
         <div class="skills">
           {#each BARS as [bar, label] (bar)}
             {#if Object.keys(build.skills?.[bar] ?? {}).length}
@@ -110,7 +108,7 @@
                 <div class="skillslots">
                   {#each SKILL_SLOTS as s, i (s)}
                     {@const id = build.skills[bar][s]}
-                    <SkillSlot name={id ? names[String(id)] || `#${id}` : ''} ultimate={s === 8} delay={0.6 + i * 0.04} />
+                    <SkillSlot name={id ? names[String(id)] || `#${id}` : ''} ultimate={s === 8} delay={0.5 + i * 0.04} />
                   {/each}
                 </div>
               </div>
@@ -121,10 +119,10 @@
     {/if}
 
     {#if hasCP}
-      <Frame title="CHAMPION POINTS" delay={0.45}>
+      <Frame title="CHAMPION POINTS" delay={0.35}>
         <div class="cp">
           {#each CP as g (g.label)}
-            <div>
+            <div class="cpgroup">
               <div class="cphead" style="color: {g.color}"><img src={g.icon} alt="" />{g.label}</div>
               {#each g.slots as s (s)}
                 {#if build.cp?.[s]}<div class="cpname">{cpNames[String(build.cp[s])] || `#${build.cp[s]}`}</div>{/if}
@@ -141,69 +139,41 @@
       </Frame>
     {/if}
   </div>
-
-  <div class="col">
-    <Frame title="JEWELRY" delay={0.1}>
-      <div class="grid g3">{@render slots(JEWELRY, 0.3)}</div>
-    </Frame>
-    <Frame title="WEAPONS" delay={0.2}>
-      <div class="weapons">
-        <div><div class="sublabel">Front</div><div class="grid g2">{@render slots(FRONT_BAR, 0.4)}</div></div>
-        <div><div class="sublabel">Back</div><div class="grid g2">{@render slots(BACK_BAR, 0.48)}</div></div>
-      </div>
-    </Frame>
-    {#if sets.length}
-      <Frame title="SETS" delay={0.3}>
-        <div class="sets">
-          {#each sets as [name, n] (name)}
-            <div class="set"><span>{name}</span><span class="num">{n}</span></div>
-          {/each}
-        </div>
-      </Frame>
-    {/if}
-  </div>
 </div>
 
 <style>
-  .sheet { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.25fr) minmax(0, 0.8fr); gap: 16px; align-items: start; }
+  .sheet { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1fr) minmax(0, 1.05fr); gap: 14px; align-items: start; }
   @media (max-width: 980px) { .sheet { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .col:nth-child(2) { grid-column: 1 / -1; grid-row: 2; } }
   @media (max-width: 620px) { .sheet { grid-template-columns: minmax(0, 1fr); } .col:nth-child(2) { grid-row: auto; } }
-  .col { display: grid; gap: 16px; min-width: 0; }
-
-  /* Slots stay at or below the 64px source icons so they render sharp. */
-  .grid { display: grid; gap: 8px; justify-content: center; }
-  .g2 { grid-template-columns: repeat(2, 58px); }
-  .g3 { grid-template-columns: repeat(3, 58px); }
-  .grid :global(.slot img) { width: 46px; height: 46px; }
-  .weapons { display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; }
-  .sublabel { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); text-align: center; margin-bottom: 6px; }
+  .col { display: grid; gap: 14px; min-width: 0; }
 
   .money { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; font-size: 15px; }
   .money span, .fact { display: inline-flex; align-items: center; gap: 5px; }
   .money img { width: 20px; height: 20px; }
   b { font-weight: 500; }
-  .space { margin-top: 12px; }
+  .space { margin-top: 8px; }
   .row { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); }
   .track { height: 6px; margin-top: 4px; background: #000; border: 1px solid var(--line); overflow: hidden; }
   .track i { display: block; height: 100%; transition: width 0.6s var(--ease-out); }
-  .facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; margin-top: 12px; font-size: 15px; }
+  .facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; margin-top: 8px; font-size: 15px; }
   .fact img { width: 24px; height: 24px; }
 
-  .bars { display: grid; gap: 12px; }
+  .bars { display: grid; gap: 8px; }
   .skills { display: grid; gap: 10px; }
   .skillrow { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 8px; }
   .barname { font-size: 13px; color: var(--muted); }
   .skillslots { display: flex; gap: 5px; flex-wrap: wrap; }
   @media (max-width: 420px) { .skillrow { grid-template-columns: 1fr; } }
 
-  .cp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .cp { display: grid; gap: 10px; }
+  .cpgroup { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 12px; }
+  .cpgroup .cphead { grid-column: 1 / -1; }
   .cphead { display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
   .cphead img { width: 18px; height: 18px; }
   .cpname { font-size: 13px; color: #cfcfcf; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  @media (max-width: 420px) { .cp { grid-template-columns: 1fr; } }
 
-  .sets { display: grid; gap: 6px; }
-  .set { display: flex; justify-content: space-between; gap: 10px; padding: 6px 10px; border-left: 2px solid var(--accent); background: #ffffff06; font-size: 14px; }
+  .sets { display: grid; gap: 3px; }
+  .set { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; border-left: 2px solid var(--accent); background: #ffffff06; font-size: 14px; }
   .set .num { color: var(--muted); }
   .none { text-align: center; margin: 4px 0; }
 </style>
