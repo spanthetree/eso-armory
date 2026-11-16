@@ -15,6 +15,7 @@ iasync_data = {
       ["race"] = "Breton",
       ["class"] = "Dragonknight",
       ["alliance"] = "Daggerfall Covenant",
+      ["gender"] = "female",
       ["gold"] = 1234,
       ["ap"] = 20,
       ["tv"] = 0,

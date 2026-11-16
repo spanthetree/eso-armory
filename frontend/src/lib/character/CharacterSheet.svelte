@@ -48,7 +48,7 @@
 
 <div class="sheet">
   <div class="col">
-    <PaperDoll {gear} race={char.race} {setCount} />
+    <PaperDoll {gear} race={char.race} gender={char.gender} {setCount} />
   </div>
 
   <div class="col">

@@ -7,13 +7,14 @@
   /**
    * The in-game "Equipped" panel: race silhouette ringed by apparel, then accessories and both weapon bars.
    * Empty slots show the game's faded gear-slot outline.
-   * @type {{ gear: Record<number, any>, race?: string, setCount: (item: any) => number }}
+   * @type {{ gear: Record<number, any>, race?: string, gender?: string, setCount: (item: any) => number }}
    */
-  let { gear, race = '', setCount } = $props();
+  let { gear, race = '', gender = '', setCount } = $props();
 
   // The game has three body silhouettes; every other race uses the human one.
-  // shortcut: always male; iasync doesn't record gender yet (add GetUnitGender to the addon to pick female).
   const body = $derived(race === 'Argonian' ? 'argonian' : race === 'Khajiit' ? 'khajiit' : 'human');
+  // gender comes from iasync >= 1.4.0; older data has none and uses the male figure.
+  const sex = $derived(gender === 'female' ? 'female' : 'male');
 
   const PH = /** @type {Record<number, string>} */ ({
     0: 'head', 3: 'shoulders', 2: 'chest', 16: 'hands', 6: 'belt', 8: 'legs', 9: 'feet',
@@ -44,7 +45,7 @@
 <Frame title="EQUIPPED" delay={0.05}>
   <div class="label">Apparel</div>
   <div class="apparel">
-    <div class="figure" style="background-image: url('/assets/silhouettes/{body}_male.png')" title={race}></div>
+    <div class="figure" style="background-image: url('/assets/silhouettes/{body}_{sex}.png')" title={race}></div>
     {#each APPAREL as a, i (a.s)}
       <div style="grid-column: {a.c}; grid-row: {a.r}">{@render slot(a.s, 0.2 + i * 0.04)}</div>
     {/each}
