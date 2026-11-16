@@ -1,0 +1,55 @@
+/* Obsidian Banners design tokens.
+   Accent colours follow the alliance via [data-al] on <html>. Quality and resource colours are game data and are never tinted. */
+@import '@fontsource/cinzel/500.css';
+@import '@fontsource/cinzel/600.css';
+@import '@fontsource/cinzel/700.css';
+@import '@fontsource/barlow-condensed/400.css';
+@import '@fontsource/barlow-condensed/500.css';
+@import '@fontsource/barlow-condensed/600.css';
+
+:root {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg: #07070a;
+  --panel: rgba(14, 13, 12, 0.82);
+  --slot-bg: radial-gradient(circle at 50% 35%, #1d1a16, #0b0a09);
+  --line: #3a3226;
+  --line-soft: #ffffff0d;
+
+  /* text */
+  --fg: #e8dfc9;
+  --muted: #8c8371;
+
+  /* alliance accent (default: Aldmeri gold) */
+  --accent: #c9a65b;
+  --accent-hi: #f3d999;
+  --accent-glow: #2c1f0c;
+
+  /* game data: item quality */
+  --q-trash: #8b8b8b;
+  --q-normal: #cccccc;
+  --q-fine: #2dc50e;
+  --q-superior: #5199ff;
+  --q-epic: #a02ee4;
+  --q-legendary: #c29300;
+  --q-mythic: #e87800;
+
+  /* game data: resources */
+  --res-magicka: #3b7fd9;
+  --res-health: #c33a2c;
+  --res-stamina: #4fa043;
+
+  /* type */
+  --f-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --f-ui: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.3, 1.5, 0.5, 1);
+  --tint-time: 0.7s;
+}
+
+:root[data-al='ad'] { --accent: #c9a65b; --accent-hi: #f3d999; --accent-glow: #2c1f0c; }
+:root[data-al='dc'] { --accent: #6f97d6; --accent-hi: #c3d8f7; --accent-glow: #0f1c30; }
+:root[data-al='ep'] { --accent: #c65f48; --accent-hi: #f2b3a2; --accent-glow: #2e110b; }

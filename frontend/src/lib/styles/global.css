@@ -1,0 +1,29 @@
+@import './tokens.css';
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; min-height: 100%; }
+
+body {
+  background: radial-gradient(120% 70% at 50% 0%, var(--accent-glow) 0%, var(--bg) 60%) fixed, var(--bg);
+  color: var(--fg);
+  font-family: var(--f-ui);
+  font-size: 16px;
+  line-height: 1.45;
+  transition: background var(--tint-time);
+}
+
+h1, h2, h3, h4, h5 { font-family: var(--f-display); font-weight: 600; letter-spacing: 0.08em; margin: 0; }
+
+:focus-visible { outline: 1px solid var(--accent-hi); outline-offset: 2px; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
