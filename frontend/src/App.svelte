@@ -9,6 +9,7 @@
   import Toast from './lib/shell/Toast.svelte';
   import Welcome from './lib/shell/Welcome.svelte';
   import Roster from './lib/shell/Roster.svelte';
+  import CharacterSheet from './lib/character/CharacterSheet.svelte';
   import ShareDialog from './lib/shell/ShareDialog.svelte';
   import PasswordDialog from './lib/shell/PasswordDialog.svelte';
   import UploadDialog from './lib/shell/UploadDialog.svelte';
@@ -73,7 +74,7 @@
           {#if nav.tab === 'characters' && !char}
             <Roster />
           {:else if nav.tab === 'characters'}
-            <Frame title="CHARACTER SHEET"><p class="hint todo">Equipment, attributes and builds for {char?.name} arrive in Phase 3.</p></Frame>
+            <CharacterSheet {char} />
           {:else}
             <Frame title={TAB_ITEMS.find((t) => t.id === nav.tab)?.label.toUpperCase()}>
               <p class="hint todo">This tab is ported in Phase 3.</p>

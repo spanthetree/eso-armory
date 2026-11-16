@@ -3,18 +3,20 @@
 
   /**
    * Gear slot: square with a quality-coloured inner border. Empty when no icon.
-   * @type {{ icon?: string, quality?: string, label: string, delay?: number, tip?: import('./tooltip.svelte.js').TipContent | null, onclick?: () => void }}
+   * `color` is the item's quality colour from the game data (e.g. item.quality_color).
+   * @type {{ icon?: string, color?: string, label: string, delay?: number, tip?: import('./tooltip.svelte.js').TipContent | null, onclick?: () => void }}
    */
-  let { icon = '', quality = 'normal', label, delay = 0, tip = null, onclick } = $props();
+  let { icon = '', color = 'var(--line)', label, delay = 0, tip = null, onclick } = $props();
 </script>
 
-<button type="button" class="slot" class:empty={!icon} style="--qc: var(--q-{quality}); --d: {delay}s" aria-label={label} use:tooltip={tip} {onclick}>
+<button type="button" class="slot" class:empty={!icon} style="--qc: {color}; --d: {delay}s" aria-label={label} use:tooltip={tip} {onclick}>
   {#if icon}<img src={icon} alt="" loading="lazy" />{/if}
 </button>
 
 <style>
   .slot {
     all: unset;
+    box-sizing: border-box;
     position: relative;
     display: grid;
     place-items: center;

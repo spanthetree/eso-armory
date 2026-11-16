@@ -1,7 +1,7 @@
-// One shared tooltip for the whole app. Elements opt in with `use:tooltip={{ snippet, arg }}`;
-// <TooltipHost /> (mounted once) renders the snippet next to the hovered or focused element.
+// One shared tooltip for the whole app. Elements opt in with `use:tooltip={{ component, props }}`;
+// <TooltipHost /> (mounted once) renders that component next to the hovered or focused element.
 
-/** @typedef {{ snippet: import('svelte').Snippet<[any]>, arg?: any }} TipContent */
+/** @typedef {{ component: import('svelte').Component<any>, props?: Record<string, any> }} TipContent */
 
 export const tip = $state({
   open: false,

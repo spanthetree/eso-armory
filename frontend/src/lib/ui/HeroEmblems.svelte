@@ -20,8 +20,8 @@
 <svg width="0" height="0" aria-hidden="true" style="position: absolute">
   <filter id="emblem-crisp" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
     <feColorMatrix type="luminanceToAlpha" result="lum" />
-    <!-- Steep alpha ramp: threshold the blurred edge around 40% luminance, keeping a 1px-ish soft edge. -->
-    <feComponentTransfer in="lum" result="shape"><feFuncA type="linear" slope="5" intercept="-2" /></feComponentTransfer>
+    <!-- Moderate alpha ramp: firms up the blurred edge without exaggerating stair-steps baked into the 64px sources. -->
+    <feComponentTransfer in="lum" result="shape"><feFuncA type="linear" slope="3" intercept="-1.1" /></feComponentTransfer>
     <feFlood class="emblem-fill" result="gold" />
     <feComposite in="gold" in2="shape" operator="in" />
   </filter>
@@ -29,8 +29,9 @@
 
 <div class="emblems" aria-hidden="true">
   {#each emblems as e (e.side + e.icon)}
-    <svg class="emblem {e.side}" viewBox="0 0 64 64"><title>{e.label}</title>
-      <image href={e.icon} width="64" height="64" filter="url(#emblem-crisp)" />
+    <!-- Large viewBox so the filter runs at high resolution on a smoothly upscaled image, not at 64px. -->
+    <svg class="emblem {e.side}" viewBox="0 0 512 512"><title>{e.label}</title>
+      <image href={e.icon} width="512" height="512" preserveAspectRatio="xMidYMid meet" style="image-rendering: auto" filter="url(#emblem-crisp)" />
     </svg>
   {/each}
 </div>
@@ -38,7 +39,7 @@
 <style>
   .emblems { position: absolute; inset: 0 0 auto; height: 100%; pointer-events: none; z-index: -1; display: flex; justify-content: center; align-items: center; gap: clamp(140px, 28vw, 380px); }
   .emblem {
-    width: clamp(96px, 12vw, 150px);
+    width: clamp(90px, 10vw, 130px);
     aspect-ratio: 1;
     opacity: 0.16;
     filter: drop-shadow(0 0 14px var(--accent));

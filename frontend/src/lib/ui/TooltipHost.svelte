@@ -27,7 +27,7 @@
 <svelte:window onscroll={close} onkeydown={(e) => e.key === 'Escape' && close()} />
 
 <div class="tip" class:on={tip.open} role="tooltip" bind:this={el} style="left: {pos.x}px; top: {pos.y}px">
-  {#if tip.content}{@render tip.content.snippet(tip.content.arg)}{/if}
+  {#if tip.content}<tip.content.component {...tip.content.props} />{/if}
 </div>
 
 <style>
@@ -38,7 +38,6 @@
     max-width: calc(100vw - 16px);
     pointer-events: none;
     padding: 12px 14px;
-    text-align: center;
     color: var(--fg);
     background: linear-gradient(#0e0c0a, #050505);
     border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
@@ -48,8 +47,13 @@
     transition: opacity 0.16s, transform 0.2s var(--ease-spring);
   }
   .tip.on { opacity: 1; transform: none; }
-  /* Shared tooltip content styles, used by snippets rendered inside. */
-  .tip :global(.t-name) { font: 600 16px var(--f-display); letter-spacing: 0.05em; }
+  /* Shared tooltip content styles, used by the tooltip components rendered inside. */
+  .tip :global(.t-name) { font: 600 16px var(--f-display); letter-spacing: 0.05em; line-height: 1.25; margin-bottom: 4px; }
+  .tip :global(.t-head) { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); margin-bottom: 2px; }
+  .tip :global(.t-chips) { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+  .tip :global(.t-chip) { font-size: 12px; padding: 1px 6px; color: var(--muted); border: 1px solid var(--line); background: #ffffff08; }
+  .tip :global(.t-small) { font-size: 13px; line-height: 1.35; }
+  .tip :global(.t-faint) { font-size: 11px; color: var(--muted); opacity: 0.6; margin-top: 6px; }
   .tip :global(.t-row) { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--muted); }
   .tip :global(hr) { border: 0; height: 1px; margin: 8px 0; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
   .tip :global(.t-off) { opacity: 0.45; }
