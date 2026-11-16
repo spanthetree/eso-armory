@@ -41,13 +41,27 @@ ESO has no way to see your account outside the game. Gear is spread across chara
 
 ### Requirements
 
-- Python 3.12+ and [uv](https://docs.astral.sh/uv/)
+- Docker with Compose, or Python 3.12+ and [uv](https://docs.astral.sh/uv/)
 - Elder Scrolls Online with these addons:
   - [iasync](https://github.com/spanthetree/iasync) (required)
   - [WizardsWardrobe](https://www.esoui.com/downloads/info3432-WizardsWardrobe.html) (for saved builds)
   - [Tamriel Trade Centre](https://www.tamrieltradecentre.com/) (optional, for prices)
 
-### Run
+### Run with Docker
+
+```bash
+curl -O https://raw.githubusercontent.com/spanthetree/eso-armory/master/compose.yaml
+docker compose up -d
+```
+
+This pulls `ghcr.io/spanthetree/eso-armory` and serves on port 5000. The first start downloads the game icons from UESP (about 2 minutes). Data lives in two volumes: `data` (accounts, config and its encryption key) and `assets` (icons).
+
+- `ESO_ARMORY_PORT=8080` changes the port; `ESO_ARMORY_VERSION=0.1.0-beta.39` pins a release.
+- Put `ANTHROPIC_API_KEY=...` in a `.env` file next to `compose.yaml` to enable SuperStar import.
+- From a checkout, `docker compose up -d --build` runs your local code instead.
+- To change [configuration](#configuration), copy it out with `docker compose cp web:/app/uploads/config.json .`, edit it, copy it back with `docker compose cp config.json web:/app/uploads/`, then `docker compose restart`.
+
+### Run from source
 
 ```bash
 uv sync

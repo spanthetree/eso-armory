@@ -48,6 +48,15 @@ CI runs these on every pull request.
 - A change to the API, storage or security model updates
   [docs/architecture.md](docs/architecture.md) in the same PR.
 
+## Releases
+
+Merging a version bump to `master` releases it: the `release` workflow builds
+`ghcr.io/spanthetree/eso-armory` for amd64 and arm64, tags the commit `vX.Y.Z`,
+and creates a GitHub release from the version's `CHANGELOG.md` section. It
+fails if that section is missing. Don't tag by hand. To try a branch's image
+first, run the workflow on it by hand (Actions → release → Run workflow); that
+publishes `edge`.
+
 ## Licensing your contribution
 
 ESO Armory is source-available under the
