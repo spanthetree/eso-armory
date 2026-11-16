@@ -168,9 +168,9 @@
   .cp { display: grid; gap: 10px; }
   .cpgroup { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 12px; }
   .cpgroup .cphead { grid-column: 1 / -1; }
-  .cphead { display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .cphead { display: flex; align-items: center; justify-content: center; gap: 5px; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
   .cphead img { width: 18px; height: 18px; }
-  .cpname { font-size: 13px; color: #cfcfcf; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cpname { font-size: 13px; color: #cfcfcf; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .sets { display: grid; gap: 3px; }
   .set { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; border-left: 2px solid var(--accent); background: #ffffff06; font-size: 14px; }
