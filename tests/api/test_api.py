@@ -395,3 +395,30 @@ def test_ability_names_resolves_and_validates(client, isolated_server, monkeypat
     assert calls == [20323, 99]  # deduped, and cached across requests (unknown ids too)
     assert bad.status_code == 400
     assert too_many.status_code == 400
+
+
+@pytest.mark.api
+def test_game_icon_downloads_once_and_validates(client, isolated_server, monkeypatch, tmp_path):
+    png = b"\x89PNG\r\n\x1a\nfake"
+    calls = []
+
+    def fake_fetch(name):
+        calls.append(name)
+        return png if name == "achievement_x" else None
+
+    monkeypatch.setattr(isolated_server, "_fetch_game_icon", fake_fetch)
+    monkeypatch.setattr(isolated_server, "_GAME_ICON_DIR", tmp_path / "esoicons")
+    isolated_server._game_icon_missing.clear()
+
+    first = client.get("/esoicons/achievement_x.png")
+    second = client.get("/esoicons/ACHIEVEMENT_X.png")
+    missing = client.get("/esoicons/nope.png")
+    missing_again = client.get("/esoicons/nope.png")
+    bad = client.get("/esoicons/..%2Fsecrets.png")
+
+    assert first.status_code == 200 and first.content == png
+    assert first.headers["content-type"] == "image/png"
+    assert second.status_code == 200
+    assert missing.status_code == 404 and missing_again.status_code == 404
+    assert calls == ["achievement_x", "nope"]  # cached on disk / remembered as missing
+    assert bad.status_code in (400, 404)

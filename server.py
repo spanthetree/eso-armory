@@ -2228,6 +2228,50 @@ async def api_skill_info(name: str):
     return JSONResponse(result)
 
 
+_GAME_ICON_RE = re.compile(r"^[a-z0-9_]{1,120}$")
+_GAME_ICON_DIR = Path("assets") / "esoicons"
+_game_icon_missing: collections.OrderedDict = collections.OrderedDict()  # names UESP doesn't have
+
+
+def _fetch_game_icon(name: str) -> bytes | None:
+    url = f"https://esoicons.uesp.net/esoui/art/icons/{name}.png"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 ESO-Armory/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = resp.read(512 * 1024)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return None
+        raise
+    return data if data.startswith(b"\x89PNG") else None
+
+
+@app.get("/esoicons/{name}.png")
+async def game_icon(name: str):
+    """Game icon from /esoui/art/icons (e.g. achievement icons). Downloaded from UESP on first use and
+    kept under assets/ like every other icon, so it is never committed and later requests are local."""
+    name = name.lower()
+    if not _GAME_ICON_RE.match(name):
+        return JSONResponse({"error": "invalid icon name"}, status_code=400)
+    path = _GAME_ICON_DIR / f"{name}.png"
+    if not path.exists():
+        if _lru_get(_game_icon_missing, name):
+            return Response(status_code=404)
+        try:
+            data = await asyncio.get_event_loop().run_in_executor(None, _fetch_game_icon, name)
+        except Exception as exc:
+            logger.warning("Game icon fetch failed: {}: {}", name, exc)
+            return Response(status_code=502)
+        if data is None:
+            _lru_put(_game_icon_missing, name, True, _EXTERNAL_CACHE_MAX * 4)
+            return Response(status_code=404)
+        _GAME_ICON_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_bytes(data)
+        tmp.replace(path)
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
+
+
 @app.get("/api/ability_names")
 async def api_ability_names(ids: str = Query("")):
     """Resolve ability ids iasync could not name (e.g. skills only seen in Wizards Wardrobe setups)."""

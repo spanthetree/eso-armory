@@ -13,6 +13,7 @@
   import Wardrobe from './lib/character/Wardrobe.svelte';
   import Bags from './lib/character/Bags.svelte';
   import InventoryTab from './lib/inventory/InventoryTab.svelte';
+  import AchievementsTab from './lib/achievements/AchievementsTab.svelte';
   import Segmented from './lib/ui/Segmented.svelte';
   import ShareDialog from './lib/shell/ShareDialog.svelte';
   import PasswordDialog from './lib/shell/PasswordDialog.svelte';
@@ -94,6 +95,8 @@
             <CharacterSheet {char} />
           {:else if nav.tab === 'inventory'}
             <InventoryTab />
+          {:else if nav.tab === 'achievements'}
+            <AchievementsTab />
           {:else}
             <Frame title={TAB_ITEMS.find((t) => t.id === nav.tab)?.label.toUpperCase()}>
               <p class="hint todo">This tab is ported in Phase 3.</p>

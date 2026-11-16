@@ -2,10 +2,17 @@
 // Holds raw API payloads; tab-specific indexing lives with each tab.
 import * as api from './api.js';
 
-/** @template T @typedef {{ value: T | null, loading: boolean, error: string | null }} Resource */
+/**
+ * One API payload. `value` is raw state: payloads are replaced, never edited, so they skip Svelte's
+ * deep proxies (wrapping ~30k achievement objects froze the page).
+ */
+class Resource {
+  value = $state.raw(/** @type {any} */ (null));
+  loading = $state(false);
+  error = $state(/** @type {string | null} */ (null));
+}
 
-/** @template T @returns {Resource<T>} */
-const resource = () => ({ value: null, loading: false, error: null });
+const resource = () => new Resource();
 
 export const app = $state({
   ready: false,

@@ -73,6 +73,7 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `GET /api/set_bonus?set_id=&set_name=` | Set bonuses from eso-sets.com (memory cached) |
 | `GET /api/skill_info?name=` | Skill details from eso-skillbook.com (memory cached) |
 | `GET /api/ability_names?ids=` | Names for up to 40 ability ids iasync could not resolve (e.g. skills only in Wizards Wardrobe setups), from UESP's mined skill data (memory cached) |
+| `GET /esoicons/<name>.png` | Game icon from `/esoui/art/icons/` (e.g. achievement icons). Downloaded from esoicons.uesp.net on first request into `assets/esoicons/` (never committed), then served locally; names must match `[a-z0-9_]+` |
 | `GET /api/ttc_price?name=&session=&share=` | TTC price from uploaded or local price tables |
 | `GET/POST /api/share?session=&share=` | Get/create pairing code for workspace sharing |
 | `POST /api/share/join?session=&code=` | Bind browser to shared workspace via pairing code |
