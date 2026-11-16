@@ -71,6 +71,11 @@ iasync_data = {
           [3] = 102,
         },
       },
+      ["build_pools"] = {
+        ["health"] = 21865,
+        ["magicka"] = 41210,
+        ["stamina"] = 12400,
+      },
       ["build_attributes"] = {
         ["health"] = 10,
         ["magicka"] = 20,

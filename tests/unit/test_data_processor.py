@@ -64,6 +64,8 @@ def test_process_iasync_builds_uses_equipped_gear_and_names(raw_iasync):
     assert build["skills"]["primary"]["3"] == 101
     assert builds["abilityNames"]["101"] == "Mock Whip"
     assert builds["cpNames"]["201"] == "Mock Warfare"
+    assert build["pools"] == {"health": 21865, "magicka": 41210, "stamina": 12400}
+    assert builds["builds"][1]["pools"] == {}  # SavedVariables from iasync < 1.4.0
 
 
 @pytest.mark.unit

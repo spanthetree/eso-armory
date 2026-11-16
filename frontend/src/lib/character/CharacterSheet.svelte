@@ -61,7 +61,9 @@
       <Frame title="ATTRIBUTES" delay={0.25}>
         <div class="bars">
           {#each ['magicka', 'health', 'stamina'] as kind, i (kind)}
-            <ResourceBar kind={/** @type {any} */ (kind)} value={Number(build.attributes[kind]) || 0} max={Math.max(64, attrTotal)} delay={0.45 + i * 0.12} />
+            {@const pts = Number(build.attributes[kind]) || 0}
+            {@const pool = Number(build.pools?.[kind]) || 0}
+            <ResourceBar kind={/** @type {any} */ (kind)} value={pts} max={Math.max(64, attrTotal)} shown={pool || null} note={pool ? `${pts} pts` : ''} delay={0.45 + i * 0.12} />
           {/each}
         </div>
       </Frame>

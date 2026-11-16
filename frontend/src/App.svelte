@@ -11,6 +11,7 @@
   import Roster from './lib/shell/Roster.svelte';
   import CharacterSheet from './lib/character/CharacterSheet.svelte';
   import Wardrobe from './lib/character/Wardrobe.svelte';
+  import Bags from './lib/character/Bags.svelte';
   import Segmented from './lib/ui/Segmented.svelte';
   import ShareDialog from './lib/shell/ShareDialog.svelte';
   import PasswordDialog from './lib/shell/PasswordDialog.svelte';
@@ -87,7 +88,7 @@
           {:else if nav.tab === 'characters' && nav.charView === 'wardrobe'}
             <Wardrobe {char} />
           {:else if nav.tab === 'characters' && nav.charView === 'bags'}
-            <Frame title="BAGS"><p class="hint todo">Character inventory is next.</p></Frame>
+            <Bags {char} />
           {:else if nav.tab === 'characters'}
             <CharacterSheet {char} />
           {:else}
@@ -103,7 +104,7 @@
 
 <style>
   .stage { position: relative; isolation: isolate; }
-  main { max-width: 1240px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 12px; }
+  main { max-width: 1240px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .hero { position: relative; isolation: isolate; text-align: center; display: grid; gap: 2px; padding-top: 4px; }
   .hero h1 { color: var(--fg); font-size: clamp(24px, 3.4vw, 34px); letter-spacing: 0.12em; text-shadow: 0 0 18px #ffffff26; text-wrap: balance; }
   .sub { color: var(--muted); text-transform: uppercase; letter-spacing: 0.2em; font-size: 13px; }
