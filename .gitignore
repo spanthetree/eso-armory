@@ -40,3 +40,6 @@ uploads/
 
 # Game icons (ZeniMax artwork) - fetched by scripts/download_assets.py
 assets/
+
+# Docker env (secrets)
+.env

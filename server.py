@@ -96,7 +96,7 @@ def _eso_addon_path(*parts: str) -> str:
 
 
 _HERE        = Path(__file__).resolve().parent
-CONFIG_PATH  = _HERE / "config.json"
+CONFIG_PATH  = Path(os.environ.get("ESO_ARMORY_CONFIG", _HERE / "config.json"))  # containers keep it in the data volume
 UPLOADS_DIR  = _HERE / "uploads"
 SHARE_REGISTRY_PATH = UPLOADS_DIR / "share_registry.json"
 DEFAULT_CONFIG = {

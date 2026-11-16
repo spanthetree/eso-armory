@@ -1,0 +1,17 @@
+services:
+  web:
+    image: ghcr.io/spanthetree/eso-armory:${ESO_ARMORY_VERSION:-latest}
+    build: .  # docker compose up --build runs your checkout instead of the published image
+    restart: unless-stopped
+    ports:
+      - "${ESO_ARMORY_PORT:-5000}:5000"
+    env_file:
+      - path: .env  # optional: ANTHROPIC_API_KEY for SuperStar import
+        required: false
+    volumes:
+      - data:/app/uploads   # SQLite workspaces, TTC tables, share codes, config.json (holds db_secret)
+      - assets:/app/assets  # game icons, downloaded from UESP on first start
+
+volumes:
+  data:
+  assets:
