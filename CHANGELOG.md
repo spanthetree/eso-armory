@@ -85,7 +85,7 @@
 ### Changed
 - **Upload-only data ingestion** - the server no longer reads `iasync.lua` or `WizardsWardrobe.lua` from local disk paths; data reaches the server exclusively via browser upload or the folder watcher, making the app safe to host remotely
 - **Parse-all-upfront on upload** - all four iasync payload types (inventory/data, builds, achievements, stickerbook) are parsed in memory on upload and stored to SQLite immediately; raw Lua bytes are discarded after parsing and never persisted on disk
-- **Admin-only TTC upload** - Tamriel Trade Centre file upload is now restricted to accounts flagged `is_admin` in the database; non-admin uploads receive a clear error; `@admin_account` is auto-granted admin on first upload
+- **Admin-only TTC upload** - Tamriel Trade Centre file upload is now restricted to accounts flagged `is_admin` in the database; non-admin uploads receive a clear error; listed admin accounts are auto-granted admin on first upload
 - **Folder watcher timing** - metadata-only `lastModified` check every 60 s (no file content read unless changed); full force-sync every 15 minutes; admin accounts also sync TTC tables from `AddOns/TamrielTradeCentre/`
 - **Per-file sync status** - the folder watcher UI shows last-synced time per file (iasync, WW, TTC lookup, TTC price) and a last-checked timestamp
 - **Recovery error clarity** - if DB payloads are missing and no source is available, endpoints return HTTP 503 with a "please re-upload" message instead of attempting to reconstruct from missing data
