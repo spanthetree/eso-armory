@@ -14,8 +14,6 @@
 - **Icon/label tables hoisted** - `WEAPON_ICONS`, `ARMOR_ICONS`, `FALLBACK_ICONS`, filter-label maps, and trait name table moved to module scope above `armory()` so they aren't rebuilt on every render call
 - **TTC result dedup** - `_fetch_ttc_price` builds a shared `base` dict and `_TTC_ATTRIBUTION` constant; three result branches use spread instead of repeating every field
 - **Lazy image loading** - item icon `<img>` tags in inventory and achievement rows now carry `loading="lazy"`
-
-### Changed
 - **README** - rewritten: what the app does, the problem it solves, how data flows, and how to run, configure and test it
 
 ### Removed
