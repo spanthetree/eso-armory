@@ -5,9 +5,12 @@
   import ResourceBar from './lib/ui/ResourceBar.svelte';
   import Tabs from './lib/ui/Tabs.svelte';
   import AllianceSwitch from './lib/ui/AllianceSwitch.svelte';
+  import Banners from './lib/ui/Banners.svelte';
+  import TooltipHost from './lib/ui/TooltipHost.svelte';
 
   // Phase 1 component preview with sample data; replaced by the app shell in Phase 2.
   let al = $state(/** @type {'ad' | 'dc' | 'ep'} */ ('ep'));
+  const ALLIANCE = { ad: 'Aldmeri Dominion', dc: 'Daggerfall Covenant', ep: 'Ebonheart Pact' };
   $effect(() => setAllianceTint(al));
 
   let tab = $state('equipment');
@@ -41,7 +44,20 @@
     ['stamina', 12400, 30000],
   ]);
   let replay = $state(0);
+
+  const SET = { name: "Mother's Sorrow", have: 4, bonus: ['(2) Adds 657 Critical Chance', '(3) Adds 1096 Max Magicka', '(4) Adds 657 Critical Chance', '(5) Adds 1528 Critical Chance'] };
 </script>
+
+{#snippet itemTip(/** @type {{ label: string, q: string }} */ it)}
+  <div class="t-name" style="color: var(--q-{it.q})">{it.label} of Mother's Sorrow</div>
+  <div class="t-row"><span>Light Armor · {it.label}</span><span>Divines</span></div>
+  <hr />
+  <div class="t-row"><span>Part of</span><span>{SET.name} ({SET.have}/5)</span></div>
+  {#each SET.bonus as b, i (i)}<div class:t-off={i + 2 > SET.have}>{b}</div>{/each}
+{/snippet}
+
+<TooltipHost />
+<Banners cls="Arcanist" alliance={ALLIANCE[al]} />
 
 <main>
   <div class="top">
@@ -50,7 +66,7 @@
   </div>
 
   <header>
-    <div class="sub">Dark Elf · Arcanist · Sample character</div>
+    <div class="sub">Dark Elf · Arcanist · {ALLIANCE[al]}</div>
     <h1>Seryn Vel-Ashar</h1>
     <div class="sub">Level 50 · CP 2,104</div>
   </header>
@@ -61,7 +77,7 @@
     <div class="grid">
       <Frame title="ARMOR" delay={0.15}>
         <div class="slots">
-          {#each ARMOR as [label, icon, q], i (i)}<Slot {label} icon="{g}/{icon}.png" quality={q} delay={0.35 + i * 0.05} />{/each}
+          {#each ARMOR as [label, icon, q], i (i)}<Slot {label} icon="{g}/{icon}.png" quality={q} delay={0.35 + i * 0.05} tip={{ snippet: itemTip, arg: { label, q } }} />{/each}
         </div>
       </Frame>
       <Frame title="ATTRIBUTES" delay={0.3}>
@@ -80,6 +96,7 @@
 </main>
 
 <style>
+  :global(#app) { position: relative; isolation: isolate; min-height: 100vh; }
   main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 18px; }
   .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
   header { text-align: center; display: grid; gap: 4px; }
