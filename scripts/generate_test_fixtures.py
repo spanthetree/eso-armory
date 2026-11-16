@@ -13,7 +13,6 @@ import re
 from pathlib import Path
 
 
-DEFAULT_LIVE = Path("/mnt/c/users/<you>/documents/elder scrolls online/live")
 FIXTURE_DIR = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
 
 REPLACEMENTS = {
@@ -36,7 +35,7 @@ def copy_prefix(src: Path, dest: Path, max_bytes: int) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--live", type=Path, default=DEFAULT_LIVE)
+    parser.add_argument("--live", type=Path, required=True, help="ESO live folder, e.g. .../Documents/Elder Scrolls Online/live")
     parser.add_argument("--max-bytes", type=int, default=200_000)
     args = parser.parse_args()
 
