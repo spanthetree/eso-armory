@@ -21,7 +21,6 @@ logs/
 .coverage
 htmlcov/
 test-results/
-mutants/
 
 # Config (contains local paths)
 config.json
@@ -38,3 +37,6 @@ Thumbs.db
 
 # Uploaded files
 uploads/
+
+# Game icons (ZeniMax artwork) - fetched by scripts/download_assets.py
+assets/

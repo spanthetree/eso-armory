@@ -158,6 +158,37 @@ def test_inventory_filters_and_character_detail(page: Page, app_url: str, fixtur
 
 
 @pytest.mark.ui
+def test_compare_mode_renders_current_and_imported_builds(page: Page, app_url: str, fixtures_dir):
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+
+    page.get_by_role("heading", name="Test Character One").click()
+    detail = page.locator('div[x-show="selectedChar && !compareMode && !ssMode"]')
+    # Drilldown equipment grid: 7 apparel + 3 accessory + 4 weapon slots
+    expect(detail.locator(".eq-slot")).to_have_count(14)
+    expect(detail.get_by_text("primary:")).to_be_visible()
+
+    page.get_by_role("button", name="Export Build Code").click()
+    code_el = page.locator("code", has_text=re.compile(r"^[A-Z0-9]{4}-[A-Z0-9]{4}$")).first
+    expect(code_el).to_be_visible(timeout=15000)
+    code = code_el.text_content().strip()
+
+    page.get_by_role("button", name="Compare Build").click()
+    compare = page.locator('div[x-show="compareMode && selectedChar"]')
+    expect(compare.get_by_text("Current Build")).to_be_visible()
+    expect(compare.get_by_text("Imported Build")).to_be_visible()
+    # Only the current-build pane has a grid until something is imported
+    expect(compare.locator(".eq-slot")).to_have_count(14)
+
+    compare.get_by_placeholder("ABCD-EFGH").fill(code)
+    compare.get_by_role("button", name="Import by Code").click()
+    expect(compare.get_by_role("button", name="Delete")).to_be_visible(timeout=15000)
+    # Both panes now render the shared equipment grid and build summary
+    expect(compare.locator(".eq-slot")).to_have_count(28)
+    expect(compare.get_by_text("primary:")).to_have_count(2)
+
+
+@pytest.mark.ui
 def test_share_code_joins_uploaded_workspace(page: Page, browser: Browser, app_url: str, fixtures_dir):
     page.goto(app_url)
     upload_all_fixtures(page, fixtures_dir)

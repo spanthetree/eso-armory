@@ -57,16 +57,7 @@ def _parse_link_level(link: str) -> int:
     return 0
 
 
-def process_iasync(raw: dict, server: str = "NA") -> dict:
-    """Build the /api/data response from iasync_data."""
-    t0 = time.monotonic()
-
-    account_name = raw.get("accountName") or next((k for k in raw if isinstance(k, str) and k.startswith("@")), "@unknown")
-    chars_raw  = raw.get("chars", {})
-    bank_raw   = raw.get("bank", {})
-    houses_raw = raw.get("houses", {})
-
-    # ── Characters ──────────────────────────────────────────────────────────────
+def _process_characters(chars_raw: dict) -> dict:
     characters = {}
     for char_id, c in chars_raw.items():
         characters[char_id] = {
@@ -82,88 +73,83 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
             "space_used": int(c.get("spaceUsed", 0)),
             "space_max":  int(c.get("spaceMax", 0)),
         }
+    return characters
 
-    # ── Bank currencies ──────────────────────────────────────────────────────────
-    bank = {
-        "gold": int(bank_raw.get("gold", 0)),
-        "ap":   int(bank_raw.get("ap", 0)),
-        "tv":   int(bank_raw.get("tv", 0)),
-        "wv":   int(bank_raw.get("wv", 0)),
-        "space_used": 0,
-        "space_max":  0,
+
+def _new_item_entry(link: str, iid: int | None, item_data: dict) -> dict:
+    quality     = int(item_data.get("quality", 1))
+    filter_type = int(item_data.get("filterType", 5))
+    decoded     = decode_link(link)
+    # iasync captures trait/enchant via ESO's GetItemTrait/GetItemLinkInfo APIs,
+    # which are more reliable than link-field decoding for armor traits.
+    trait_id    = int(item_data.get("traitType", 0)) or decoded.get("trait_id", 0)
+    trait_name  = item_data.get("traitName") or decoded.get("trait_name")
+    enchant_id  = decoded.get("enchant_id", 0) or int(item_data.get("enchantId", 0))
+    enchant_name = item_data.get("enchantName") or ""
+    is_enchanted = bool(enchant_name) or decoded.get("is_enchanted", False)
+    return {
+        "key":              link,
+        "item_id":          iid,
+        "name":             _strip_locale(item_data.get("name", "Unknown")),
+        "quality":          quality,
+        "quality_name":     QUALITY_NAMES.get(quality, "Unknown"),
+        "quality_color":    QUALITY_COLORS.get(quality, "#cccccc"),
+        "filter_type":      filter_type,
+        "filter_type_name": FILTER_TYPE_NAMES.get(filter_type, "Miscellaneous"),
+        "filter_type_icon": FILTER_TYPE_ICONS.get(filter_type, "📦"),
+        "level":            _parse_link_level(link),
+        "total_quantity":   0,
+        "locations":        [],
+        "trait_id":         trait_id,
+        "trait_name":       trait_name,
+        "is_transmuted":    decoded.get("is_transmuted", False),
+        "style_id":         decoded.get("style_id", 0),
+        "style_name":       decoded.get("style_name"),
+        "is_crafted":       decoded.get("is_crafted", False),
+        "is_bound":         decoded.get("is_bound", False),
+        "is_stolen":        decoded.get("is_stolen", False),
+        "is_enchanted":     is_enchanted,
+        "enchant_id":       enchant_id,
+        "enchant_name":     enchant_name,
+        "set_id":           int(item_data.get("setId", 0)),
+        "set_name":         item_data.get("setName") or "",
+        "sell_value":       decoded.get("sell_value", 0),
+        "weapon_type":      item_data.get("weaponType") or None,
+        "armor_type":       item_data.get("armorType") or None,
     }
 
-    # ── Items: aggregate by link across all storage locations ────────────────────
-    item_map: dict[str, dict] = {}
 
-    def _add_slot(item_data: dict, slot, loc_type: str, loc_key: str,
-                  loc_label: str, bag_id: int, bag_label: str):
-        link = item_data.get("link", "")
-        if not link:
-            return
-        m = _ITEM_LINK_RE.search(link)
-        iid = int(m.group(1)) if m else None
-        qty = int(item_data.get("qty", 1))
+def _add_slot(item_map: dict, item_data: dict, slot, loc_type: str, loc_key: str,
+              loc_label: str, bag_id: int, bag_label: str):
+    link = item_data.get("link", "")
+    if not link:
+        return
+    m = _ITEM_LINK_RE.search(link)
+    iid = int(m.group(1)) if m else None
+    qty = int(item_data.get("qty", 1))
 
-        if link not in item_map:
-            quality     = int(item_data.get("quality", 1))
-            filter_type = int(item_data.get("filterType", 5))
-            decoded     = decode_link(link)
-            # iasync captures trait/enchant via ESO's GetItemTrait/GetItemLinkInfo APIs,
-            # which are more reliable than link-field decoding for armor traits.
-            trait_id    = int(item_data.get("traitType", 0)) or decoded.get("trait_id", 0)
-            trait_name  = item_data.get("traitName") or decoded.get("trait_name")
-            enchant_id  = decoded.get("enchant_id", 0) or int(item_data.get("enchantId", 0))
-            enchant_name = item_data.get("enchantName") or ""
-            is_enchanted = bool(enchant_name) or decoded.get("is_enchanted", False)
-            item_map[link] = {
-                "key":              link,
-                "item_id":          iid,
-                "name":             _strip_locale(item_data.get("name", "Unknown")),
-                "quality":          quality,
-                "quality_name":     QUALITY_NAMES.get(quality, "Unknown"),
-                "quality_color":    QUALITY_COLORS.get(quality, "#cccccc"),
-                "filter_type":      filter_type,
-                "filter_type_name": FILTER_TYPE_NAMES.get(filter_type, "Miscellaneous"),
-                "filter_type_icon": FILTER_TYPE_ICONS.get(filter_type, "📦"),
-                "level":            _parse_link_level(link),
-                "total_quantity":   0,
-                "locations":        [],
-                "trait_id":         trait_id,
-                "trait_name":       trait_name,
-                "is_transmuted":    decoded.get("is_transmuted", False),
-                "style_id":         decoded.get("style_id", 0),
-                "style_name":       decoded.get("style_name"),
-                "is_crafted":       decoded.get("is_crafted", False),
-                "is_bound":         decoded.get("is_bound", False),
-                "is_stolen":        decoded.get("is_stolen", False),
-                "is_enchanted":     is_enchanted,
-                "enchant_id":       enchant_id,
-                "enchant_name":     enchant_name,
-                "set_id":           int(item_data.get("setId", 0)),
-                "set_name":         item_data.get("setName") or "",
-                "sell_value":       decoded.get("sell_value", 0),
-                "weapon_type":      item_data.get("weaponType") or None,
-                "armor_type":       item_data.get("armorType") or None,
-            }
+    if link not in item_map:
+        item_map[link] = _new_item_entry(link, iid, item_data)
 
-        item_map[link]["total_quantity"] += qty
-        existing = next((l for l in item_map[link]["locations"]
-                         if l["location_key"] == loc_key and l["bag_id"] == bag_id), None)
-        if existing:
-            existing["quantity"] += qty
-            existing["bag_slots"][str(slot)] = qty
-        else:
-            item_map[link]["locations"].append({
-                "location_key":   loc_key,
-                "location_type":  loc_type,
-                "location_label": loc_label,
-                "bag_id":         bag_id,
-                "bag_label":      bag_label,
-                "quantity":       qty,
-                "bag_slots":      {str(slot): qty},
-            })
+    item_map[link]["total_quantity"] += qty
+    existing = next((l for l in item_map[link]["locations"]
+                     if l["location_key"] == loc_key and l["bag_id"] == bag_id), None)
+    if existing:
+        existing["quantity"] += qty
+        existing["bag_slots"][str(slot)] = qty
+    else:
+        item_map[link]["locations"].append({
+            "location_key":   loc_key,
+            "location_type":  loc_type,
+            "location_label": loc_label,
+            "bag_id":         bag_id,
+            "bag_label":      bag_label,
+            "quantity":       qty,
+            "bag_slots":      {str(slot): qty},
+        })
 
+
+def _collect_char_items(item_map: dict, chars_raw: dict, characters: dict):
     # Character bags (bag 0 = equipped, bag 1 = backpack)
     # location_key must be char_id so the frontend's charMaps lookup works.
     for char_id, c in chars_raw.items():
@@ -172,9 +158,10 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
             bag_id    = int(bag_id_raw)
             bag_label = "Equipped" if bag_id == 0 else "Inventory"
             for slot, item_data in bag.items():
-                _add_slot(item_data, slot, "character", char_id, char_name, bag_id, bag_label)
+                _add_slot(item_map, item_data, slot, "character", char_id, char_name, bag_id, bag_label)
 
-    # Bank bags
+
+def _collect_bank_items(item_map: dict, bank_raw: dict):
     for bag_id_raw, bag in bank_raw.get("bags", {}).items():
         bag_id = int(bag_id_raw)
         if bag_id == _BAG_VIRTUAL:
@@ -184,9 +171,10 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
         else:
             loc_type, loc_label, bag_label = "bank", "Bank", "Bank"
         for slot, item_data in bag.items():
-            _add_slot(item_data, slot, loc_type, loc_label, loc_label, bag_id, bag_label)
+            _add_slot(item_map, item_data, slot, loc_type, loc_label, loc_label, bag_id, bag_label)
 
-    # House chests
+
+def _collect_house_chests(item_map: dict, houses_raw: dict) -> dict:
     house_chests: dict[str, dict] = {}
     for house_id, house_data in houses_raw.items():
         for chest_id_raw, chest in house_data.get("chests", {}).items():
@@ -199,17 +187,47 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
                 "capacity": int(chest.get("capacity", 0)),
             }
             for slot, item_data in chest.get("slots", {}).items():
-                _add_slot(item_data, slot, "house_chest", label, label, chest_id, label)
+                _add_slot(item_map, item_data, slot, "house_chest", label, label, chest_id, label)
+    return house_chests
 
-    # Guild banks
-    for guild_name, guild in raw.get("guildBanks", {}).items():
+
+def _collect_guild_bank_items(item_map: dict, guild_banks_raw: dict):
+    for guild_name, guild in guild_banks_raw.items():
         slots = guild.get("slots", guild) if isinstance(guild, dict) else {}
         if not isinstance(slots, dict):
             continue
         label = str(guild_name)
         for slot, item_data in slots.items():
             if isinstance(item_data, dict):
-                _add_slot(item_data, slot, "guild_bank", label, label, 3, "Guild Bank")
+                _add_slot(item_map, item_data, slot, "guild_bank", label, label, 3, "Guild Bank")
+
+
+def process_iasync(raw: dict, server: str = "NA") -> dict:
+    """Build the /api/data response from iasync_data."""
+    t0 = time.monotonic()
+
+    account_name = raw.get("accountName") or next((k for k in raw if isinstance(k, str) and k.startswith("@")), "@unknown")
+    chars_raw  = raw.get("chars", {})
+    bank_raw   = raw.get("bank", {})
+    houses_raw = raw.get("houses", {})
+
+    characters = _process_characters(chars_raw)
+
+    bank = {
+        "gold": int(bank_raw.get("gold", 0)),
+        "ap":   int(bank_raw.get("ap", 0)),
+        "tv":   int(bank_raw.get("tv", 0)),
+        "wv":   int(bank_raw.get("wv", 0)),
+        "space_used": 0,
+        "space_max":  0,
+    }
+
+    # Items: aggregate by link across all storage locations
+    item_map: dict[str, dict] = {}
+    _collect_char_items(item_map, chars_raw, characters)
+    _collect_bank_items(item_map, bank_raw)
+    house_chests = _collect_house_chests(item_map, houses_raw)
+    _collect_guild_bank_items(item_map, raw.get("guildBanks", {}))
 
     items = list(item_map.values())
     parse_ms = int((time.monotonic() - t0) * 1000)

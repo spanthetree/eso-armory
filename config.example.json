@@ -1,7 +1,9 @@
 {
-  "iasync_lua_path": "/path/to/SavedVariables/iasync.lua",
-  "ww_lua_path": "/path/to/SavedVariables/WizardsWardrobe.lua",
+  "ttc_addon_path": "",
+  "ttc_lookup_table_path": "",
+  "ttc_price_table_path": "",
+  "database_url": "sqlite:///uploads/armory.db",
   "port": 5000,
   "server": "NA",
-  "poll_interval_seconds": 5
+  "admin_accounts": []
 }

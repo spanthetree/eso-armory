@@ -84,9 +84,9 @@ def uploaded_workspace(client: TestClient, fixtures_dir: Path):
 
 @pytest.fixture
 def admin_uploaded_workspace(client: TestClient, isolated_server, fixtures_dir: Path):
-    """Upload iasync + WW, mark account as admin, then upload TTC files."""
+    """Upload iasync + WW, make the account an admin, then upload TTC files."""
+    import bcrypt
     import db as db_module
-    from sqlalchemy.orm import Session
 
     # Upload iasync + WW first to create the account
     files = {
@@ -96,15 +96,9 @@ def admin_uploaded_workspace(client: TestClient, isolated_server, fixtures_dir: 
     r = client.post(f"/api/upload?session={TEST_SESSION}", files=files)
     assert r.status_code == 200, r.text
 
-    # Grant admin to the test account
-    with db_module.session_scope() as db:
-        row = db.scalar(
-            __import__("sqlalchemy").select(db_module.AccountState).where(
-                db_module.AccountState.account_name == "@test_account"
-            )
-        )
-        assert row is not None
-        row.is_admin = True
+    # Admin = listed in config + password set
+    isolated_server._config["admin_accounts"] = ["@test_account"]
+    assert db_module.set_account_password("@test_account", bcrypt.hashpw(b"password123", bcrypt.gensalt(rounds=4)).decode())
 
     # Upload TTC files (now allowed)
     ttc_files = {
