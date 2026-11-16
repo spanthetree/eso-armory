@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.39] - 2026-11-17
+
+### Added
+- **Docker image and Compose** - `compose.yaml` runs `ghcr.io/spanthetree/eso-armory` with `data` and `assets` volumes; game icons download from UESP on first start, so the image contains no game artwork. `ESO_ARMORY_CONFIG` sets the config file location
+- **Release pipeline** - merging a version bump to `master` builds the image for amd64 and arm64, pushes it to GHCR, tags `vX.Y.Z` and creates a GitHub release from this changelog
+
 ## [0.1.0-beta.38] - 2026-06-13
 
 ### Changed

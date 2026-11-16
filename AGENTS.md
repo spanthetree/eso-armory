@@ -68,6 +68,7 @@ Agents may run git and `gh` commands (branch, commit, push, open PRs).
   3. Bumps the version in `pyproject.toml` and runs `uv lock` so `uv.lock` matches
 - Run `make test-all` before opening the PR.
 - PRs target `master` on GitHub. The user merges.
+- Merging a version bump releases it: `.github/workflows/release.yml` builds and pushes `ghcr.io/spanthetree/eso-armory`, tags `vX.Y.Z`, and creates a GitHub release from the CHANGELOG section. Never tag by hand.
 - No force-push, history rewrite, or branch deletion without asking.
 
 ## Item Link Decoder (`item_link_decoder.py`)
