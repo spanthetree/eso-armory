@@ -1,4 +1,7 @@
-.PHONY: test test-fast test-ui test-ui-chromium test-ui-firefox test-all playwright-install playwright-install-deps
+.PHONY: assets test test-fast test-ui test-ui-chromium test-ui-firefox test-all playwright-install playwright-install-deps
+
+assets:
+	uv run scripts/download_assets.py
 
 test: test-fast
 

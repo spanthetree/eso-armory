@@ -49,6 +49,7 @@ ESO has no way to see your account outside the game. Gear is spread across chara
 
 ```bash
 uv sync
+make assets                   # download game icons from UESP (about 2 minutes)
 uv run server.py              # port 5000
 uv run server.py --port 8080  # or another port
 ```
@@ -108,10 +109,10 @@ Test fixtures in `tests/fixtures/` are sanitized. Do not commit live account dat
 | `data_processor.py` | iasync and WizardsWardrobe data to API payloads |
 | `item_link_decoder.py` | ESO item link decoder |
 | `static/index.html` | Single-file frontend (Alpine.js + Tailwind) |
-| `assets/` | Gear and ability icons |
+| `scripts/assets_manifest.json` | Game icon sources; `make assets` downloads them into `assets/` |
 
 ## Status
 
 ESO Armory is in beta. Expect breaking changes between releases; the [changelog](CHANGELOG.md) lists them.
 
-ESO Armory is not affiliated with ZeniMax Online Studios or Bethesda.
+ESO Armory is not affiliated with, endorsed by or sponsored by ZeniMax Online Studios or Bethesda. The Elder Scrolls Online and its artwork are theirs. This repository contains no game artwork: `make assets` downloads icons from [UESP](https://en.uesp.net).

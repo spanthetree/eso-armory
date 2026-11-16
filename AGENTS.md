@@ -43,7 +43,7 @@ key = re.sub(r'[^a-z0-9]+', '_', icon.stem.lower()).strip('_')
 # JS (index.html):
 const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
 ```
-Icons served from `assets/` via `app.mount("/assets", ...)`. UESP source: `images.uesp.net` - needs `curl -sL -A "Mozilla/5.0"`.
+Icons are ZeniMax artwork and are **not committed**: `assets/` is gitignored and filled by `make assets` (`scripts/download_assets.py`) from the URLs in `scripts/assets_manifest.json` (UESP `images.uesp.net` / `esoicons.uesp.net`; needs a browser-like User-Agent). To add an icon, add a `"path": "url"` entry to the manifest and run `make assets`. Never commit image files under `assets/`.
 
 ## Theme System
 CSS custom properties (`--t-*`) on `:root`; `[data-theme="name"]` blocks override them. Pre-Alpine `<script>` sets `data-theme` from localStorage before Alpine boots (prevents FOUC). **Progress bars:** always `style="background:var(--t-progress);width:X%"` - never `bg-eso-gold` Tailwind class on a fill. **Adding a theme:** CSS var block + `themes` object entry with `label` + `bgR/cardR/borderR/goldR/textR/mutedR/hoverR` RGB triplets.

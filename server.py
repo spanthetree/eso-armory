@@ -524,6 +524,7 @@ def _character_ids_for_cache(cache: dict) -> set[str]:
 def _build_ability_icon_map() -> dict:
     abilities_dir = Path("assets/abilities")
     if not abilities_dir.exists():
+        logger.warning("No game icons in assets/ - run: uv run scripts/download_assets.py")
         return {}
     result = {}
     for icon in sorted(
@@ -1311,6 +1312,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="ESO Armory", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+Path("assets").mkdir(exist_ok=True)  # icons are downloaded, not committed
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
 
 

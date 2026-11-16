@@ -95,7 +95,7 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 _cache           # global iasync: {data_bytes, builds_bytes, achievements_bytes, stickerbook_bytes, mtime, error}
 _ww_cache        # global WW: {ww_builds_bytes, mtime, error}
 _sessions        # per-browser UUID: {cache, ww_cache, sse_queues, last_active}
-_ability_icon_map  # built at startup; scans assets/abilities/**/*.{png,webp}
+_ability_icon_map  # built at startup; scans assets/abilities/**/*.{png,webp}; empty until `make assets` runs
 _set_bonus_cache   # (set_id or name_slug) → {bonuses, url}; mythic set_id=0 so slug is key
 _skill_info_cache  # slug → {details}
 _ttc_tables        # global TTC state: {lookup_mtime, price_mtime, lookup_path, price_path, db_path, db_ready, price_time, price_cache, error}

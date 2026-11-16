@@ -2863,17 +2863,17 @@
 // ── Static icon lookups (shared by slotEquipIcon / itemIconHtml) ──
 const GEAR_PATH   = '/assets/gear';
 const WEAPON_PATH = `${GEAR_PATH}/weapon`;
-const STAFF_SRC   = `${WEAPON_PATH}/gear_breton_staff_d.webp`;
+const STAFF_SRC   = `${WEAPON_PATH}/gear_breton_staff_d.png`;
 const WEAPON_ICONS = {
-  'Dagger':            `${WEAPON_PATH}/gear_breton_dagger_d.webp`,
-  'Sword':             `${WEAPON_PATH}/gear_breton_1hsword_d.webp`,
-  'Axe':               `${WEAPON_PATH}/gear_breton_1haxe_d.webp`,
-  'Hammer':            `${WEAPON_PATH}/gear_breton_1hhammer_d.webp`,
-  'Two-Handed Sword':  `${WEAPON_PATH}/gear_breton_2hsword_d.webp`,
-  'Two-Handed Axe':    `${WEAPON_PATH}/gear_breton_2haxe_d.webp`,
-  'Two-Handed Hammer': `${WEAPON_PATH}/gear_breton_2hhammer_d.webp`,
-  'Bow':               `${WEAPON_PATH}/gear_breton_bow_d.webp`,
-  'Shield':            `${WEAPON_PATH}/gear_breton_shield_d.webp`,
+  'Dagger':            `${WEAPON_PATH}/gear_breton_dagger_d.png`,
+  'Sword':             `${WEAPON_PATH}/gear_breton_1hsword_d.png`,
+  'Axe':               `${WEAPON_PATH}/gear_breton_1haxe_d.png`,
+  'Hammer':            `${WEAPON_PATH}/gear_breton_1hhammer_d.png`,
+  'Two-Handed Sword':  `${WEAPON_PATH}/gear_breton_2hsword_d.png`,
+  'Two-Handed Axe':    `${WEAPON_PATH}/gear_breton_2haxe_d.png`,
+  'Two-Handed Hammer': `${WEAPON_PATH}/gear_breton_2hhammer_d.png`,
+  'Bow':               `${WEAPON_PATH}/gear_breton_bow_d.png`,
+  'Shield':            `${WEAPON_PATH}/gear_breton_shield_d.png`,
 };
 // slot → armor piece name (light chest is "shirt")
 const ARMOR_SLOT = {
@@ -2881,9 +2881,9 @@ const ARMOR_SLOT = {
   6: 'waist', 8: 'legs', 9: 'feet', 16: 'hands',
 };
 const ARMOR_ICONS = {
-  'Heavy':  `${GEAR_PATH}/armor/heavy/gear_breton_heavy_chest_d.webp`,
-  'Medium': `${GEAR_PATH}/armor/medium/gear_breton_medium_chest_d.webp`,
-  'Light':  `${GEAR_PATH}/armor/light/gear_breton_light_shirt_d.webp`,
+  'Heavy':  `${GEAR_PATH}/armor/heavy/gear_breton_heavy_chest_d.png`,
+  'Medium': `${GEAR_PATH}/armor/medium/gear_breton_medium_chest_d.png`,
+  'Light':  `${GEAR_PATH}/armor/light/gear_breton_light_shirt_d.png`,
 };
 const FALLBACK_ICONS = {
   1: '/assets/interface/inventory_weapons.png',
@@ -4825,19 +4825,19 @@ function armory() {
         if (!piece || !at) return iface('inventory_armor');
         const w = at.toLowerCase();
         const p = (w === 'light' && piece === 'chest') ? 'shirt' : piece;
-        return img(`${GEAR_PATH}/armor/${w}/gear_breton_${w}_${p}_d.webp`);
+        return img(`${GEAR_PATH}/armor/${w}/gear_breton_${w}_${p}_d.png`);
       };
 
       if (slot in ARMOR_SLOT)                    return armorImg(slot, item.armor_type);
-      if (slot === 1)                            return img(`${GEAR_PATH}/jewelry/gear_breton_neck_a.webp`);
-      if (slot === 11 || slot === 12)            return img(`${GEAR_PATH}/jewelry/gear_breton_ring_a.webp`);
+      if (slot === 1)                            return img(`${GEAR_PATH}/jewelry/gear_breton_neck_a.png`);
+      if (slot === 11 || slot === 12)            return img(`${GEAR_PATH}/jewelry/gear_breton_ring_a.png`);
       if (slot===4||slot===5||slot===20||slot===21) return weaponImg(item.weapon_type, item.name);
       if (slot === 10)                           return iface('character_creation_body');
       if (slot === 13 || slot === 14)            return iface('inventory_consumables');
       // fallback by filter type (e.g. unrecognised slot numbers)
       if (item.filter_type === 1)  return weaponImg(item.weapon_type, item.name);
       if (item.filter_type === 2)  return armorImg(slot, item.armor_type);
-      if (item.filter_type === 25) return img(`${GEAR_PATH}/jewelry/gear_breton_neck_a.webp`);
+      if (item.filter_type === 25) return img(`${GEAR_PATH}/jewelry/gear_breton_neck_a.png`);
       return iface('inventory_miscellaneous');
     },
 
@@ -4855,7 +4855,7 @@ function armory() {
         if (item.weapon_type === 'Shield') src = WEAPON_ICONS['Shield'];
         else src = ARMOR_ICONS[item.armor_type] ?? FALLBACK_ICONS[2];
       } else if (item.filter_type === 25) {
-        src = `${GEAR_PATH}/jewelry/gear_breton_neck_a.webp`;
+        src = `${GEAR_PATH}/jewelry/gear_breton_neck_a.png`;
       } else {
         src = FALLBACK_ICONS[item.filter_type];
       }

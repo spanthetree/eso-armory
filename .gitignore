@@ -37,3 +37,6 @@ Thumbs.db
 
 # Uploaded files
 uploads/
+
+# Game icons (ZeniMax artwork) - fetched by scripts/download_assets.py
+assets/
