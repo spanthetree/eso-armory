@@ -23,6 +23,26 @@
 
   const filtered = $derived(sortItems(filterItems(items, f), sort.key, sort.dir));
   const rows = $derived(displayRows(filtered, groupBySet));
+
+  // Render rows in batches as the table scrolls, so thousands of items stay responsive.
+  const BATCH = 150;
+  let limit = $state(BATCH);
+  /** @type {HTMLElement} */
+  let scroller;
+  $effect(() => {
+    rows; // new filter/sort results start from the top
+    limit = BATCH;
+    if (scroller) scroller.scrollTop = 0;
+  });
+  const shown = $derived(rows.slice(0, limit));
+  /** @param {HTMLElement} node */
+  function more(node) {
+    const io = new IntersectionObserver((e) => e[0].isIntersecting && (limit += BATCH), { root: node.closest('.scroll'), rootMargin: '400px' });
+    io.observe(node);
+    return { destroy: () => io.disconnect() };
+  }
+  /** Locations shown per row before "+N more". */
+  const MAX_LOCS = where === 'account' ? 2 : 99;
   const extrasOn = $derived(f.quality !== '' || f.transmuted || f.crafted);
 
   /** @param {string} key */
@@ -74,7 +94,7 @@
     </div>
   </div>
 
-  <div class="scroll">
+  <div class="scroll" bind:this={scroller}>
     <table>
       <thead>
         <tr>
@@ -85,7 +105,7 @@
         </tr>
       </thead>
       <tbody>
-        {#each rows as r (r.t === 'h' ? `h:${r.set}` : `i:${r.item.key}`)}
+        {#each shown as r (r.t === 'h' ? `h:${r.set}` : `i:${r.item.key}`)}
           {#if r.t === 'h'}
             <tr class="set"><td colspan="4">{r.set} <span>({r.count})</span></td></tr>
           {:else}
@@ -99,15 +119,17 @@
               <td class="type">{item.filter_type_name}</td>
               <td class="qty num">{item.total_quantity.toLocaleString('en-US')}</td>
               <td class="where">
-                {#each item.locations as loc (loc.location_key + loc.bag_id)}
+                {#each item.locations.slice(0, MAX_LOCS) as loc (loc.location_key + loc.bag_id)}
                   <span class="chip">{locLabel(loc)}{item.locations.length > 1 ? ` ×${loc.quantity}` : ''}</span>
                 {/each}
+                {#if item.locations.length > MAX_LOCS}<span class="chip more">+{item.locations.length - MAX_LOCS} more</span>{/if}
               </td>
             </tr>
           {/if}
         {:else}
           <tr><td colspan="4" class="empty">No items match these filters.</td></tr>
         {/each}
+        {#if limit < rows.length}<tr use:more><td colspan="4" class="empty">Loading more…</td></tr>{/if}
       </tbody>
     </table>
   </div>
@@ -149,6 +171,7 @@
   .lv { font-size: 12px; color: var(--muted); white-space: nowrap; }
   td.type { color: var(--muted); white-space: nowrap; }
   td.qty { text-align: right; color: var(--muted); }
+  .chip.more { color: var(--accent); }
   .chip { display: inline-block; margin: 1px 4px 1px 0; padding: 0 6px; font-size: 12px; color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
   tr.set td { padding: 6px 12px; background: #ffffff06; font: 600 13px var(--f-display); letter-spacing: 0.06em; color: var(--accent-hi); }
   tr.set span { font: 400 12px var(--f-ui); color: var(--muted); letter-spacing: 0; }
