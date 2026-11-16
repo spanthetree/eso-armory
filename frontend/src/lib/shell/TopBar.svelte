@@ -1,10 +1,6 @@
 <script>
-  import AllianceSwitch from '../ui/AllianceSwitch.svelte';
   import { app, refresh, switchSlot, deleteShadow } from '../store.svelte.js';
   import { nav, go } from '../nav.svelte.js';
-
-  /** @type {{ alliance: '' | 'ad' | 'dc' | 'ep' }} */
-  let { alliance = $bindable() } = $props();
 
   const data = $derived(app.data.value);
   const ws = $derived(app.workspace);
@@ -86,7 +82,6 @@
     {#if data}
       <button class="btn" onclick={() => (nav.dialog = 'password')}>{app.auth.has_password ? '🔐 Password' : '🔓 Set password'}</button>
     {/if}
-    <AllianceSwitch bind:value={alliance} auto />
   </div>
 </header>
 
@@ -105,7 +100,7 @@
     border-bottom: 1px solid var(--line);
   }
   .brand { display: grid; line-height: 1.2; }
-  .word { font: 700 17px var(--f-display); letter-spacing: 0.16em; color: var(--accent-hi); }
+  .word { font: 700 17px var(--f-display); letter-spacing: 0.16em; color: var(--fg); }
   .meta { font-size: 13px; color: var(--muted); }
   .badge { margin-left: 4px; padding: 0 5px; font-size: 11px; font-weight: 600; color: var(--bg); background: var(--accent); }
   .slots { display: flex; gap: 4px; }

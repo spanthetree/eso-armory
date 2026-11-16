@@ -1,5 +1,4 @@
 <script>
-  import { allianceKey, setAllianceTint } from './lib/eso.js';
   import { app, start } from './lib/store.svelte.js';
   import { nav, go, TABS } from './lib/nav.svelte.js';
   import Tabs from './lib/ui/Tabs.svelte';
@@ -18,26 +17,6 @@
 
   const data = $derived(app.data.value);
   const char = $derived(nav.charId ? data?.characters?.[nav.charId] ?? null : null);
-
-  // Alliance tint: the viewer's manual choice wins; AUTO ('') follows the selected character.
-  const PREF_KEY = 'eso-alliance';
-  let pref = $state(/** @type {'' | 'ad' | 'dc' | 'ep'} */ (readPref()));
-  function readPref() {
-    try {
-      const v = localStorage.getItem(PREF_KEY);
-      return v === 'ad' || v === 'dc' || v === 'ep' ? v : '';
-    } catch {
-      return '';
-    }
-  }
-  $effect(() => {
-    try {
-      localStorage.setItem(PREF_KEY, pref);
-    } catch {
-      // storage blocked: preference lasts for this visit only
-    }
-  });
-  $effect(() => setAllianceTint(pref || allianceKey(char?.alliance) || 'ad'));
 
   const TAB_ITEMS = [
     { id: 'characters', label: 'Characters' },
@@ -62,7 +41,7 @@
 <PasswordDialog />
 <UploadDialog />
 
-<TopBar bind:alliance={pref} />
+<TopBar />
 
 {#if !app.ready}
   <div class="splash" role="status">
@@ -110,7 +89,7 @@
   .stage { position: relative; isolation: isolate; }
   main { max-width: 1240px; margin: 0 auto; padding: 22px max(16px, env(safe-area-inset-right, 0px)) 64px max(16px, env(safe-area-inset-left, 0px)); display: grid; gap: 18px; }
   .hero { position: relative; isolation: isolate; text-align: center; display: grid; gap: 4px; padding-top: 10px; }
-  .hero h1 { color: var(--accent-hi); font-size: clamp(26px, 4vw, 38px); letter-spacing: 0.12em; text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 40%, transparent); text-wrap: balance; }
+  .hero h1 { color: var(--fg); font-size: clamp(26px, 4vw, 38px); letter-spacing: 0.12em; text-shadow: 0 0 18px #ffffff26; text-wrap: balance; }
   .sub { color: var(--muted); text-transform: uppercase; letter-spacing: 0.2em; font-size: 13px; }
   .orn { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--accent); font-size: 12px; }
   .orn::before, .orn::after { content: ''; width: 90px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent)); }
@@ -124,6 +103,6 @@
   .todo { text-align: center; margin: 8px 0; }
   .splash { min-height: 60vh; display: grid; place-content: center; text-align: center; gap: 10px; }
   .sigil { font-size: 30px; color: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
-  .splash p { font: 500 17px var(--f-display); letter-spacing: 0.12em; color: var(--accent-hi); margin: 0; }
+  .splash p { font: 500 17px var(--f-display); letter-spacing: 0.12em; color: var(--fg); margin: 0; }
   @keyframes pulse { 50% { opacity: 0.35; transform: scale(0.85); } }
 </style>

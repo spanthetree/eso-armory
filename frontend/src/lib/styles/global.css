@@ -57,7 +57,7 @@ h1, h2, h3, h4, h5 { font-family: var(--f-display); font-weight: 600; letter-spa
 }
 .field:focus { border-color: var(--accent); }
 
-.label { font: 600 12px var(--f-display); letter-spacing: 0.14em; color: var(--accent); margin-bottom: 6px; }
+.label { font: 600 12px var(--f-display); letter-spacing: 0.14em; color: var(--fg); margin-bottom: 6px; }
 .hint { font-size: 13px; color: var(--muted); }
 .ok { color: var(--q-fine); }
 .err { color: #e5675a; }

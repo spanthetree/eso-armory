@@ -58,7 +58,7 @@
   .tabs { position: relative; display: flex; gap: 26px; justify-content: safe center; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
   button { all: unset; flex: 0 0 auto; cursor: pointer; padding: 10px 2px; font: 500 14px var(--f-display); letter-spacing: 0.16em; color: var(--muted); transition: color 0.3s, text-shadow 0.3s; }
   button:hover { color: var(--fg); }
-  button[aria-selected='true'] { color: var(--accent-hi); text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); }
+  button[aria-selected='true'] { color: var(--fg); text-shadow: 0 0 12px #ffffff40; }
   button:focus-visible { outline: 1px solid var(--accent-hi); outline-offset: 2px; }
   .uline {
     position: absolute;

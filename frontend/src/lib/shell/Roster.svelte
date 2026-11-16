@@ -41,7 +41,7 @@
   .card:hover, .card:focus-visible { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 10px 30px -12px var(--accent); outline: none; }
   .icons { position: absolute; top: 14px; right: 14px; display: flex; gap: 6px; opacity: 0.7; }
   .icons img { width: 22px; height: 22px; }
-  .name { font: 600 18px var(--f-display); letter-spacing: 0.06em; color: var(--accent-hi); padding-right: 60px; }
+  .name { font: 600 18px var(--f-display); letter-spacing: 0.06em; color: var(--fg); padding-right: 60px; }
   .sub { font-size: 14px; color: var(--muted); }
   @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
 </style>

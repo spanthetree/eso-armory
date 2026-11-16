@@ -59,7 +59,7 @@
     --rule: linear-gradient(90deg, transparent, var(--accent) 15%, var(--accent-hi) 50%, var(--accent) 85%, transparent);
     background: var(--rule) top / 100% 1px no-repeat, var(--rule) bottom / 100% 1px no-repeat;
   }
-  h2 { color: var(--accent-hi); font-size: 18px; margin: 0 28px 14px 0; }
+  h2 { color: var(--fg); font-size: 18px; margin: 0 28px 14px 0; }
   .x { all: unset; position: absolute; top: 14px; right: 16px; font-size: 22px; line-height: 1; color: var(--muted); cursor: pointer; }
   .x:hover { color: var(--fg); }
   .x:focus-visible { outline: 1px solid var(--accent-hi); }

@@ -1,5 +1,5 @@
 /* Obsidian Banners design tokens.
-   Accent colours follow the alliance via [data-al] on <html>. Quality and resource colours are game data and are never tinted. */
+   Text is neutral white; gold is only for rules, frames and ornaments. Quality and resource colours are game data. */
 @import '@fontsource/cinzel/500.css';
 @import '@fontsource/cinzel/600.css';
 @import '@fontsource/cinzel/700.css';
@@ -18,17 +18,13 @@
   --line-soft: #ffffff0d;
 
   /* text */
-  --fg: #e8dfc9;
-  --muted: #8c8371;
+  --fg: #f2f2f2;
+  --muted: #9c9c9c;
 
-  /* fixed gilt for ornament that never follows the alliance (hero emblems, top glow) */
-  --gilt: #c9a65b;
-  --gilt-hi: #f3d999;
-  --glow: #24190c;
-
-  /* alliance accent (default: Aldmeri gold) */
+  /* gold for rules, frames and ornaments */
   --accent: #c9a65b;
   --accent-hi: #f3d999;
+  --glow: #24190c;
 
   /* game data: item quality */
   --q-trash: #8b8b8b;
@@ -51,14 +47,4 @@
   /* motion */
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-spring: cubic-bezier(0.3, 1.5, 0.5, 1);
-  --tint-time: 0.7s;
 }
-
-/* Registered so alliance changes animate everywhere, including inside gradients. */
-@property --accent { syntax: '<color>'; inherits: true; initial-value: #c9a65b; }
-@property --accent-hi { syntax: '<color>'; inherits: true; initial-value: #f3d999; }
-:root { transition: --accent var(--tint-time), --accent-hi var(--tint-time); }
-
-:root[data-al='ad'] { --accent: #c9a65b; --accent-hi: #f3d999; }
-:root[data-al='dc'] { --accent: #6f97d6; --accent-hi: #c3d8f7; }
-:root[data-al='ep'] { --accent: #c65f48; --accent-hi: #f2b3a2; }

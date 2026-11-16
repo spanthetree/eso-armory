@@ -3,7 +3,7 @@
 
   /**
    * Large faint class (left) and faction (right) emblems behind the character name.
-   * The game icons are white with black detail, so they are luminance masks filled with gilt.
+   * The game icons are white with black detail, so they are luminance masks filled with gold.
    * @type {{ cls?: string, alliance?: string }}
    */
   let { cls = '', alliance = '' } = $props();
@@ -27,11 +27,11 @@
   .emblem {
     width: clamp(110px, 16vw, 190px);
     aspect-ratio: 1;
-    background: radial-gradient(circle, var(--gilt-hi), var(--gilt) 70%);
+    background: radial-gradient(circle, var(--accent-hi), var(--accent) 70%);
     -webkit-mask: var(--icon) center / contain no-repeat;
     mask: var(--icon) center / contain no-repeat luminance;
     opacity: 0.16;
-    filter: drop-shadow(0 0 18px var(--gilt));
+    filter: drop-shadow(0 0 18px var(--accent));
     animation: emerge 1.4s var(--ease-out) both, breathe 6s ease-in-out 1.4s infinite alternate;
   }
   .emblem.r { animation-delay: 0.15s, 1.55s; }

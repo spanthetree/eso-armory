@@ -30,7 +30,7 @@
     animation: draw 1s var(--ease-out) both;
     animation-delay: var(--d);
   }
-  h5 { color: var(--accent); font-size: 13px; letter-spacing: 0.18em; text-align: center; margin-bottom: 12px; }
+  h5 { color: var(--fg); font-size: 13px; letter-spacing: 0.18em; text-align: center; margin-bottom: 12px; }
   @keyframes draw { from { clip-path: inset(0 50% 0 50%); } }
   @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } }
 </style>
