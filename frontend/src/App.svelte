@@ -10,6 +10,8 @@
   import Welcome from './lib/shell/Welcome.svelte';
   import Roster from './lib/shell/Roster.svelte';
   import CharacterSheet from './lib/character/CharacterSheet.svelte';
+  import Wardrobe from './lib/character/Wardrobe.svelte';
+  import Segmented from './lib/ui/Segmented.svelte';
   import ShareDialog from './lib/shell/ShareDialog.svelte';
   import PasswordDialog from './lib/shell/PasswordDialog.svelte';
   import UploadDialog from './lib/shell/UploadDialog.svelte';
@@ -18,6 +20,12 @@
 
   const data = $derived(app.data.value);
   const char = $derived(nav.charId ? data?.characters?.[nav.charId] ?? null : null);
+
+  const CHAR_VIEW_ITEMS = [
+    { id: 'sheet', label: 'Sheet' },
+    { id: 'wardrobe', label: 'Wardrobe' },
+    { id: 'bags', label: 'Bags' },
+  ];
 
   const TAB_ITEMS = [
     { id: 'characters', label: 'Characters' },
@@ -58,6 +66,9 @@
         {#if char}
           <HeroEmblems cls={char.class} alliance={char.alliance} />
           <button class="back" onclick={() => go('characters')}>‹ All characters</button>
+          <div class="views">
+            <Segmented label="Character view" options={CHAR_VIEW_ITEMS} value={nav.charView} onchange={(v) => go('characters', char.id, /** @type {any} */ (v))} />
+          </div>
           <div class="sub">{[char.race, char.class, char.alliance].filter(Boolean).join(' · ')}</div>
           <h1>{char.name}</h1>
         {:else}
@@ -69,10 +80,14 @@
 
       <Tabs items={TAB_ITEMS} active={nav.tab} onchange={(id) => go(/** @type {any} */ (id))} />
 
-      {#key `${nav.tab}/${nav.charId ?? ''}`}
+      {#key `${nav.tab}/${nav.charId ?? ''}/${nav.charView}`}
         <section class="pane {dir}">
           {#if nav.tab === 'characters' && !char}
             <Roster />
+          {:else if nav.tab === 'characters' && nav.charView === 'wardrobe'}
+            <Wardrobe {char} />
+          {:else if nav.tab === 'characters' && nav.charView === 'bags'}
+            <Frame title="BAGS"><p class="hint todo">Character inventory is next.</p></Frame>
           {:else if nav.tab === 'characters'}
             <CharacterSheet {char} />
           {:else}
@@ -96,7 +111,8 @@
   .orn::before, .orn::after { content: ''; width: 90px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent)); }
   .orn::after { transform: scaleX(-1); }
   .back { all: unset; position: absolute; left: 0; top: 4px; cursor: pointer; font-size: 14px; color: var(--muted); }
-  @media (max-width: 700px) { .back { position: static; justify-self: center; } }
+  .views { position: absolute; right: 0; top: 0; }
+  @media (max-width: 700px) { .back, .views { position: static; justify-self: center; } }
   .back:hover, .back:focus-visible { color: var(--fg); }
   .pane { animation: pane 0.45s var(--ease-out) both; }
   .pane.from-l { --dx: -40px; }

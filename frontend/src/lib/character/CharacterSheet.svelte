@@ -2,9 +2,10 @@
   import Frame from '../ui/Frame.svelte';
   import PaperDoll from './PaperDoll.svelte';
   import ResourceBar from '../ui/ResourceBar.svelte';
-  import SkillSlot from './SkillSlot.svelte';
+  import SkillBars from './SkillBars.svelte';
+  import ChampionPoints from './ChampionPoints.svelte';
   import { app } from '../store.svelte.js';
-  import { equipped, mundusIcon } from '../gear.js';
+  import { equipped, mundusIcon, setCounts } from '../gear.js';
 
   /** @type {{ char: any }} */
   let { char } = $props();
@@ -15,30 +16,10 @@
   const names = $derived(app.builds.value?.abilityNames ?? {});
   const cpNames = $derived(app.builds.value?.cpNames ?? {});
 
-  /** Equipped pieces per set, most first. */
-  const sets = $derived.by(() => {
-    /** @type {Record<string, number>} */
-    const n = {};
-    for (const item of Object.values(gear)) if (item.set_name) n[item.set_name] = (n[item.set_name] ?? 0) + 1;
-    return Object.entries(n).sort((a, b) => b[1] - a[1]);
-  });
-
-  const BARS = /** @type {const} */ ([
-    ['primary', 'Front bar'],
-    ['backup', 'Back bar'],
-    ['werewolf', 'Werewolf'],
-  ]);
-  const SKILL_SLOTS = [3, 4, 5, 6, 7, 8];
-  const CP = [
-    { label: 'Craft', color: '#A5DB52', icon: '/assets/interface/champion_stamina.png', slots: ['1', '2', '3', '4'] },
-    { label: 'Warfare', color: '#5ABAE7', icon: '/assets/interface/champion_magicka.png', slots: ['5', '6', '7', '8'] },
-    { label: 'Fitness', color: '#E76931', icon: '/assets/interface/champion_health.png', slots: ['9', '10', '11', '12'] },
-  ];
+  const sets = $derived(setCounts(gear));
 
   // Bars scale to the 64 attribute points a max-level character has.
   const attrTotal = $derived(Object.values(build?.attributes ?? {}).reduce((s, v) => s + (Number(v) || 0), 0));
-  const hasSkills = $derived(BARS.some(([bar]) => Object.keys(build?.skills?.[bar] ?? {}).length));
-  const hasCP = $derived(Object.values(build?.cp ?? {}).some((v) => Number(v) > 0));
   const space = $derived(char.space_max ? char.space_used / char.space_max : 0);
 
   /** @param {any} item */
@@ -98,42 +79,8 @@
   </div>
 
   <div class="col">
-    {#if hasSkills}
-      <Frame title="SKILLS" delay={0.25}>
-        <div class="skills">
-          {#each BARS as [bar, label] (bar)}
-            {#if Object.keys(build.skills?.[bar] ?? {}).length}
-              <div class="skillrow">
-                <span class="barname">{label}</span>
-                <div class="skillslots">
-                  {#each SKILL_SLOTS as s, i (s)}
-                    {@const id = build.skills[bar][s]}
-                    <SkillSlot name={id ? names[String(id)] || `#${id}` : ''} ultimate={s === 8} delay={0.5 + i * 0.04} />
-                  {/each}
-                </div>
-              </div>
-            {/if}
-          {/each}
-        </div>
-      </Frame>
-    {/if}
-
-    {#if hasCP}
-      <Frame title="CHAMPION POINTS" delay={0.35}>
-        <div class="cp">
-          {#each CP as g (g.label)}
-            <div class="cpgroup">
-              <div class="cphead" style="color: {g.color}"><img src={g.icon} alt="" />{g.label}</div>
-              <div class="cpnames">
-                {#each g.slots as s (s)}
-                  {#if build.cp?.[s]}<span>{cpNames[String(build.cp[s])] || `#${build.cp[s]}`}</span>{/if}
-                {/each}
-              </div>
-            </div>
-          {/each}
-        </div>
-      </Frame>
-    {/if}
+    <SkillBars skills={build?.skills} {names} />
+    <ChampionPoints cp={build?.cp} names={cpNames} />
 
     {#if !build}
       <Frame title="BUILD" delay={0.25}>
@@ -161,18 +108,6 @@
   .fact img { width: 24px; height: 24px; }
 
   .bars { display: grid; gap: 8px; }
-  .skills { display: grid; gap: 10px; }
-  .skillrow { display: grid; grid-template-columns: 74px 1fr; align-items: center; gap: 8px; }
-  .barname { font-size: 13px; color: var(--muted); }
-  .skillslots { display: flex; gap: 5px; flex-wrap: wrap; }
-  @media (max-width: 420px) { .skillrow { grid-template-columns: 1fr; } }
-
-  .cp { display: grid; gap: 10px; }
-  .cphead { display: flex; align-items: center; justify-content: center; gap: 5px; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-  .cphead img { width: 18px; height: 18px; }
-  /* Up to 4 slotted stars per tree, on one centred line (wraps only if the panel is too narrow). */
-  .cpnames { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 14px; font-size: 13px; color: #cfcfcf; }
-  .cpnames span { white-space: nowrap; }
 
   .sets { display: grid; gap: 3px; }
   .set { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; border-left: 2px solid var(--accent); background: #ffffff06; font-size: 14px; }

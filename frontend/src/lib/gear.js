@@ -138,3 +138,43 @@ export function slugify(name) {
 export function setKey(item) {
   return item?.set_id || (item?.set_name ? slugify(item.set_name) : null);
 }
+
+/** Equipped pieces per set, most first: [[setName, count], ...]. @param {Record<number, any>} gear */
+export function setCounts(gear) {
+  /** @type {Record<string, number>} */
+  const n = {};
+  for (const item of Object.values(gear)) if (item?.set_name) n[item.set_name] = (n[item.set_name] ?? 0) + 1;
+  return Object.entries(n).sort((a, b) => b[1] - a[1]);
+}
+
+/**
+ * Item for a saved (Wizards Wardrobe) gear entry: name/quality/type from the matching inventory item when
+ * we have one, but trait/style/enchant/set from the saved link itself. Ported from the classic buildTipShow.
+ * @param {any} g saved gear entry
+ * @param {any} base inventory item with the same item_id, or undefined
+ */
+export function savedGearItem(g, base) {
+  return {
+    name: base?.name ?? (g.link_name || `Item #${g.item_id}`),
+    quality: base?.quality ?? 4,
+    quality_name: base?.quality_name ?? 'Epic',
+    quality_color: base?.quality_color ?? '#a02ee4',
+    filter_type: base?.filter_type ?? 1,
+    filter_type_name: base?.filter_type_name ?? 'Weapons',
+    level: base?.level ?? 50,
+    locations: base?.locations ?? [],
+    total_quantity: base?.total_quantity ?? 0,
+    weapon_type: base?.weapon_type ?? null,
+    armor_type: base?.armor_type ?? null,
+    is_stolen: false,
+    trait_id: g.trait_id,
+    trait_name: g.trait_name,
+    is_transmuted: g.is_transmuted,
+    style_name: g.style_name,
+    is_crafted: g.is_crafted,
+    is_enchanted: g.is_enchanted,
+    enchant_name: g.enchant_name || base?.enchant_name || '',
+    set_name: g.set_name || base?.set_name || '',
+    set_id: g.set_id ?? base?.set_id ?? 0,
+  };
+}

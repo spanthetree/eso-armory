@@ -4,7 +4,8 @@
 import { parseHash, toHash } from './route.js';
 
 /** @typedef {import('./route.js').Tab} Tab */
-export { TABS } from './route.js';
+/** @typedef {import('./route.js').CharView} CharView */
+export { TABS, CHAR_VIEWS } from './route.js';
 
 export const nav = $state({
   ...parseHash(typeof location === 'undefined' ? '' : location.hash),
@@ -12,12 +13,11 @@ export const nav = $state({
   dialog: /** @type {'' | 'upload' | 'share' | 'password'} */ (''),
 });
 
-/** @param {Tab} tab @param {string | null} [charId] */
-export function go(tab, charId = null) {
-  const hash = toHash(tab, charId);
+/** @param {Tab} tab @param {string | null} [charId] @param {CharView} [charView] */
+export function go(tab, charId = null, charView = 'sheet') {
+  const hash = toHash(tab, charId, charView);
   if (location.hash !== hash) location.hash = hash;
-  nav.tab = tab;
-  nav.charId = tab === 'characters' ? charId : null;
+  Object.assign(nav, parseHash(hash));
 }
 
 if (typeof window !== 'undefined') {
