@@ -1,0 +1,163 @@
+name: release
+
+# A release is a version bump merged to master. The PR's last commit sets the
+# version in pyproject.toml and adds its CHANGELOG.md section (CONTRIBUTING.md).
+# Once it lands, this publishes the image for that version, then tags the
+# commit vX.Y.Z and makes a GitHub release from its changelog section. Nothing
+# to do when the tag already exists.
+#
+#   ghcr.io/spanthetree/eso-armory   amd64, arm64
+#
+# A release publishes X.Y.Z and latest. Run by hand (Actions → release → Run
+# workflow, on any branch) it publishes edge and sha-<commit> instead, with no
+# tag or release. A pull request that changes what goes into the image builds
+# and starts it, and pushes nothing.
+
+on:
+  push:
+    branches: [master]
+    paths: [pyproject.toml]
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - docker-entrypoint.sh
+      - pyproject.toml
+      - uv.lock
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One release at a time, never one cancelled half-published; a newer push to a
+# pull request replaces its build.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+      new: ${{ steps.read.outputs.new }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: read
+        name: Is this version released?
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml)
+          [ -n "$version" ] || { echo "::error::no version in pyproject.toml"; exit 1; }
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" != push ]; then
+            echo "new=false" >>"$GITHUB_OUTPUT"; exit 0
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "v$version is already released"
+            echo "new=false" >>"$GITHUB_OUTPUT"; exit 0
+          fi
+          grep -qF "## [$version]" CHANGELOG.md || {
+            echo "::error::CHANGELOG.md has no section for $version"; exit 1; }
+          echo "new=true" >>"$GITHUB_OUTPUT"
+
+  image:
+    needs: version
+    # A push that isn't a new version (or is already tagged) builds nothing.
+    if: github.event_name != 'push' || needs.version.outputs.new == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/eso-armory
+      RELEASE: ${{ needs.version.outputs.new == 'true' && needs.version.outputs.version || '' }}
+      PUSH: ${{ github.event_name != 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # arm64 is only built to push, so a pull request needs no emulator.
+      - uses: docker/setup-qemu-action@v3
+        if: env.PUSH == 'true'
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=${{ env.RELEASE }},enable=${{ env.RELEASE != '' }}
+            type=raw,value=latest,enable=${{ env.RELEASE != '' }}
+            type=raw,value=edge,enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=sha,enable=${{ github.event_name == 'workflow_dispatch' }}
+            type=ref,event=pr
+          labels: |
+            org.opencontainers.image.title=eso-armory
+            org.opencontainers.image.description=A web armory for your Elder Scrolls Online account
+            org.opencontainers.image.licenses=PolyForm-Noncommercial-1.0.0
+
+      # amd64 first, loaded here, so it can be started before anything is
+      # pushed. The push below reuses its layers from the cache.
+      - name: Build (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: eso-armory:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: The server starts and answers
+        run: |
+          # Skip the icon download: CI shouldn't fetch 1107 files from UESP on every run.
+          docker run -d --name smoke -p 5000:5000 --entrypoint python eso-armory:test server.py
+          for _ in $(seq 60); do
+            if curl -fsS http://localhost:5000/api/status; then exit 0; fi
+            sleep 1
+          done
+          docker logs smoke; exit 1
+
+      - uses: docker/login-action@v3
+        if: env.PUSH == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        if: env.PUSH == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    needs: [version, image]
+    if: needs.version.outputs.new == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          # The version's own section of the changelog, without its heading.
+          awk -v v="$VERSION" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md >notes.md
+          # Versions like 0.1.0-beta.39 are pre-releases.
+          case "$VERSION" in *-*) pre=--prerelease ;; *) pre= ;; esac
+          gh release create "v$VERSION" --target "$GITHUB_SHA" $pre \
+            --title "ESO Armory $VERSION" --notes-file notes.md
