@@ -1,6 +1,7 @@
 // Cached lookups the server scrapes from eso-sets.com / eso-skillbook.com. Each key is fetched once.
 import * as api from './api.js';
 import { setKey, slugify } from './gear.js';
+import { app } from './store.svelte.js';
 
 /** @typedef {{ loading?: boolean, bonuses?: { pieces: number, text: string }[], url?: string, error?: string | null }} BonusEntry */
 /** @typedef {{ loading?: boolean, error?: string, url?: string, type?: string, location?: string, cost?: string, cast_time?: string, target?: string, range?: string, description?: string }} SkillEntry */
@@ -58,5 +59,28 @@ export async function loadAbilityNames(ids) {
     } catch {
       batch.forEach((id) => askedAbilityIds.delete(id)); // retry on a later view
     }
+  }
+}
+
+/** Tamriel Trade Centre prices by normalised item name. */
+export const prices = $state(/** @type {Record<string, any>} */ ({}));
+/** @param {string} name */
+export const priceKey = (name) => (name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/** @param {string} name */
+export function ttcSearchUrl(name) {
+  const region = String(app.data.value?.meta?.server || 'NA').toUpperCase() === 'EU' ? 'eu' : 'us';
+  return `https://${region}.tamrieltradecentre.com/pc/Trade/SearchResult?ItemNamePattern=${encodeURIComponent(name)}`;
+}
+
+/** @param {string} name */
+export async function loadPrice(name) {
+  const key = priceKey(name);
+  if (!key || prices[key]) return;
+  prices[key] = { loading: true };
+  try {
+    prices[key] = await api.get('/api/ttc_price', { label: 'TTC price', params: { name } });
+  } catch (e) {
+    prices[key] = { error: /** @type {Error} */ (e).message || 'Price lookup failed', url: ttcSearchUrl(name) };
   }
 }

@@ -2,7 +2,6 @@
   import { app, start } from './lib/store.svelte.js';
   import { nav, go, TABS } from './lib/nav.svelte.js';
   import Tabs from './lib/ui/Tabs.svelte';
-  import Frame from './lib/ui/Frame.svelte';
   import HeroEmblems from './lib/ui/HeroEmblems.svelte';
   import TooltipHost from './lib/ui/TooltipHost.svelte';
   import TopBar from './lib/shell/TopBar.svelte';
@@ -14,6 +13,7 @@
   import Bags from './lib/character/Bags.svelte';
   import InventoryTab from './lib/inventory/InventoryTab.svelte';
   import AchievementsTab from './lib/achievements/AchievementsTab.svelte';
+  import CollectionsTab from './lib/collections/CollectionsTab.svelte';
   import Segmented from './lib/ui/Segmented.svelte';
   import ShareDialog from './lib/shell/ShareDialog.svelte';
   import PasswordDialog from './lib/shell/PasswordDialog.svelte';
@@ -97,10 +97,8 @@
             <InventoryTab />
           {:else if nav.tab === 'achievements'}
             <AchievementsTab />
-          {:else}
-            <Frame title={TAB_ITEMS.find((t) => t.id === nav.tab)?.label.toUpperCase()}>
-              <p class="hint todo">This tab is ported in Phase 3.</p>
-            </Frame>
+          {:else if nav.tab === 'collections'}
+            <CollectionsTab />
           {/if}
         </section>
       {/key}
