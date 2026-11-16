@@ -125,11 +125,9 @@ make test-ui            # browser tests in Chromium + Firefox
 make test-ui-chromium   # browser tests in Chromium only
 make test-ui-firefox    # browser tests in Firefox only
 make test-all           # fast tests + browser tests
-make test-mutation-core # mutmut for parser/decoder/data processing
-make test-mutation      # mutmut for all backend modules
 ```
 
-Use `make test-fast` before small backend changes, `make test-ui` for frontend/upload/share changes, and `make test-all` before release-style validation. Mutation tests are intentionally manual because they are slower than the normal suite.
+Use `make test-fast` before small backend changes, `make test-ui` for frontend/upload/share changes, and `make test-all` before release-style validation.
 
 On Linux, Playwright may also need system browser libraries. If Chromium or Firefox fails to launch with a missing shared library, run `make playwright-install-deps` in a shell with sudo access.
 

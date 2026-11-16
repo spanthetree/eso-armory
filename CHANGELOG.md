@@ -15,6 +15,9 @@
 - **TTC result dedup** - `_fetch_ttc_price` builds a shared `base` dict and `_TTC_ATTRIBUTION` constant; three result branches use spread instead of repeating every field
 - **Lazy image loading** - item icon `<img>` tags in inventory and achievement rows now carry `loading="lazy"`
 
+### Removed
+- **Mutation testing** - dropped mutmut (Makefile targets, runner script, config, dev dependency, CI job); most mutants timed out and results were never actioned. Unit, API, and Playwright suites remain
+
 ### Added
 - **Compare-mode Playwright test** - new `test_compare_mode_renders_current_and_imported_builds` covers drilldown equipment grid (14 slots), build summary visibility, export/import build code round-trip, and both-pane rendering after import
 

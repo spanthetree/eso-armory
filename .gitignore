@@ -21,7 +21,6 @@ logs/
 .coverage
 htmlcov/
 test-results/
-mutants/
 
 # Config (contains local paths)
 config.json

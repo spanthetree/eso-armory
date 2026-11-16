@@ -1,4 +1,4 @@
-.PHONY: test test-fast test-ui test-ui-chromium test-ui-firefox test-all test-mutation-core test-mutation playwright-install playwright-install-deps
+.PHONY: test test-fast test-ui test-ui-chromium test-ui-firefox test-all playwright-install playwright-install-deps
 
 test: test-fast
 
@@ -17,12 +17,6 @@ test-ui-firefox:
 test-all:
 	uv run pytest tests/unit tests/api --cov=. --cov-report=term-missing --cov-fail-under=60
 	uv run pytest tests/ui --browser chromium --browser firefox --no-cov
-
-test-mutation-core:
-	uv run python scripts/run_mutmut_core.py
-
-test-mutation:
-	uv run mutmut run
 
 playwright-install:
 	uv run playwright install chromium firefox
