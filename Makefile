@@ -1,7 +1,17 @@
-.PHONY: assets test test-fast test-ui test-ui-chromium test-ui-firefox test-all playwright-install playwright-install-deps
+.PHONY: assets ui-install ui-dev ui-build test test-fast test-ui test-ui-chromium test-ui-firefox test-all playwright-install playwright-install-deps
 
 assets:
 	uv run scripts/download_assets.py
+
+ui-install:
+	cd frontend && npm ci
+
+# Vite dev server with hot reload; proxies /api, /events, /assets to the server on :5000
+ui-dev:
+	cd frontend && npm run dev
+
+ui-build:
+	cd frontend && npm run build
 
 test: test-fast
 

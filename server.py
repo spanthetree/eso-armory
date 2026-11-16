@@ -1346,6 +1346,18 @@ async def root():
     )
 
 
+@app.get("/next")
+async def next_ui():
+    """Svelte UI under migration; replaces / at cutover."""
+    if not Path("static/dist/index.html").exists():
+        return JSONResponse({"detail": "Svelte UI not built. Run `make ui-build`."}, status_code=404)
+    return FileResponse(
+        "static/dist/index.html",
+        media_type="text/html; charset=utf-8",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
 @app.head("/")
 async def root_head():
     return Response(

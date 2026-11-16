@@ -1,3 +1,10 @@
+FROM node:22.22.0-bookworm-slim AS frontend
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
 FROM python:3.12.13-slim-bookworm
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.14 /uv /bin/uv
@@ -16,6 +23,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY . .
+COPY --from=frontend /static/dist ./static/dist
 
 # assets/ and uploads/ become volumes; create them owned by the app user so the volumes inherit it.
 RUN useradd --system --uid 10001 --home-dir /app armory \

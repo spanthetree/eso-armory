@@ -43,3 +43,7 @@ assets/
 
 # Docker env (secrets)
 .env
+
+# Svelte frontend
+frontend/node_modules/
+static/dist/

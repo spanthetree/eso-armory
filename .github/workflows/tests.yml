@@ -15,6 +15,18 @@ jobs:
       - run: uv sync --dev
       - run: make test-fast
 
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: make ui-install
+      - run: make ui-build
+
   ui:
     runs-on: ubuntu-24.04  # Playwright 1.60 can't install browsers on ubuntu-latest (26.04)
     steps:

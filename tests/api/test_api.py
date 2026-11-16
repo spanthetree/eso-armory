@@ -357,3 +357,18 @@ def test_admin_requires_config_entry_and_password(client, isolated_server, uploa
     assert status() is False  # listed but no password: a forged upload must not get admin
     client.post(f"/api/auth/set_password?session={TEST_SESSION}", json={"password": "password123"})
     assert status() is True
+
+
+@pytest.mark.api
+def test_next_ui_serves_build_or_explains_missing_build(client, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    missing = client.get("/next")
+    assert missing.status_code == 404
+    assert "make ui-build" in missing.json()["detail"]
+
+    (tmp_path / "static" / "dist").mkdir(parents=True)
+    (tmp_path / "static" / "dist" / "index.html").write_text("<div id=app></div>")
+    built = client.get("/next")
+    assert built.status_code == 200
+    assert built.headers["content-type"].startswith("text/html")
+    assert built.headers["cache-control"] == "no-store"
