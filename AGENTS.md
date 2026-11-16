@@ -8,10 +8,10 @@ Local web app that reads ESO SavedVariables and presents inventory, equipment, a
 - **Frontend**: `static/index.html` - vendored Alpine.js 3.x from `static/vendor/alpine.min.js`, Tailwind CDN
 - **Lua parser**: Custom recursive-descent in `lua_parser.py` (stdlib only, no lupa/lark)
 - **Start**: `uv run server.py` → http://localhost:5000 (or `python server.py` if virtualenv active via `uv sync --active`)
-- **Tests**: pytest unit/API, Playwright UI (Chromium + Firefox), mutmut mutation tests
+- **Tests**: pytest unit/API, Playwright UI (Chromium + Firefox)
 
 ## Approval Preference
-Before making code or file changes, ask for explicit approval unless the user has already clearly requested implementation in the current turn. Read-only inspection and searches are fine without approval.
+Before making code or file changes, ask for explicit approval unless the user has already clearly requested implementation in the current turn. Read-only inspection and searches are fine without approval. Git actions are allowed - see Git Workflow.
 
 ## Key Files
 | File | Purpose |
@@ -30,9 +30,8 @@ make test-fast          # unit + API tests with coverage
 make test               # alias for test-fast
 make test-ui            # Playwright in Chromium + Firefox
 make test-all           # fast tests + browser tests
-make test-mutation-core # scoped mutmut run for parser/decoder/data processing
 ```
-Use `make test-all` before release-style validation. Mutation tests are manually run (slow). The UI suite includes a first-load regression that fails if the browser renders raw Lua or Alpine source text instead of the setup UI.
+Use `make test-all` before release-style validation. The UI suite includes a first-load regression that fails if the browser renders raw Lua or Alpine source text instead of the setup UI.
 
 ## Data Sources
 | File | Variable | Purpose |
@@ -185,14 +184,16 @@ fuser -k 5000/tcp 2>/dev/null; sleep 1 && python server.py &
 Use `fuser -k 5000/tcp` (not `pkill`) - targets the port directly, works reliably in WSL2.
 
 ## Git Workflow
-The user handles all git actions themselves. For pre-commit checks:
-1. Update `README.md` if anything user-facing changed
-2. Update `CHANGELOG.md` with a summary
-3. Bump version in `pyproject.toml`
-4. Draft commit message and list files to stage
-5. **Do not run any git commands**
-
-PRs branch from `master` and target `master` on GitHub.
+Agents may run git and `gh` commands (branch, commit, push, open PRs).
+- Make every change on a new branch cut from a freshly pulled `master` (`git checkout master && git pull && git checkout -b <branch>`). Never commit to `master` directly.
+- One PR per issue, with each phase as its own commit.
+- Before running `gh pr create`, make a final commit on the branch that:
+  1. Updates `README.md` if anything user-facing changed
+  2. Adds a dated `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`
+  3. Bumps the version in `pyproject.toml` and runs `uv lock` so `uv.lock` matches
+- Run `make test-all` before opening the PR.
+- PRs target `master` on GitHub. The user merges.
+- No force-push, history rewrite, or branch deletion without asking.
 
 ## Item Link Decoder (`item_link_decoder.py`)
 `|H1:item:F0:F1:...:F20|h[name]|h` - key fields (0-indexed after `item:`):
@@ -220,7 +221,7 @@ _MAX_IMAGE_BYTES  =  20 * 1024 * 1024  # 20 MB - SuperStar image
 - **Timing oracle**: always runs `bcrypt.checkpw` (against a dummy hash when the account doesn't exist); bcrypt offloaded to thread executor to avoid blocking the event loop
 
 ### XSS - `x-html` with user data
-Any function that uses `x-html` to render user-supplied text **must** call `escapeHtml(s)` before interpolating. Example: `abilitySlotHtml` / `abilitySlotHtmlCompare` escape ability names before placing them in `<span>` tags. Ability names come from uploaded Lua data and imported build payloads and are shared across users via share codes - escaping is required.
+Any function that uses `x-html` to render user-supplied text **must** call `escapeHtml(s)` before interpolating. Example: `abilitySlotHtml` (local and compare builds via `cmpId`) escapes ability names before placing them in `<span>` tags. Ability names come from uploaded Lua data and imported build payloads and are shared across users via share codes - escaping is required.
 
 ### SSE connection cap
 Session-scoped SSE queue sets are capped at `_MAX_SSE_PER_SESSION = 10`; excess connections return HTTP 429.
