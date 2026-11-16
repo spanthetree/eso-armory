@@ -1,15 +1,19 @@
 <script>
   /**
-   * AD / DC / EP segmented control with a sliding pill.
-   * @type {{ value: 'ad' | 'dc' | 'ep', onchange?: (v: 'ad' | 'dc' | 'ep') => void }}
+   * AD / DC / EP segmented control with a sliding pill. With `auto`, an extra AUTO option ('')
+   * lets the page follow the selected character's alliance.
+   * @type {{ value: '' | 'ad' | 'dc' | 'ep', auto?: boolean, onchange?: (v: '' | 'ad' | 'dc' | 'ep') => void }}
    */
-  let { value = $bindable(), onchange } = $props();
+  let { value = $bindable(), auto = false, onchange } = $props();
 
-  const OPTIONS = /** @type {const} */ ([
-    ['ad', 'Aldmeri Dominion'],
-    ['dc', 'Daggerfall Covenant'],
-    ['ep', 'Ebonheart Pact'],
-  ]);
+  const OPTIONS = $derived(
+    /** @type {['' | 'ad' | 'dc' | 'ep', string, string][]} */ ([
+      ...(auto ? [['', 'AUTO', "Follow the selected character's alliance"]] : []),
+      ['ad', 'AD', 'Aldmeri Dominion'],
+      ['dc', 'DC', 'Daggerfall Covenant'],
+      ['ep', 'EP', 'Ebonheart Pact'],
+    ]),
+  );
 
   /** @type {Record<string, HTMLElement>} */
   const buttons = {};
@@ -28,13 +32,13 @@
 
 <div class="seg" role="group" aria-label="Alliance colour">
   <span class="pill" style="left: {pill.left}px; width: {pill.width}px"></span>
-  {#each OPTIONS as [key, name] (key)}
+  {#each OPTIONS as [key, label, name] (key)}
     <button
       type="button"
       title={name}
       aria-pressed={value === key}
       bind:this={buttons[key]}
-      onclick={() => { value = key; onchange?.(key); }}>{key.toUpperCase()}</button>
+      onclick={() => { value = key; onchange?.(key); }}>{label}</button>
   {/each}
 </div>
 

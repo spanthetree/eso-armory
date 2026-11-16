@@ -18,6 +18,51 @@ h1, h2, h3, h4, h5 { font-family: var(--f-display); font-weight: 600; letter-spa
 
 .num { font-variant-numeric: tabular-nums; }
 
+/* Buttons: .btn (quiet, for bars) and .btn.primary (gilt, one per dialog). */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  font: 500 14px var(--f-ui);
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: #00000066;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.btn:hover:not(:disabled) { color: var(--fg); border-color: var(--accent); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.primary {
+  justify-content: center;
+  width: 100%;
+  padding: 9px 14px;
+  font: 600 14px var(--f-display);
+  letter-spacing: 0.12em;
+  color: var(--bg);
+  background: linear-gradient(var(--accent-hi), var(--accent));
+  border-color: var(--accent);
+}
+.btn.primary:hover:not(:disabled) { color: var(--bg); box-shadow: 0 0 18px -4px var(--accent); }
+
+.field {
+  width: 100%;
+  padding: 8px 10px;
+  font: 400 15px var(--f-ui);
+  color: var(--fg);
+  background: #000000aa;
+  border: 1px solid var(--line);
+  outline: none;
+}
+.field:focus { border-color: var(--accent); }
+
+.label { font: 600 12px var(--f-display); letter-spacing: 0.14em; color: var(--accent); margin-bottom: 6px; }
+.hint { font-size: 13px; color: var(--muted); }
+.ok { color: var(--q-fine); }
+.err { color: #e5675a; }
+code { font-size: 0.92em; padding: 1px 5px; background: #000000aa; color: var(--fg); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

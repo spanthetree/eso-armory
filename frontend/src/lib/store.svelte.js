@@ -25,6 +25,7 @@ export const app = $state({
   achievements: resource(),
   stickerbook: resource(),
   abilityIcons: /** @type {Record<string, string>} */ ({}),
+  auth: /** @type {{ has_password?: boolean, account_name?: string | null }} */ ({}),
 
   toast: { msg: '', seq: 0 },
 });
@@ -83,13 +84,7 @@ export const loadStickerbook = (silent = false) => load(app.stickerbook, '/api/s
 
 export async function loadWorkspace() {
   try {
-    const d = await api.get('/api/workspace', { label: 'Workspace' });
-    app.workspace = {
-      primary: d.primary || { account: null },
-      shadow: d.shadow || { account: null },
-      activeSlot: d.activeSlot || 'primary',
-      activeAccount: d.activeAccount || null,
-    };
+    setWorkspace(await api.get('/api/workspace', { label: 'Workspace' }));
   } catch {
     // no workspace yet
   }
@@ -108,11 +103,74 @@ export async function reloadUserData() {
   await Promise.all([loadData(true), loadAchievements(true), loadStickerbook(true)]);
 }
 
+export async function loadAuth() {
+  try {
+    app.auth = await api.get('/api/auth/status', { label: 'Account' });
+  } catch {
+    // not logged in / no account yet
+  }
+}
+
 export async function loadAll() {
   await Promise.all([
     loadWorkspace(), loadData(), loadBuilds(), loadWWBuilds(), loadCompare(),
-    loadAbilityIcons(), loadAchievements(), loadStickerbook(),
+    loadAbilityIcons(), loadAchievements(), loadStickerbook(), loadAuth(),
   ]);
+}
+
+/** Everything that belongs to the active workspace slot. */
+async function reloadWorkspaceData() {
+  await Promise.all([loadData(true), loadBuilds(), loadWWBuilds(), loadCompare(), loadAchievements(), loadStickerbook()]);
+}
+
+/** @param {any} d */
+function setWorkspace(d) {
+  app.workspace = {
+    primary: d.primary || { account: null },
+    shadow: d.shadow || { account: null },
+    activeSlot: d.activeSlot || 'primary',
+    activeAccount: d.activeAccount || null,
+  };
+}
+
+/** @param {'primary' | 'shadow'} slot */
+export async function switchSlot(slot) {
+  if (slot === app.workspace.activeSlot) return;
+  try {
+    setWorkspace(await api.post('/api/workspace/slot', { label: 'Workspace switch', params: { slot }, share: false }));
+    await reloadWorkspaceData();
+    toast(`Viewing ${slot} workspace`);
+  } catch (e) {
+    toast(/** @type {Error} */ (e).message || 'Workspace switch failed');
+  }
+}
+
+export async function deleteShadow() {
+  try {
+    setWorkspace(await api.del('/api/workspace/shadow', { label: 'Delete shadow', share: false }));
+    await reloadWorkspaceData();
+    toast('Shadow workspace deleted');
+  } catch (e) {
+    toast(/** @type {Error} */ (e).message || 'Delete failed');
+  }
+}
+
+// ── account ─────────────────────────────────────────────
+
+const jsonInit = (/** @type {any} */ body) => ({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+/** Log in to an existing account from another device. Throws with the server's message. */
+export async function login(/** @type {string} */ name, /** @type {string} */ password) {
+  await api.post('/api/auth/login', { label: 'Login', share: false, init: jsonInit({ account_name: name.trim(), password }) });
+  await loadAll();
+  toast('Logged in');
+}
+
+/** Set or change the account password. Throws with the server's message. */
+export async function setPassword(/** @type {string} */ password) {
+  await api.post('/api/auth/set_password', { label: 'Password', init: jsonInit({ password }) });
+  await loadAuth();
+  toast('Password saved');
 }
 
 // ── startup ─────────────────────────────────────────────
