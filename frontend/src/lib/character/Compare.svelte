@@ -143,4 +143,9 @@
   .src { display: block; font-size: 12px; color: var(--muted); }
   .total { margin-top: 8px; display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); }
   .total b { color: var(--accent-hi); font-weight: 600; }
+  /* Classic: list rows on ZO_ListEntryBackdrop. */
+  :global(:root[data-ui='classic']) .missing li { border-left: 0; background: var(--eso-list-bg) 0 0 / 100% 100%; font: 500 17px var(--eso-font-medium); color: var(--eso-selected); }
+  :global(:root[data-ui='classic']) .missing li:hover { background: url('/assets/esoui/miscellaneous/listitem_highlight.png') 0 0 / 100% 100%; }
+  :global(:root[data-ui='classic']) .nm, :global(:root[data-ui='classic']) .total b, :global(:root[data-ui='classic']) .code code { color: var(--eso-selected); }
+  :global(:root[data-ui='classic']) .price, :global(:root[data-ui='classic']) .src, :global(:root[data-ui='classic']) .total, :global(:root[data-ui='classic']) .code { color: var(--eso-normal); font-family: var(--eso-font-medium); }
 </style>

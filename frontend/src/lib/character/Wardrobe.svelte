@@ -98,4 +98,13 @@
   .set { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; border-left: 2px solid var(--accent); background: #ffffff06; font-size: 14px; }
   .set .num, .food span:last-child { color: var(--muted); }
   .none { text-align: center; margin: 4px 0; }
+  /* Classic: the larger game fonts need the long lists to scroll inside their panels to keep one screen. */
+  :global(:root[data-ui='classic']) .sets { max-height: 160px; overflow-y: auto; }
+  :global(:root[data-ui='classic']) .list { max-height: 520px; }
+  :global(:root[data-ui='classic']) .build { background: var(--eso-list-bg) 0 0 / 100% 100%; border-left: 0; }
+  :global(:root[data-ui='classic']) .build:hover { background: url('/assets/esoui/miscellaneous/listitem_highlight.png') 0 0 / 100% 100%; }
+  :global(:root[data-ui='classic']) .build[aria-selected='true'] { background: url('/assets/esoui/miscellaneous/listitem_selectedhighlight.png') 0 0 / 100% 100%; }
+  :global(:root[data-ui='classic']) .name { font: 700 18px var(--eso-font); color: var(--eso-selected); }
+  :global(:root[data-ui='classic']) .where { font: 500 15px var(--eso-font-medium); color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .set { border-left: 0; background: var(--eso-list-bg) 0 0 / 100% 100%; font: 500 17px var(--eso-font-medium); color: var(--eso-selected); }
 </style>

@@ -81,11 +81,11 @@
     transition: left 0.5s var(--ease-spring), width 0.5s var(--ease-spring);
   }
   /* Classic main menu bar */
-  .mm { gap: 16px; align-items: center; height: 62px; border-bottom: 0; overflow: visible; }
-  .mm button { position: relative; width: 60px; height: 60px; padding: 0; display: grid; place-items: center; }
+  .mm { gap: 16px; align-items: center; height: 58px; border-bottom: 0; overflow: visible; }
+  .mm button { position: relative; width: 58px; height: 58px; padding: 0; display: grid; place-items: center; }
   .mm img { position: absolute; width: 51px; height: 51px; transition: width 0.2s var(--ease-out), height 0.2s var(--ease-out); }
   .mm .over { opacity: 0; mix-blend-mode: plus-lighter; }
   .mm button:hover .over { opacity: 1; }
-  .mm button[aria-selected='true'] img { width: 60px; height: 60px; }
+  .mm button[aria-selected='true'] img { width: 58px; height: 58px; }
   .mm button[aria-selected='true'] .over { opacity: 0; }
 </style>

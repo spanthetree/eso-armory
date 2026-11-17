@@ -82,4 +82,12 @@
   .group { margin-top: 4px; padding: 6px 12px 2px; border-top: 1px solid var(--line); font: 600 11px var(--f-display); letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; }
   .group:first-child { margin-top: 0; border-top: 0; }
   @keyframes drop { from { opacity: 0; transform: translateY(-4px); } }
+  /* Classic: ZO_ComboBox trigger and a ZO_DefaultBackdrop menu. */
+  :global(:root[data-ui='classic']) .btn { min-height: 31px; padding: 0 24px 0 10px; font: 500 18px var(--eso-font-medium); color: var(--eso-selected);
+    border-image: var(--eso-backdrop) 16 fill / 8px; background: url('/assets/esoui/buttons/dropbox_arrow_normal.png') right 4px center / 16px 16px no-repeat; }
+  :global(:root[data-ui='classic']) .btn:hover { background-image: url('/assets/esoui/buttons/dropbox_arrow_mouseover.png'); }
+  :global(:root[data-ui='classic']) .btn::after { display: none; }
+  :global(:root[data-ui='classic']) .btn.active { color: var(--eso-highlight); }
+  :global(:root[data-ui='classic']) .caret { display: none; }
+  :global(:root[data-ui='classic']) .menu { background: none; border: 0 solid transparent; border-image: var(--eso-backdrop) 16 fill / 16px; padding: 10px 6px; font-family: var(--eso-font-medium); }
 </style>

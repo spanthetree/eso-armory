@@ -2,7 +2,7 @@
   /**
    * Small segmented control with a sliding gold pill.
    * Classic UI with icons: the game's ZO_LabelButtonBar (selected name, then 32px icons growing to 50px when hovered or
-   * selected, 16px apart). `icon` is a path under /assets/esoui/ without the _up/_down/_over suffix.
+   * selected; drawn at 28/40px here to fit the header row, 16px apart). `icon` is a path under /assets/esoui/ without the _up/_down/_over suffix.
    * @type {{ options: { id: string, label: string, icon?: string }[], value: string, label: string, onchange: (id: string) => void }}
    */
   let { options, value, label, onchange } = $props();
@@ -46,10 +46,10 @@
 <style>
   .lbb { display: inline-flex; align-items: center; gap: 16px; }
   .lbl { margin-right: 9px; font: 700 18px var(--eso-font); text-transform: uppercase; color: var(--eso-selected); text-shadow: var(--eso-shadow); }
-  .lbb button { all: unset; position: relative; width: 50px; height: 50px; display: grid; place-items: center; cursor: pointer; }
-  .lbb img { position: absolute; width: 32px; height: 32px; transition: width 0.15s, height 0.15s; }
+  .lbb button { all: unset; position: relative; width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer; }
+  .lbb img { position: absolute; width: 28px; height: 28px; transition: width 0.15s, height 0.15s; }
   .lbb .over { opacity: 0; mix-blend-mode: plus-lighter; }
-  .lbb button:hover img, .lbb button[aria-pressed='true'] img { width: 50px; height: 50px; }
+  .lbb button:hover img, .lbb button[aria-pressed='true'] img { width: 40px; height: 40px; }
   .lbb button:hover .over { opacity: 1; }
   .lbb button:focus-visible { outline: 1px solid var(--eso-normal); }
   .seg { position: relative; display: inline-flex; gap: 4px; padding: 3px; max-width: 100%; overflow-x: auto; scrollbar-width: none; border: 1px solid var(--line); background: #00000066; }
