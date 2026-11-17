@@ -7,9 +7,9 @@
   /**
    * The in-game "Equipped" panel: race silhouette ringed by apparel, then accessories and both weapon bars.
    * Empty slots show the game's faded gear-slot outline.
-   * @type {{ gear: Record<number, any>, race?: string, gender?: string, setCount: (item: any) => number }}
+   * @type {{ gear: Record<number, any>, race?: string, gender?: string, setCount: (item: any) => number, title?: string }}
    */
-  let { gear, race = '', gender = '', setCount } = $props();
+  let { gear, race = '', gender = '', setCount, title = 'EQUIPPED' } = $props();
 
   // The game has three body silhouettes; every other race uses the human one.
   const body = $derived(race === 'Argonian' ? 'argonian' : race === 'Khajiit' ? 'khajiit' : 'human');
@@ -42,7 +42,7 @@
     tip={item ? { component: ItemTip, props: { item, slotLabel: SLOT_LABELS[s], equippedFromSet: setCount(item) } } : null} />
 {/snippet}
 
-<Frame title="EQUIPPED" delay={0.05}>
+<Frame {title} delay={0.05}>
   <div class="label">Apparel</div>
   <div class="apparel">
     <div class="figure" style="background-image: url('/assets/silhouettes/{body}_{sex}.png')" title={race}></div>

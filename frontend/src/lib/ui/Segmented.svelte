@@ -28,8 +28,8 @@
 </div>
 
 <style>
-  .seg { position: relative; display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--line); background: #00000066; }
-  button { all: unset; position: relative; z-index: 1; cursor: pointer; padding: 4px 10px; font: 500 12px var(--f-display); letter-spacing: 0.12em; color: var(--muted); transition: color 0.3s; }
+  .seg { position: relative; display: inline-flex; gap: 4px; padding: 3px; max-width: 100%; overflow-x: auto; scrollbar-width: none; border: 1px solid var(--line); background: #00000066; }
+  button { all: unset; flex: none; position: relative; z-index: 1; cursor: pointer; padding: 4px 10px; font: 500 12px var(--f-display); letter-spacing: 0.12em; color: var(--muted); transition: color 0.3s; }
   button:hover { color: var(--fg); }
   button[aria-pressed='true'] { color: var(--bg); }
   button:focus-visible { outline: 1px solid var(--accent-hi); }

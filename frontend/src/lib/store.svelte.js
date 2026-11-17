@@ -324,3 +324,44 @@ export async function refresh() {
     toast('Refresh failed');
   }
 }
+
+// ── build compare / SuperStar ───────────────────────────
+
+/** Export a character's current build; returns its share code (ABCD-EFGH). @param {string} charId */
+export async function exportBuild(charId) {
+  const d = await api.post('/api/build_export', { label: 'Build export', params: { character_id: charId } });
+  return /** @type {string} */ (d.code);
+}
+
+/** Import a build by code as this character's comparison target. @param {string} charId @param {string} code */
+export async function importCompare(charId, code) {
+  await api.post('/api/compare_builds/import', { label: 'Compare import', params: { character_id: charId, code: code.trim().toUpperCase() } });
+  await loadCompare();
+}
+
+/** @param {string} charId */
+export async function deleteCompare(charId) {
+  await api.del('/api/compare_builds', { label: 'Compare delete', params: { character_id: charId } });
+  await loadCompare();
+}
+
+/** Save an Anthropic API key for this browser session (used to read SuperStar screenshots). @param {string} key */
+export async function saveApiKey(key) {
+  await api.post('/api/session/apikey', { label: 'API key', init: { body: new URLSearchParams({ api_key: key }) } });
+  app.status.hasSessionKey = true;
+}
+
+export async function deleteApiKey() {
+  try {
+    await api.del('/api/session/apikey', { label: 'API key' });
+  } finally {
+    app.status.hasSessionKey = false;
+  }
+}
+
+/** Read a SuperStar build screenshot into { character, mundus, gear: [...] }. @param {File} file */
+export async function parseSuperstar(file) {
+  const body = new FormData();
+  body.append('image', file, file.name || 'screenshot.png');
+  return api.post('/api/parse_superstar', { label: 'Screenshot parsing', init: { body } });
+}

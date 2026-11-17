@@ -5,7 +5,7 @@ export const TABS = /** @type {const} */ (['characters', 'inventory', 'achieveme
 /** @typedef {typeof TABS[number]} Tab */
 
 /** Sub-views of one character. */
-export const CHAR_VIEWS = /** @type {const} */ (['sheet', 'wardrobe', 'bags']);
+export const CHAR_VIEWS = /** @type {const} */ (['sheet', 'wardrobe', 'bags', 'compare', 'superstar']);
 /** @typedef {typeof CHAR_VIEWS[number]} CharView */
 
 /** @param {string} hash */
