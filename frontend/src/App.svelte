@@ -20,6 +20,7 @@
   import AchievementsSimple from './lib/achievements/AchievementsSimple.svelte';
   import CollectionsSimple from './lib/collections/CollectionsSimple.svelte';
   import { ui } from './lib/uimode.svelte.js';
+  import { applyUiColors } from './lib/eso/tex.js';
   import Segmented from './lib/ui/Segmented.svelte';
   import ShareDialog from './lib/shell/ShareDialog.svelte';
   import PasswordDialog from './lib/shell/PasswordDialog.svelte';
@@ -28,21 +29,22 @@
   start().then(restoreFolder);
 
   const data = $derived(app.data.value);
+  $effect(() => applyUiColors(data?.uiColors));
   const char = $derived(nav.charId ? data?.characters?.[nav.charId] ?? null : null);
 
   const CHAR_VIEW_ITEMS = [
-    { id: 'sheet', label: 'Sheet' },
-    { id: 'wardrobe', label: 'Wardrobe' },
-    { id: 'bags', label: 'Bags' },
-    { id: 'compare', label: 'Compare' },
-    { id: 'superstar', label: 'SuperStar' },
+    { id: 'sheet', label: 'Sheet', icon: 'inventory/inventory_tabicon_armor' },
+    { id: 'wardrobe', label: 'Wardrobe', icon: 'inventory/inventory_tabicon_appearance' },
+    { id: 'bags', label: 'Bags', icon: 'inventory/inventory_tabicon_items' },
+    { id: 'compare', label: 'Compare', icon: 'inventory/inventory_tabicon_quickslot' },
+    { id: 'superstar', label: 'SuperStar', icon: 'mainmenu/menubar_skills' },
   ];
 
   const TAB_ITEMS = [
-    { id: 'characters', label: 'Characters' },
-    { id: 'inventory', label: 'Inventory' },
-    { id: 'achievements', label: 'Achievements' },
-    { id: 'collections', label: 'Collections' },
+    { id: 'characters', label: 'Characters', icon: 'character' },
+    { id: 'inventory', label: 'Inventory', icon: 'inventory' },
+    { id: 'achievements', label: 'Achievements', icon: 'journal' },
+    { id: 'collections', label: 'Collections', icon: 'collections' },
   ];
 
   // Slide tab content in from the side you moved towards.
@@ -140,4 +142,14 @@
   .sigil { font-size: 30px; color: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
   .splash p { font: 500 17px var(--f-display); letter-spacing: 0.12em; color: var(--fg); margin: 0; }
   @keyframes pulse { 50% { opacity: 0.35; transform: scale(0.85); } }
+  /* Classic: ZO_PanelTitle (ZoFontWindowTitle, uppercase) with the dynamic divider; no ornament. */
+  :global(:root[data-ui='classic']) .hero h1 { position: relative; font: 700 30px/1.1 var(--eso-font); letter-spacing: 0; text-transform: uppercase; text-shadow: var(--eso-shadow); padding-bottom: 8px; }
+  :global(:root[data-ui='classic']) .hero h1::after { content: ''; position: absolute; left: 50%; bottom: 0; width: min(560px, 90%); height: 6px; transform: translateX(-50%);
+    background: var(--eso-divider-l) left / 56px 6px no-repeat, var(--eso-divider-r) right / 56px 6px no-repeat, var(--eso-divider-m) center / calc(100% - 112px) 6px no-repeat; }
+  :global(:root[data-ui='classic']) .sub { font: 700 16px var(--eso-font); letter-spacing: 0; color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .orn { display: none; }
+  :global(:root[data-ui='classic']) .back { font: 700 18px var(--eso-font); color: var(--eso-normal); text-shadow: var(--eso-shadow); }
+  :global(:root[data-ui='classic']) .back:hover, :global(:root[data-ui='classic']) .back:focus-visible { color: var(--eso-highlight); }
+  :global(:root[data-ui='classic']) .splash p { font: 700 20px var(--eso-font); letter-spacing: 0; text-transform: uppercase; }
+  :global(:root[data-ui='classic']) .sigil { color: var(--eso-normal); }
 </style>

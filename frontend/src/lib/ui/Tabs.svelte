@@ -1,9 +1,13 @@
 <script>
   /**
    * Tab bar with a spring underline that slides to the active tab. Arrow keys move between tabs.
-   * @type {{ items: { id: string, label: string }[], active: string, onchange?: (id: string) => void }}
+   * Classic UI: the game's main menu category bar instead (ZO_MainMenu: menuBar_<icon> icons, 51px, 64px when selected,
+   * 16px apart). Names show as tooltips, as in the game.
+   * @type {{ items: { id: string, label: string, icon?: string }[], active: string, onchange?: (id: string) => void }}
    */
   let { items, active = $bindable(), onchange } = $props();
+  import { ui } from '../uimode.svelte.js';
+  const classic = $derived(ui.mode === 'classic' && items.every((t) => t.icon));
 
   /** @type {HTMLElement[]} */
   const buttons = [];
@@ -41,18 +45,26 @@
   }
 </script>
 
-<div class="tabs" role="tablist" tabindex="-1" bind:this={bar} {onkeydown}>
+<div class="tabs" class:mm={classic} role="tablist" tabindex="-1" bind:this={bar} {onkeydown}>
   {#each items as t, i (t.id)}
     <button
       type="button"
       role="tab"
       aria-selected={t.id === active}
+      aria-label={classic ? t.label : undefined}
+      title={classic ? t.label : undefined}
       tabindex={t.id === active ? 0 : -1}
       bind:this={buttons[i]}
-      onclick={() => select(t.id)}>{t.label.toUpperCase()}</button>
+      onclick={() => select(t.id)}>
+      {#if classic}
+        <img class="up" src="/assets/esoui/mainmenu/menubar_{t.icon}_{t.id === active ? 'down' : 'up'}.png" alt="" />
+        <img class="over" src="/assets/esoui/mainmenu/menubar_{t.icon}_over.png" alt="" />
+      {:else}{t.label.toUpperCase()}{/if}
+    </button>
   {/each}
-  <span class="uline" style="left: {line.left}px; width: {line.width}px"></span>
+  {#if !classic}<span class="uline" style="left: {line.left}px; width: {line.width}px"></span>{/if}
 </div>
+
 
 <style>
   .tabs { position: relative; display: flex; gap: 26px; justify-content: safe center; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
@@ -68,4 +80,12 @@
     box-shadow: 0 0 10px var(--accent);
     transition: left 0.5s var(--ease-spring), width 0.5s var(--ease-spring);
   }
+  /* Classic main menu bar */
+  .mm { gap: 16px; align-items: center; height: 62px; border-bottom: 0; overflow: visible; }
+  .mm button { position: relative; width: 60px; height: 60px; padding: 0; display: grid; place-items: center; }
+  .mm img { position: absolute; width: 51px; height: 51px; transition: width 0.2s var(--ease-out), height 0.2s var(--ease-out); }
+  .mm .over { opacity: 0; mix-blend-mode: plus-lighter; }
+  .mm button:hover .over { opacity: 1; }
+  .mm button[aria-selected='true'] img { width: 60px; height: 60px; }
+  .mm button[aria-selected='true'] .over { opacity: 0; }
 </style>

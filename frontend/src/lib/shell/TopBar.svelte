@@ -130,4 +130,14 @@
   .live.on { background: var(--q-fine); box-shadow: 0 0 8px var(--q-fine); }
   .spin { display: inline-block; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Classic: a dark band like the game's screen edge, with the title divider under it. */
+  :global(:root[data-ui='classic']) .bar { background: linear-gradient(#000, #000c); backdrop-filter: none; border-bottom: 0; }
+  :global(:root[data-ui='classic']) .bar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -3px; height: 6px; display: block;
+    background: var(--eso-divider-l) left / 56px 6px no-repeat, var(--eso-divider-r) right / 56px 6px no-repeat, var(--eso-divider-m) center / calc(100% - 112px) 6px no-repeat; }
+  :global(:root[data-ui='classic']) .word { font: 700 22px var(--eso-font); letter-spacing: 0; text-transform: uppercase; }
+  :global(:root[data-ui='classic']) .meta, :global(:root[data-ui='classic']) .money, :global(:root[data-ui='classic']) .uisel { font: 500 16px var(--eso-font-medium); color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .badge { font: 700 13px var(--eso-font); color: #000; background: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .slots .btn { font-size: 16px; padding: 0 10px; }
+  :global(:root[data-ui='classic']) .slots [aria-pressed='true'] { color: var(--eso-selected); background: none; }
 </style>

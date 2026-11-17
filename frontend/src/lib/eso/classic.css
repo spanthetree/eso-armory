@@ -1,0 +1,89 @@
+/* "Classic" UI: the whole app in the ESO keyboard UI look. Everything here is scoped to html[data-ui='classic'], so the
+   "Simple" (Obsidian) look is untouched. Textures are the game's (UESP, `make assets`); see eso.css for the pieces. */
+
+:root[data-ui='classic'] {
+  --bg: #000;
+  --panel: rgba(0, 0, 0, 0.6);
+  --slot-bg: url('/assets/esoui/achievements/achievements_iconbg.png') 0 0 / 100% 100%;
+  --line: rgba(197, 194, 158, 0.3);
+  --line-soft: rgba(197, 194, 158, 0.08);
+  --fg: var(--eso-selected);
+  --muted: var(--eso-normal);
+  --accent: var(--eso-normal);
+  --accent-hi: var(--eso-contrast);
+  --glow: transparent;
+  --f-display: var(--eso-font);
+  --f-ui: var(--eso-font-medium);
+}
+
+/* The game draws its menus over the world: a darkened, blurred loading screen stands in for it. */
+:root[data-ui='classic'] body { background: #000; text-shadow: var(--eso-shadow-thin); }
+:root[data-ui='classic'] body::before {
+  content: ''; position: fixed; inset: -24px; z-index: -1; pointer-events: none;
+  background: url('/assets/esoui/loadingscreens/charload_01.png') center / cover no-repeat;
+  filter: blur(7px) brightness(0.32) saturate(0.8);
+}
+:root[data-ui='classic'] body::after {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 40%, transparent 30%, #000c 100%);
+}
+
+:root[data-ui='classic'] h1, :root[data-ui='classic'] h2, :root[data-ui='classic'] h3, :root[data-ui='classic'] h4, :root[data-ui='classic'] h5 {
+  font-family: var(--eso-font); font-weight: 700; letter-spacing: 0; text-shadow: var(--eso-shadow);
+}
+:root[data-ui='classic'] :focus-visible { outline-color: var(--eso-normal); }
+
+/* ZO_DefaultButton: 3-slice ESO_buttonLarge (9px end caps), mouse-over texture added on top (mouseOverBlendMode ADD). */
+:root[data-ui='classic'] .btn {
+  position: relative; min-height: 28px; padding: 0 14px; gap: 6px; justify-content: center;
+  font: 700 18px/1 var(--eso-font); letter-spacing: 0; color: var(--eso-normal); text-shadow: var(--eso-shadow);
+  background: none; border: 0 solid transparent; border-image: url('/assets/esoui/buttons/eso_buttonlarge_normal.png') 0 9 fill / 0 9px stretch;
+}
+:root[data-ui='classic'] .btn::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  border: 0 solid transparent; border-image: url('/assets/esoui/buttons/eso_buttonlarge_mouseover.png') 0 9 fill / 0 9px stretch; mix-blend-mode: plus-lighter;
+}
+:root[data-ui='classic'] .btn:hover:not(:disabled) { color: var(--eso-highlight); border-color: transparent; }
+:root[data-ui='classic'] .btn:hover:not(:disabled)::after { opacity: 1; }
+:root[data-ui='classic'] .btn:active:not(:disabled) { color: var(--eso-selected); border-image-source: url('/assets/esoui/buttons/eso_buttonllarge_mousedown.png'); transform: translate(1px, 1px); }
+:root[data-ui='classic'] .btn:disabled { opacity: 1; color: var(--eso-disabled); border-image-source: url('/assets/esoui/buttons/eso_buttonlarge_disabled.png'); }
+:root[data-ui='classic'] .btn[aria-pressed='true'] { color: var(--eso-selected); border-image-source: url('/assets/esoui/buttons/eso_buttonllarge_mousedown.png'); }
+:root[data-ui='classic'] .btn.primary { min-height: 32px; font-size: 20px; color: var(--eso-normal); background: none; box-shadow: none; }
+:root[data-ui='classic'] .btn.primary:hover:not(:disabled) { color: var(--eso-highlight); box-shadow: none; }
+
+/* Fields: ZO_EditBackdrop for text, ZO_ComboBox (ZO_DefaultBackdrop + dropdown arrow) for selects. */
+:root[data-ui='classic'] .field {
+  font: 500 18px var(--eso-font-medium); color: var(--eso-selected); background: none; text-shadow: var(--eso-shadow-thin);
+  border: 0 solid transparent; border-image: var(--eso-edit) 8 fill / 8px; padding: 4px 8px; min-height: 28px;
+}
+:root[data-ui='classic'] .field::placeholder { color: var(--eso-default); }
+:root[data-ui='classic'] .field:focus { border-color: transparent; outline: 1px solid var(--eso-normal); outline-offset: 0; }
+:root[data-ui='classic'] select.field {
+  appearance: none; padding: 3px 26px 3px 10px; cursor: pointer; min-height: 31px;
+  border-image: var(--eso-backdrop) 16 fill / 8px;
+  background: url('/assets/esoui/buttons/dropbox_arrow_normal.png') right 4px center / 16px 16px no-repeat;
+}
+:root[data-ui='classic'] select.field:hover { background-image: url('/assets/esoui/buttons/dropbox_arrow_mouseover.png'); }
+:root[data-ui='classic'] select option { background: #111; color: #fff; }
+:root[data-ui='classic'] input[type='checkbox']:not(.eso-plain) {
+  appearance: none; width: 16px; height: 16px; margin: 0; flex: none; cursor: pointer; vertical-align: middle;
+  background: url('/assets/esoui/buttons/checkbox_unchecked.png') 0 0 / 100% 100%;
+}
+:root[data-ui='classic'] input[type='checkbox']:not(.eso-plain):checked { background-image: url('/assets/esoui/buttons/checkbox_checked.png'); }
+:root[data-ui='classic'] input[type='checkbox']:not(.eso-plain):hover:not(:checked) { background-image: url('/assets/esoui/buttons/checkbox_mouseover.png'); }
+
+:root[data-ui='classic'] .label { font: 700 18px var(--eso-font); letter-spacing: 0; color: var(--eso-normal); }
+:root[data-ui='classic'] .hint { font: 500 16px var(--eso-font-medium); color: var(--eso-normal); }
+:root[data-ui='classic'] code { background: #0008; color: var(--eso-selected); }
+
+/* Scrollbars everywhere: the game's 16px bar. */
+:root[data-ui='classic'] * { scrollbar-color: #7d7a63 transparent; }
+:root[data-ui='classic'] ::-webkit-scrollbar { width: 16px; height: 12px; }
+:root[data-ui='classic'] ::-webkit-scrollbar-track { background: transparent; }
+:root[data-ui='classic'] ::-webkit-scrollbar-thumb { border-style: solid; border-width: 0; border-image: url('/assets/esoui/miscellaneous/scrollbox_elevator.png') 10 0 10 0 fill / 10px 0 10px 0; }
+
+/* Divider used under section titles (ZO_DialogDivider / stats headers). */
+:root[data-ui='classic'] .eso-rule { display: block; height: 8px; background: url('/assets/esoui/miscellaneous/horizontaldivider.png') center / min(512px, 100%) 8px no-repeat; }
+
+/* The main menu icon bar is taller than the Simple tab strip; keep the tab windows on one screen. */
+:root[data-ui='classic'] .eso-win { height: max(420px, calc(100dvh - 280px)); }

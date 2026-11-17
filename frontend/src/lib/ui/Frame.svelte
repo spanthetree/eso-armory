@@ -33,4 +33,10 @@
   h5 { color: var(--fg); font-size: 13px; letter-spacing: 0.18em; text-align: center; margin-bottom: 10px; }
   @keyframes draw { from { clip-path: inset(0 50% 0 50%); } }
   @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } }
+
+  /* Classic: the game's soft-edged translucent window backdrop, a ZoFontWinH2-style title over horizontalDivider. */
+  :global(:root[data-ui='classic']) .frame { background: url('/assets/esoui/miscellaneous/centerscreen_left.png') center / 100% 100%; backdrop-filter: none; padding: 10px 16px 14px; }
+  :global(:root[data-ui='classic']) .frame::before { display: none; }
+  :global(:root[data-ui='classic']) h5 { font: 700 20px var(--eso-font); letter-spacing: 0; text-transform: uppercase; color: var(--eso-selected); margin-bottom: 8px; padding-bottom: 8px;
+    background: url('/assets/esoui/miscellaneous/horizontaldivider.png') bottom center / min(512px, 100%) 8px no-repeat; }
 </style>

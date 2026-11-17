@@ -90,6 +90,7 @@ def test_process_achievements_and_stickerbook(raw_iasync):
     assert (stickerbook["sets"][0]["reconCost"], stickerbook["sets"][0]["reconCurrency"]) == (25, 5)
     assert [p["quality"] for p in pieces] == [4, 0]
     assert achievements["uiColors"] == stickerbook["uiColors"] == {"textNormal": "c5c29e"}
+    assert process_iasync(raw_iasync)["uiColors"] == {"textNormal": "c5c29e"}
 
 
 @pytest.mark.unit

@@ -251,6 +251,7 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
         "bank":         bank,
         "house_chests": house_chests,
         "items":        items,
+        "uiColors":     ui_colors(raw),
     }
 
 

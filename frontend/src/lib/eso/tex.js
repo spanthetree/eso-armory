@@ -69,6 +69,9 @@ const PIECES = {
   '--eso-bar-frame-l': () => crop('miscellaneous/progressbar_frame', 0, 0, 10, 20),
   '--eso-bar-frame-m': () => crop('miscellaneous/progressbar_frame', 10, 0, 292, 20),
   '--eso-bar-frame-r': () => crop('miscellaneous/progressbar_frame', 304, 0, 10, 20),
+  // Whole bar frame / background (caps + middle) as one 3-slice source, for border-image.
+  '--eso-bar-frame': () => crop('miscellaneous/progressbar_frame', 0, 0, 314, 20),
+  '--eso-bar-bg': () => crop('miscellaneous/progressbar_frame_bg', 0, 0, 314, 20),
   '--eso-bar-fill': () => crop('miscellaneous/progressbar_genericfill', 0, 0, 4, 20),
   '--eso-bar-gloss': () => crop('miscellaneous/progressbar_genericfill_gloss', 0, 0, 4, 20),
   '--eso-bar-edge': () => crop('miscellaneous/progressbar_genericfill_leadingedge', 0, 0, 8, 20),
@@ -86,6 +89,7 @@ const PIECES = {
   '--eso-edit': () => edgeFrame('chatwindow/textentry_edge', 'chatwindow/textentry_center'),
   '--eso-backdrop': () => edgeFrame('tooltips/ui-border', 'tooltips/ui-tooltipcenter'),
   '--eso-inset': () => edgeFrame('miscellaneous/inset_edgefile_8', null),
+  '--eso-inset-bg': () => edgeFrame('miscellaneous/inset_edgefile', 'miscellaneous/inset_center'),
 };
 
 /** @type {Promise<void> | null} */
