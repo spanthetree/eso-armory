@@ -84,3 +84,32 @@ export async function loadPrice(name) {
     prices[key] = { error: /** @type {Error} */ (e).message || 'Price lookup failed', url: ttcSearchUrl(name) };
   }
 }
+
+/** Average TTC prices by lower-cased name for the Inventory value column; filled in bulk. */
+export const avgPrices = $state({ /** @type {Record<string, number>} */ map: {}, error: '', loading: false });
+const askedPriceNames = new Set();
+
+/** Fetch average prices for any of these names not asked for yet. @param {string[]} names lower-cased */
+export async function loadAvgPrices(names) {
+  const want = [...new Set(names)].filter((n) => n && !askedPriceNames.has(n));
+  if (!want.length) return;
+  want.forEach((n) => askedPriceNames.add(n));
+  avgPrices.loading = true;
+  try {
+    const d = await api.post('/api/ttc_prices', { label: 'TTC prices', init: { body: JSON.stringify({ names: want }), headers: { 'Content-Type': 'application/json' } } });
+    avgPrices.map = { ...avgPrices.map, ...d.prices };
+    avgPrices.error = d.error || '';
+  } catch (e) {
+    want.forEach((n) => askedPriceNames.delete(n)); // retry on a later view
+    avgPrices.error = /** @type {Error} */ (e).message || 'TTC price lookup failed';
+  } finally {
+    avgPrices.loading = false;
+  }
+}
+
+/** Forget bulk prices after new TTC tables are uploaded. */
+export function resetAvgPrices() {
+  askedPriceNames.clear();
+  avgPrices.map = {};
+  avgPrices.error = '';
+}

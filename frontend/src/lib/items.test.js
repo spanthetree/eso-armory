@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { forCharacter, filterItems, sortItems, displayRows, emptyFilters, hasFilters } from './items.js';
+import { forCharacter, filterItems, sortItems, displayRows, emptyFilters, hasFilters, duplicateNames, withValues, summarize, applyPreset, isPreset, PRESETS } from './items.js';
 
 const loc = (type, key, bag, quantity = 1) => ({ location_type: type, location_key: key, bag_id: bag, quantity });
 const ITEMS = [
@@ -42,7 +42,38 @@ test('sort by string and number', () => {
 });
 
 test('group by set puts No Set last', () => {
-  const rows = displayRows(ITEMS, true);
+  const rows = displayRows(ITEMS, 'set');
   assert.deepEqual(rows.map((r) => (r.t === 'h' ? `#${r.set}:${r.count}` : r.item.key)), ['#Ruin:2', 'a', 'c', '#No Set:1', 'b']);
-  assert.equal(displayRows(ITEMS, false).length, 3);
+  assert.equal(displayRows(ITEMS, '').length, 3);
+});
+
+const GEAR = [
+  ...ITEMS,
+  { key: 'd', name: 'Robe of Ruin', quality: 4, filter_type: 2, trait_id: 11, set_name: 'Ruin', is_bound: true, total_quantity: 1, locations: [loc('bank', 'bank', 0)] },
+];
+
+test('duplicates are gear held more than once by name', () => {
+  assert.deepEqual([...duplicateNames(GEAR)], ['Sword of Ruin', 'Robe of Ruin']); // Sword x3; Robe twice; Potion is not gear
+  assert.deepEqual(names(filterItems(GEAR, f({ dupes: true }))), ['Sword of Ruin', 'Robe of Ruin', 'Robe of Ruin']);
+  assert.deepEqual(names(filterItems(GEAR, f({ unbound: true, hasSet: true }))), ['Sword of Ruin', 'Robe of Ruin']);
+});
+
+test('values skip bound and unpriced items; summary splits by type and location', () => {
+  const v = withValues(GEAR, { 'sword of ruin': 100, 'robe of ruin': 50 });
+  assert.deepEqual(v.map((i) => i.value), [300, null, 50, null]);
+  const s = summarize(v);
+  assert.equal(s.value, 350);
+  assert.deepEqual(s.types['2'], { count: 2, value: 50 });
+  assert.deepEqual(s.locs.bank, { count: 2, value: 200 });
+  assert.deepEqual(s.locs.character, { count: 3, value: 150 });
+  assert.deepEqual(names(sortItems(v, 'value', 'asc')), ['Robe of Ruin', 'Sword of Ruin', 'Potion', 'Robe of Ruin']);
+});
+
+test('presets apply over empty filters and are recognised', () => {
+  const p = PRESETS[1].f;
+  const applied = applyPreset(p);
+  assert.equal(isPreset(applied, p), true);
+  applied.types.push('3');
+  assert.equal(isPreset(applied, p), false);
+  assert.deepEqual(p.types, ['1', '2', '25']); // preset not mutated
 });
