@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.2.0-beta.2] - 2026-11-17
+
+### Added
+- **Inventory values** - a Value column (average TTC listing price x quantity, unbound items) with a filtered total, from the new `POST /api/ttc_prices` bulk lookup
+- **Inventory summary strip** - counts and values per item type and location; click one, or an item's type or location chip, to filter by it
+- **Filter chips** - Duplicate gear, Sellable set gear, Trash and Glyphs, plus your own saved filters (kept in this browser)
+- **Achievements search** across every category, and a timeline of recent unlocks grouped by day
+- **Collections filters** - Apparel Types, Weapon Types, completion (not complete, missing 1-2, none collected, complete) and Show Locked; piece tooltips say where it drops and, for tradeable sets, the TTC price
+- **Category and piece icons** - `GET /esoicons/<folder>/<name>.png` serves category tree icons; set pieces and categories carry icons when iasync 1.6.0 recorded them (slot outlines until then)
+
+### Changed
+- **Achievements** - laid out like the in-game journal: category tree with subcategories, teal count bars for every category, recent achievement icons; opens on the character with the most achievement records
+- **Collections** - laid out like the in-game Sets collection: each set is a count bar and a grid of piece icons, collected pieces lit and locked ones greyed
+- **Recent achievements** - the server keeps the 50 newest completions, one entry per achievement (was 10, with repeats)
+
+### Fixed
+- **Set piece types** - collection pieces were labelled with inventory filter names ("Weapons", "Armor"); they now use the equipment type (Light, Medium, Heavy, Shield, One-Handed, Bow, ...)
+
 ## [0.2.0-beta.1] - 2026-11-17
 
 ### Changed
