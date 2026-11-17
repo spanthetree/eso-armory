@@ -6,7 +6,7 @@
   import { tooltip } from '../ui/tooltip.svelte.js';
   import { ART, applyUiColors } from '../eso/tex.js';
   import { app } from '../store.svelte.js';
-  import { buildIndex, achievementsIn, extraSubcats, gameIcon, pressedIcon, searchAll, charName, collapseLines } from '../achievements.js';
+  import { buildIndex, achievementsIn, extraSubcats, gameIcon, pressedIcon, searchAll, charName, collapseLines, timeline, pct } from '../achievements.js';
 
   // The in-game keyboard Achievements screen (esoui ingame/achievements/keyboard/achievements.xml), positioned in the
   // game's own pixels on EsoWindow's stage. Comments give the template each block copies.
@@ -38,6 +38,10 @@
   const hits = $derived(found ? found.groups.reduce((m, g) => m.set(g.cat, (m.get(g.cat) ?? new Set()).add(g.sub)), new Map()) : null);
 
   let filter = $state('all'); // SI_ACHIEVEMENT_FILTER_SHOW_*
+  /** Extra tree entry (not in the game): every recent completion, by day. */
+  let showTimeline = $state(false);
+  const TIMELINE_ICON = '/esoicons/treeicons/tutorial_idexicon_timedactivities_up.png';
+  const days = $derived(timeline(data?.recent));
   /** null = summary */
   let catName = $state(/** @type {string | null} */ (null));
   let subName = $state(/** @type {string | null} */ (null));
@@ -58,6 +62,7 @@
 
   /** @param {string | null} name */
   function pick(name) {
+    showTimeline = false;
     if (name === catName && name) return void (catName = null); // clicking the open category folds it back to the summary
     catName = name;
     subName = null;
@@ -65,6 +70,7 @@
   }
   /** @param {string} cname @param {string} sname */
   function pickSub(cname, sname) {
+    showTimeline = false;
     catName = cname;
     subName = sname;
     openId = null;
@@ -82,8 +88,8 @@
   </span>
 {/snippet}
 
-{#snippet treeHead(/** @type {string | null} */ src, /** @type {string} */ label, /** @type {boolean} */ on, /** @type {boolean | undefined} */ expanded, /** @type {() => void} */ click)}
-  <button class="eso-th" aria-current={on} aria-expanded={expanded} onclick={click}>
+{#snippet treeHead(/** @type {string | null} */ src, /** @type {string} */ label, /** @type {boolean} */ on, /** @type {boolean | undefined} */ expanded, /** @type {() => void} */ click, /** @type {string | undefined} */ tip = undefined)}
+  <button class="eso-th" aria-current={on} aria-expanded={expanded} onclick={click} title={tip}>
     {#if src}
       <img class="ico" src={on || expanded ? pressedIcon(src) : src} alt="" onerror={(e) => (/** @type {HTMLElement} */ (e.currentTarget).style.visibility = 'hidden')} />
       <img class="ico-hl" src={overIcon(src)} alt="" onerror={(e) => (/** @type {HTMLElement} */ (e.currentTarget).style.display = 'none')} />
@@ -151,13 +157,16 @@
 
     <!-- Category tree (ContentsCategories: 353 wide at -28,77) -->
     <nav class="eso-abs eso-scroll eso-tree tree" aria-label="Achievement categories">
-      {#if !hits}{@render treeHead(SUMMARY_ICON, 'Summary', catName === null, undefined, () => pick(null))}{/if}
+      {#if !hits}
+        {@render treeHead(SUMMARY_ICON, 'Summary', catName === null && !showTimeline, undefined, () => pick(null))}
+        {#if days.length}{@render treeHead(TIMELINE_ICON, 'Timeline', showTimeline, undefined, () => ((showTimeline = true), (catName = null)))}{/if}
+      {/if}
       {#each cats as c (c.name)}
         {@const isOpen = cat?.name === c.name}
-        {@render treeHead(catIcon(c), c.name, false, isOpen, () => pick(c.name))}
+        {@render treeHead(catIcon(c), c.name, false, isOpen, () => pick(c.name), `${fmt(c.earnedPts)} / ${fmt(c.totalPts)} points (${pct(c.earnedPts, c.totalPts)}%)`)}
         {#if isOpen}
           {#each subcats as s (s.key ?? s.name)}
-            <button class="eso-ts" class:dim={!withData.has(s.name)} aria-current={sub?.name === s.name} onclick={() => pickSub(c.name, s.name)}>{s.name}</button>
+            <button class="eso-ts" class:dim={!withData.has(s.name)} aria-current={sub?.name === s.name} onclick={() => pickSub(c.name, s.name)} title={s.total ? `${s.complete}/${s.total} complete` : undefined}>{s.name}</button>
           {/each}
         {/if}
       {:else}
@@ -165,7 +174,22 @@
       {/each}
     </nav>
 
-    {#if !cat}
+    {#if showTimeline && !hits}
+      <div class="eso-abs eso-h2 ctitle">Timeline</div>
+      <div class="eso-abs pts">Achievement Points: <span>{fmt(data.earnedPts)}</span></div>
+      <div class="eso-abs eso-scroll list tl" role="list">
+        {#each days as d (d.day)}
+          <div class="day eso-h4">{d.day}</div>
+          {#each d.list as a (a.id)}
+            {@render row(a)}
+            <div class="by">
+              <button class="lnk" onclick={() => pickSub(a.cat, a.subcat || 'Other')}>{a.cat}{a.subcat ? ` › ${a.subcat}` : ''}</button>
+              {#if a.completedByCharName}<span>· {charName(a.completedByCharName)}</span>{/if}
+            </div>
+          {/each}
+        {/each}
+      </div>
+    {:else if !cat}
       <!-- ContentsSummaryInset -->
       <div class="eso-abs pts">Achievement Points: <span>{fmt(data.earnedPts)}</span></div>
       <div class="eso-abs eso-scroll bars">
@@ -229,6 +253,11 @@
 
   .ctitle { left: 427px; top: 78px; width: 563px; }
   .list { left: 390px; top: 154px; width: 588px; height: 603px; }
+  .tl { top: 120px; height: 637px; }
+  .day { padding: 10px 0 6px 38px; color: var(--eso-selected); }
+  .by { margin: -6px 0 6px 96px; font-size: 16px; color: var(--eso-normal); }
+  .lnk { all: unset; cursor: pointer; color: var(--eso-normal); }
+  .lnk:hover, .lnk:focus-visible { color: var(--eso-highlight); text-decoration: underline; }
 
   .ach { position: relative; width: 550px; min-height: 88px; padding: 10px 0 12px 96px; }
   .hl { position: absolute; inset: 0; opacity: 0; transition: opacity 0.15s; pointer-events: none; }

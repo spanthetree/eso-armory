@@ -8,7 +8,8 @@
   import { ART, applyUiColors } from '../eso/tex.js';
   import { app } from '../store.svelte.js';
   import { ttcSearchUrl } from '../lookups.svelte.js';
-  import { gameIcon, pressedIcon } from '../achievements.js';
+  import { gameIcon, pressedIcon, pct } from '../achievements.js';
+  import { slugify } from '../gear.js';
   import { categorySummary, totals, subSummary, gridSets, emptyGridFilters, pieceIcon, pieceSource, APPAREL_TYPES, WEAPON_TYPES, COMPLETION } from '../collections.js';
 
   // The in-game keyboard Sets screen (esoui ingame/collections/keyboard/itemsetsbook_keyboard.xml), positioned in the
@@ -77,8 +78,8 @@
   </div>
 {/snippet}
 
-{#snippet treeHead(/** @type {string | null} */ src, /** @type {string} */ label, /** @type {boolean} */ on, /** @type {boolean | undefined} */ expanded, /** @type {() => void} */ click)}
-  <button class="eso-th" aria-current={on} aria-expanded={expanded} onclick={click}>
+{#snippet treeHead(/** @type {string | null} */ src, /** @type {string} */ label, /** @type {boolean} */ on, /** @type {boolean | undefined} */ expanded, /** @type {() => void} */ click, /** @type {string | undefined} */ tip = undefined)}
+  <button class="eso-th" aria-current={on} aria-expanded={expanded} onclick={click} title={tip}>
     {#if src}
       <img class="ico" src={on || expanded ? pressedIcon(src) : src} alt="" onerror={(e) => (/** @type {HTMLElement} */ (e.currentTarget).style.visibility = 'hidden')} />
       <img class="ico-hl" src={src.replace(/_up\.png$/, '_over.png')} alt="" onerror={(e) => (/** @type {HTMLElement} */ (e.currentTarget).style.display = 'none')} />
@@ -94,7 +95,7 @@
     <!-- ZO_ItemSetsBook_Entry_Header_Keyboard (60 tall) -->
     <div class="sh">
       <button class="eso-arrow" aria-expanded={open} aria-label="{open ? 'Hide' : 'Show'} {s.name} pieces" onclick={() => fold(s.setId)}></button>
-      <span class="sn eso-ellipsis" tabindex="-1" use:tooltip={{ component: SetTip, props: { s } }}>{s.name}{#if searching}<span class="where"> · {src.where}</span>{/if}</span>
+      <a class="sn eso-ellipsis" href="https://eso-sets.com/set/{slugify(s.name)}" target="_blank" rel="noopener noreferrer" use:tooltip={{ component: SetTip, props: { s } }}>{s.name}{#if searching}<span class="where"> · {src.where}</span>{/if}</a>
       <EsoBar value={s.numCollected} max={s.numTotal} label="{s.name} pieces collected" style="position: absolute; left: 32px; top: 32px; width: 314px" />
       {#if s.reconCost != null}
         <span class="cost"><span class="ch">Cost</span> {fmt(s.reconCost)} <img src="{ART}currency/currency_seedcrystal_32.png" alt="Transmute Crystals" /></span>
@@ -145,10 +146,10 @@
       {@render treeHead('/esoicons/treeicons/achievements_indexicon_summary_up.png', 'Summary', catName === null && !searching, undefined, () => pick(null))}
       {#each cats as c (c.name)}
         {@const isOpen = catName === c.name && !searching}
-        {@render treeHead(gameIcon(icons[c.name]), c.name, false, isOpen, () => pick(c.name))}
+        {@render treeHead(gameIcon(icons[c.name]), c.name, false, isOpen, () => pick(c.name), `${fmt(c.collected)} / ${fmt(c.total)} pieces (${pct(c.collected, c.total)}%)`)}
         {#if isOpen && (subs.length > 1 || subs[0]?.name)}
           {#each subs as s (s.name)}
-            <button class="eso-ts" aria-current={subName === s.name} onclick={() => (subName = s.name)}>{s.name || c.name}</button>
+            <button class="eso-ts" aria-current={subName === s.name} onclick={() => (subName = s.name)} title="{fmt(s.collected)} / {fmt(s.total)} pieces">{s.name || c.name}</button>
           {/each}
         {/if}
       {/each}
@@ -207,8 +208,8 @@
   .set { content-visibility: auto; contain-intrinsic-size: auto 220px; }
   .sh { position: relative; height: 60px; padding: 0 10px 0 32px; }
   .sh .eso-arrow { position: absolute; left: 0; top: 0; }
-  .sn { display: block; padding-top: 4px; font-size: 20px; font-weight: 700; color: var(--eso-normal); cursor: default; }
-  .sh:hover .sn { color: var(--eso-highlight); }
+  .sn { display: block; padding-top: 4px; font-size: 20px; font-weight: 700; color: var(--eso-normal); text-decoration: none; }
+  .sn:hover, .sn:focus-visible { color: var(--eso-highlight); }
   .where { font-size: 16px; color: var(--eso-disabled); }
   .cost { position: absolute; right: 10px; top: 32px; display: flex; align-items: center; gap: 4px; height: 20px; font: 700 18px var(--eso-font); color: #fff; }
   .ch { margin-right: 1px; color: var(--eso-normal); }
