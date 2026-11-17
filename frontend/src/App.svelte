@@ -1,5 +1,6 @@
 <script>
   import { app, start } from './lib/store.svelte.js';
+  import { restoreFolder } from './lib/upload.svelte.js';
   import { nav, go, TABS } from './lib/nav.svelte.js';
   import Tabs from './lib/ui/Tabs.svelte';
   import HeroEmblems from './lib/ui/HeroEmblems.svelte';
@@ -21,7 +22,7 @@
   import PasswordDialog from './lib/shell/PasswordDialog.svelte';
   import UploadDialog from './lib/shell/UploadDialog.svelte';
 
-  start();
+  start().then(restoreFolder);
 
   const data = $derived(app.data.value);
   const char = $derived(nav.charId ? data?.characters?.[nav.charId] ?? null : null);

@@ -1,6 +1,7 @@
 <script>
-  import { app, refresh, switchSlot, deleteShadow } from '../store.svelte.js';
+  import { app, refresh, switchSlot, deleteShadow, toast } from '../store.svelte.js';
   import { nav, go } from '../nav.svelte.js';
+  import { watch, checkFolder } from '../upload.svelte.js';
 
   const data = $derived(app.data.value);
   const ws = $derived(app.workspace);
@@ -22,7 +23,9 @@
   let refreshing = $state(false);
   async function onRefresh() {
     refreshing = true;
-    await refresh();
+    // With a watched folder, refresh means "re-read the folder"; otherwise ask the server.
+    if (watch.handle) toast((await checkFolder()) ? 'Data updated' : 'No updates');
+    else await refresh();
     refreshing = false;
   }
 
@@ -71,6 +74,7 @@
   {/if}
 
   <div class="actions">
+    {#if watch.handle}<span class="watch" title="Watching {watch.handle.name} for new SavedVariables">● {watch.handle.name}</span>{/if}
     <span class="live" class:on={app.live} title={app.live ? 'Live updates connected' : 'Live updates reconnecting'}></span>
     <button class="btn" disabled={refreshing} onclick={onRefresh} title="Check for updated SavedVariables data">
       <span class:spin={refreshing}>↻</span>{refreshing ? 'Checking…' : 'Refresh'}
@@ -111,6 +115,7 @@
   .money img { width: 18px; height: 18px; }
   .actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   @media (max-width: 700px) { .bar { position: static; } }
+  .watch { font-size: 12px; color: var(--accent-hi); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .live { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background 0.4s, box-shadow 0.4s; }
   .live.on { background: var(--q-fine); box-shadow: 0 0 8px var(--q-fine); }
   .spin { display: inline-block; animation: spin 0.8s linear infinite; }
