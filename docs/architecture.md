@@ -70,7 +70,7 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 |----------|---------|
 | `GET /api/data` | `{meta, characters, bank, house_chests, items}` |
 | `GET /api/builds` | `{builds, abilityNames, cpNames}` |
-| `GET /api/achievements` | `{totalPts, earnedPts, categories, account_items, items_by_char, chars, recent}` |
+| `GET /api/achievements` | `{totalPts, earnedPts, categories, account_items, items_by_char, chars, recent}`; `categories[].icon` is the tree icon (iasync 1.6.0); `recent` is the 50 newest completions, one per achievement |
 | `GET /api/stickerbook` | `{sets: [{setId, name, category, subcategory, numCollected, numTotal, complete, pieces: [{filterType, filterName, collected, name, icon}]}], categoryIcons, lastUpdate}`; `filterType` is `EQUIPMENT_FILTER_TYPE_*` (1 Light … 11 Bow); `icon`/`categoryIcons` need iasync 1.6.0 |
 | `GET /api/ww_builds` | `{builds: {charId: [build, ...]}}` |
 | `GET /api/set_bonus?set_id=&set_name=` | Set bonuses from eso-sets.com (memory cached) |

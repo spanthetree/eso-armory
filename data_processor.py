@@ -479,8 +479,15 @@ def process_iasync_achievements(raw: dict) -> dict:
                 "name": char_data.get("name", str(char_id)),
             })
 
-    # Recent = completed across all chars, sorted newest-first
-    recent = sorted(recent_candidates, key=lambda x: x[0], reverse=True)[:10]
+    # Recent = completed across all chars, newest first, one entry per achievement (timeline)
+    recent = []
+    recent_ids: set[int] = set()
+    for ts, a in sorted(recent_candidates, key=lambda x: x[0], reverse=True):
+        if a["id"] not in recent_ids:
+            recent_ids.add(a["id"])
+            recent.append((ts, a))
+        if len(recent) >= 50:
+            break
 
     return {
         "totalPts":      int(achiev_raw.get("totalPts", 0)),

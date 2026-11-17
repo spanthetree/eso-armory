@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildIndex, achievementsIn, extraSubcats, pct, achievementIcon } from './achievements.js';
+import { buildIndex, achievementsIn, extraSubcats, pct, achievementIcon, gameIcon, pressedIcon, searchAll, timeline, charName } from './achievements.js';
 
 const DATA = {
   account_items: [
@@ -48,4 +48,36 @@ test('extraSubcats surfaces achievements filed under unlisted subcategories', ()
   });
   const extra = extraSubcats(idx, { name: 'Dungeons', subcats: [{ name: 'Arx Corinium' }] }, 'c1');
   assert.deepEqual(extra, [{ name: 'Group Dungeons', key: 'Group Dungeons', total: 2, complete: 1, totalPts: 15, earnedPts: 10 }]);
+});
+
+test('game icons map to the proxy, including category tree folders', () => {
+  assert.equal(gameIcon('/esoui/art/treeicons/achievements_indexicon_dungeons_up.dds'), '/esoicons/treeicons/achievements_indexicon_dungeons_up.png');
+  assert.equal(gameIcon('/esoui/art/collections/X_UP.dds'), '/esoicons/collections/x_up.png');
+  assert.equal(gameIcon('/esoui/art/etc/x.dds'), null);
+  assert.equal(pressedIcon('/esoicons/treeicons/a_up.png'), '/esoicons/treeicons/a_down.png');
+});
+
+test('search spans every category in category order', () => {
+  const idx = buildIndex({
+    account_items: [
+      { id: 1, name: 'Delver', desc: '', cat: 'Dungeons', subcat: 'Base' },
+      { id: 2, name: 'Explorer delver', desc: '', cat: 'Exploration', subcat: 'Zones' },
+    ],
+    items_by_char: { c1: [{ id: 3, name: 'Quiet', desc: 'a delver too', cat: 'Character', subcat: 'Level' }] },
+  });
+  const cats = [{ name: 'Character' }, { name: 'Dungeons' }, { name: 'Exploration' }];
+  const r = searchAll(idx, cats, 'c1', 'DELVER');
+  assert.deepEqual(r.groups.map((g) => `${g.cat}/${g.sub}:${g.list.length}`), ['Character/Level:1', 'Dungeons/Base:1', 'Exploration/Zones:1']);
+  assert.equal(searchAll(idx, cats, null, 'delver').total, 2); // character-only hit needs that character
+  assert.equal(searchAll(idx, cats, 'c1', 'delver', 2).capped, true);
+  assert.equal(searchAll(idx, cats, 'c1', '  ').total, 0);
+});
+
+test('timeline groups by day and drops repeats', () => {
+  const days = timeline([
+    { id: 1, completionDate: '6/10/2026' }, { id: 1, completionDate: '6/10/2026' },
+    { id: 2, completionDate: '6/10/2026' }, { id: 3, completionDate: '6/9/2026' },
+  ]);
+  assert.deepEqual(days.map((d) => `${d.day}:${d.list.map((a) => a.id)}`), ['6/10/2026:1,2', '6/9/2026:3']);
+  assert.equal(charName('boltaction^Mx'), 'boltaction');
 });
