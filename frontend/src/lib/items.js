@@ -43,7 +43,7 @@ export const PRESETS = [
 ];
 
 /** A preset's filters on top of empty ones. @param {Partial<Filters>} p @returns {Filters} */
-export const applyPreset = (p) => ({ ...emptyFilters(), ...structuredClone(p) });
+export const applyPreset = (p) => ({ ...emptyFilters(), ...JSON.parse(JSON.stringify(p)) }); // JSON, not structuredClone: saved chips are state proxies
 
 /** Whether the filters are exactly this preset. @param {Filters} f @param {Partial<Filters>} p */
 export const isPreset = (f, p) => JSON.stringify(f) === JSON.stringify(applyPreset(p));
