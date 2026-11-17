@@ -14,7 +14,7 @@
 ### Added
 - **Achievement icons** - `GET /esoicons/<name>.png` downloads `/esoui/art/icons` textures from UESP on first use into `assets/esoicons/`, then serves them locally; achievement icons previously never loaded
 - **Ability names for saved builds** - `GET /api/ability_names?ids=` resolves ability ids iasync couldn't name (often WizardsWardrobe skills) from UESP, so every skill slot shows its icon and details
-- **Gender and max resource pools** - characters carry `gender` and builds carry `pools` (max Health/Magicka/Stamina) from iasync 1.4.0; the Attributes panel shows the pools beside attribute points
+- **Gender and max resource pools** - characters carry `gender` (iasync 1.4.0) and builds carry `pools` (max Health/Magicka/Stamina, iasync 1.5.0); the Attributes panel shows the pools beside attribute points
 - **Game art in the asset manifest** - race silhouettes, empty gear-slot outlines and a lock icon
 - **Frontend unit tests** - `make frontend-test` runs `node --test` over the frontend logic (item filters, achievement merging, collections, build compare, routing, API errors)
 

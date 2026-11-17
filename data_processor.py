@@ -568,7 +568,7 @@ def process_iasync_builds(raw: dict) -> dict:
             "cp":         cp,
             "cp_earned":  build_cp.get("earned", 0),
             "attributes": c.get("build_attributes", {}),
-            "pools":      c.get("build_pools", {}),  # max health/magicka/stamina, iasync >= 1.4.0
+            "pools":      c.get("build_pools", {}),  # max health/magicka/stamina, iasync >= 1.5.0
             "mundus":     mundus,
         })
 

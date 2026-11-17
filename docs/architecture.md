@@ -29,7 +29,7 @@ iasync_data
                          --   bagId: 0=Worn, 1=Backpack
     .build_bars.primary/backup[slot]  -- abilityId; slots 3-7=skills, 8=ultimate
     .build_attributes.health/magicka/stamina
-    .build_pools.health/magicka/stamina  -- max pools as on the character sheet (iasync >= 1.4.0)
+    .build_pools.health/magicka/stamina  -- max pools as on the character sheet (iasync >= 1.5.0)
     .build_mundus        -- list of stone names (stripped "Boon: " prefix)
     .build_cp.earned + .slots[1..12]  -- abilityId per HOTBAR_CATEGORY_CHAMPION slot
   .bank
