@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.1.0-beta.40] - 2026-11-17
+
+### Changed
+- **Smaller Docker image** - multi-stage build on Alpine: 496 MB to 205 MB on disk, 117 MB to 48 MB to pull. Existing `data` and `assets` volumes keep working
+
 ## [0.1.0-beta.39] - 2026-11-17
 
 ### Added
