@@ -55,6 +55,16 @@ def test_ttc_price_uses_uploaded_tables(client, admin_uploaded_workspace):
 
 
 @pytest.mark.api
+def test_ttc_prices_batch(client, admin_uploaded_workspace):
+    ok = client.post(f"/api/ttc_prices?session={TEST_SESSION}", json={"names": ["Mock Sword", "mock  sword", "Missing Item", 5]})
+    bad = client.post(f"/api/ttc_prices?session={TEST_SESSION}", json={"names": "Mock Sword"})
+
+    assert ok.status_code == 200
+    assert ok.json()["prices"] == {"mock sword": 1200}
+    assert bad.status_code == 400
+
+
+@pytest.mark.api
 def test_share_code_join_resolves_uploaded_workspace(client, uploaded_workspace):
     created = client.post(f"/api/share?session={TEST_SESSION}")
     assert created.status_code == 200
@@ -395,9 +405,9 @@ def test_game_icon_downloads_once_and_validates(client, isolated_server, monkeyp
     png = b"\x89PNG\r\n\x1a\nfake"
     calls = []
 
-    def fake_fetch(name):
-        calls.append(name)
-        return png if name == "achievement_x" else None
+    def fake_fetch(name, folder="icons"):
+        calls.append(name if folder == "icons" else f"{folder}/{name}")
+        return png if name in ("achievement_x", "tree_x") else None
 
     monkeypatch.setattr(isolated_server, "_fetch_game_icon", fake_fetch)
     monkeypatch.setattr(isolated_server, "_GAME_ICON_DIR", tmp_path / "esoicons")
@@ -408,10 +418,14 @@ def test_game_icon_downloads_once_and_validates(client, isolated_server, monkeyp
     missing = client.get("/esoicons/nope.png")
     missing_again = client.get("/esoicons/nope.png")
     bad = client.get("/esoicons/..%2Fsecrets.png")
+    tree = client.get("/esoicons/treeicons/tree_x.png")
+    bad_folder = client.get("/esoicons/etc/tree_x.png")
 
     assert first.status_code == 200 and first.content == png
     assert first.headers["content-type"] == "image/png"
     assert second.status_code == 200
     assert missing.status_code == 404 and missing_again.status_code == 404
-    assert calls == ["achievement_x", "nope"]  # cached on disk / remembered as missing
+    assert tree.status_code == 200 and (tmp_path / "esoicons" / "treeicons" / "tree_x.png").exists()
+    assert bad_folder.status_code == 400
+    assert calls == ["achievement_x", "nope", "treeicons/tree_x"]  # cached on disk / remembered as missing
     assert bad.status_code in (400, 404)

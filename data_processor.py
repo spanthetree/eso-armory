@@ -17,6 +17,11 @@ FILTER_TYPE_NAMES = {
     1: "Weapons", 2: "Armor", 3: "Consumables", 4: "Materials",
     5: "Miscellaneous", 6: "Glyphs", 21: "Furnishings", 25: "Jewelry",
 }
+# EQUIPMENT_FILTER_TYPE_*: what GetEquipmentFilterTypeForItemSetCollectionSlot really returns
+EQUIPMENT_FILTER_NAMES = {
+    1: "Light", 2: "Medium", 3: "Heavy", 4: "Necklace", 5: "Ring", 6: "One-Handed",
+    7: "Shield", 8: "Two-Handed", 9: "Destruction Staff", 10: "Restoration Staff", 11: "Bow",
+}
 FILTER_TYPE_ICONS = {
     1: "⚔", 2: "🛡", 3: "⚗", 4: "🔩",
     5: "📦", 6: "✨", 21: "🏛", 25: "💍",
@@ -392,6 +397,7 @@ def process_iasync_achievements(raw: dict) -> dict:
             })
         categories.append({
             "name":           cat.get("name", ""),
+            "icon":           cat.get("icon") or "",
             "total":          int(cat.get("total", 0)),
             "complete":       int(cat.get("complete", 0)),
             "totalPts":       int(cat.get("totalPts", 0)),
@@ -614,9 +620,10 @@ def process_iasync_stickerbook(raw: dict) -> dict:
             filter_type = int(p.get("filterType", 0))
             pieces.append({
                 "filterType": filter_type,
-                "filterName": FILTER_TYPE_NAMES.get(filter_type, ""),
+                "filterName": EQUIPMENT_FILTER_NAMES.get(filter_type, ""),
                 "collected":  bool(p.get("collected", False)),
                 "name":       p.get("name", ""),
+                "icon":       p.get("icon") or "",
             })
 
         sets.append({
@@ -633,6 +640,7 @@ def process_iasync_stickerbook(raw: dict) -> dict:
     sets.sort(key=lambda s: s["name"].lower())
 
     return {
-        "sets":       sets,
-        "lastUpdate": int(sb_raw.get("lastUpdate", 0)),
+        "sets":          sets,
+        "categoryIcons": {str(k): v for k, v in (sb_raw.get("categoryIcons") or {}).items() if isinstance(v, str)},
+        "lastUpdate":    int(sb_raw.get("lastUpdate", 0)),
     }

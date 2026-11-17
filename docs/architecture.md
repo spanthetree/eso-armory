@@ -40,7 +40,8 @@ iasync_data
   .abilityNames[abilityId]  -- GetAbilityName(); also keyed as $abilityNames - both are merged
   .cpNames[starId]           -- GetChampionSkillName()
   .stickerbook.sets[setId]  -- name, category, subcategory, numCollected, numTotal,
-                             --   pieces[i].{collected, name}
+                             --   pieces[i].{filterType, collected, name, icon}
+  .stickerbook.categoryIcons[name]  -- top-level category tree icon (iasync 1.6.0)
   .lastUpdate
 ```
 
@@ -70,13 +71,15 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `GET /api/data` | `{meta, characters, bank, house_chests, items}` |
 | `GET /api/builds` | `{builds, abilityNames, cpNames}` |
 | `GET /api/achievements` | `{totalPts, earnedPts, categories, account_items, items_by_char, chars, recent}` |
-| `GET /api/stickerbook` | `{sets: [{setId, name, category, subcategory, numCollected, numTotal, complete, pieces}], lastUpdate}` |
+| `GET /api/stickerbook` | `{sets: [{setId, name, category, subcategory, numCollected, numTotal, complete, pieces: [{filterType, filterName, collected, name, icon}]}], categoryIcons, lastUpdate}`; `filterType` is `EQUIPMENT_FILTER_TYPE_*` (1 Light … 11 Bow); `icon`/`categoryIcons` need iasync 1.6.0 |
 | `GET /api/ww_builds` | `{builds: {charId: [build, ...]}}` |
 | `GET /api/set_bonus?set_id=&set_name=` | Set bonuses from eso-sets.com (memory cached) |
 | `GET /api/skill_info?name=` | Skill details from eso-skillbook.com (memory cached) |
 | `GET /api/ability_names?ids=` | Names for up to 40 ability ids iasync could not resolve (e.g. skills only in Wizards Wardrobe setups), from UESP's mined skill data (memory cached) |
 | `GET /esoicons/<name>.png` | Game icon from `/esoui/art/icons/` (e.g. achievement icons). Downloaded from esoicons.uesp.net on first request into `assets/esoicons/` (never committed), then served locally; names must match `[a-z0-9_]+` |
+| `GET /esoicons/<folder>/<name>.png` | Same, from `/esoui/art/<folder>/` for `treeicons`, `collections`, `achievements` (category tree icons) |
 | `GET /api/ttc_price?name=&session=&share=` | TTC price from uploaded or local price tables |
+| `POST /api/ttc_prices?session=&share=` | Body `{names: [...]}` (≤ 10,000) → `{prices: {lowercased name: avg}, priceTableTime}`; names without a price are left out. Without TTC tables: `{prices: {}, error}` |
 | `GET/POST /api/share?session=&share=` | Get/create pairing code for workspace sharing |
 | `POST /api/share/join?session=&code=` | Bind browser to shared workspace via pairing code |
 | `GET /api/workspace?session=&share=` | `{primary, shadow, activeSlot, activeAccount}` |

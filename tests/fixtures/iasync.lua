@@ -188,6 +188,7 @@ iasync_data = {
     ["categories"] = {
       [1] = {
         ["name"] = "General",
+        ["icon"] = "/esoui/art/treeicons/achievements_indexicon_general_up.dds",
         ["total"] = 2,
         ["complete"] = 1,
         ["totalPts"] = 50,
@@ -222,6 +223,9 @@ iasync_data = {
   },
   ["stickerbook"] = {
     ["lastUpdate"] = 1700000030,
+    ["categoryIcons"] = {
+      ["Dungeons"] = "/esoui/art/collections/collections_categoryicon_dungeons_up.dds",
+    },
     ["sets"] = {
       [500] = {
         ["name"] = "Mock Set",
@@ -231,12 +235,13 @@ iasync_data = {
         ["numTotal"] = 2,
         ["pieces"] = {
           [1] = {
-            ["filterType"] = 1,
+            ["filterType"] = 6,
             ["collected"] = true,
             ["name"] = "Mock Sword",
+            ["icon"] = "/esoui/art/icons/gear_mock_1hsword_a.dds",
           },
           [2] = {
-            ["filterType"] = 2,
+            ["filterType"] = 3,
             ["collected"] = false,
             ["name"] = "Mock Cuirass",
           },
