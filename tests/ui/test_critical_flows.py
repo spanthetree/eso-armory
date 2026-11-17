@@ -116,7 +116,7 @@ def test_achievements_tab_renders_summary_and_category(page: Page, app_url: str,
 
     expect(page.get_by_text("Achievement Points Earned")).to_be_visible(timeout=15000)
     nav = page.get_by_role("navigation", name="Achievement categories")
-    nav.get_by_role("button").nth(1).click()
+    nav.get_by_role("button", name="General").click()
     expect(page.get_by_role("listitem").filter(has_text="Mock Account Achievement")).to_be_visible()
     expect(page.get_by_label("Filter achievements")).to_be_visible()
 

@@ -54,7 +54,11 @@ const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').r
 Icons are ZeniMax artwork and are **not committed**: `assets/` is gitignored and filled by `make assets` (`scripts/download_assets.py`) from the URLs in `scripts/assets_manifest.json` (UESP `images.uesp.net` / `esoicons.uesp.net`; needs a browser-like User-Agent). To add an icon, add a `"path": "url"` entry to the manifest and run `make assets`. Never commit image files under `assets/`.
 
 ## Design System
-"Obsidian" look: near-black translucent panels (`Frame`) with gold rules, Cinzel (display) + Barlow Condensed (UI), white text. Tokens live in `frontend/src/lib/styles/tokens.css`; gold (`--accent`, `--accent-hi`) is for rules, frames and ornaments only. There are no themes or alliance tinting (both were removed on purpose).
+Two looks, switched by the top-bar **UI** dropdown (`lib/uimode.svelte.js`, mirrored on `<html data-ui>`):
+- **Classic** (default): the ESO keyboard UI. Game textures come from UESP via `make assets` (`assets/esoui/`, never committed); `lib/eso/tex.js` cuts them up (TextureCoords crops, 8-segment backdrop edge files) into CSS variables on `:root`. `lib/eso/eso.css` has the in-game building blocks (`.eso-*`), `lib/eso/classic.css` re-skins shared tokens/classes, and components add Classic rules as `:global(:root[data-ui='classic']) .x`. Achievements and Collections are redrawn on `EsoWindow`'s 995x800 stage in the game's own pixels, copied from the esoui XML templates (github.com/esoui/esoui). Colours come from iasync `uiColors` (`applyUiColors`) with approximations as fallback. The game font (Univers 57/67 Condensed) is used only if installed locally; Barlow Condensed is the fallback. Keep every Classic rule scoped so Simple stays unchanged.
+- **Simple**: the "Obsidian" look below. `AchievementsSimple.svelte` / `CollectionsSimple.svelte` keep the Simple tabs.
+
+"Obsidian" (Simple) look: near-black translucent panels (`Frame`) with gold rules, Cinzel (display) + Barlow Condensed (UI), white text. Tokens live in `frontend/src/lib/styles/tokens.css`; gold (`--accent`, `--accent-hi`) is for rules, frames and ornaments only. There are no themes or alliance tinting (both were removed on purpose).
 
 **Quality/resource colours are NOT tokens to restyle** - they are game data (`--q-*`, `--res-*`, and `item.quality_color` from the server).
 

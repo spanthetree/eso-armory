@@ -70,8 +70,9 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 |----------|---------|
 | `GET /api/data` | `{meta, characters, bank, house_chests, items}` |
 | `GET /api/builds` | `{builds, abilityNames, cpNames}` |
-| `GET /api/achievements` | `{totalPts, earnedPts, categories, account_items, items_by_char, chars, recent}`; `categories[].icon` is the tree icon (iasync 1.6.0); `recent` is the 50 newest completions, one per achievement |
-| `GET /api/stickerbook` | `{sets: [{setId, name, category, subcategory, numCollected, numTotal, complete, pieces: [{filterType, filterName, collected, name, icon}]}], categoryIcons, lastUpdate}`; `filterType` is `EQUIPMENT_FILTER_TYPE_*` (1 Light … 11 Bow); `icon`/`categoryIcons` need iasync 1.6.0 |
+| `uiColors` | Present on `/api/data`, `/api/achievements` and `/api/stickerbook`: the client's interface colours from iasync 1.7.0 (`{textNormal, textSelected, …, xpStart, xpEnd}` as `rrggbb`, only well-formed values), used by the Classic UI |
+| `GET /api/achievements` | `{totalPts, earnedPts, categories, account_items, items_by_char, chars, recent, uiColors}`; `categories[].icon` is the tree icon (iasync 1.6.0); `recent` is the 50 newest completions, one per achievement; items carry `rewards` (`[{type: title\|dye\|collectible\|item, name, id?, icon?}]`) and `lineBaseId`/`linePreviousId`/`lineNextId` (tiered lines) |
+| `GET /api/stickerbook` | `{sets: [{setId, name, category, subcategory, numCollected, numTotal, complete, pieces: [{filterType, filterName, collected, name, icon, quality}], reconCost, reconCurrency}], categoryIcons, lastUpdate, uiColors}`; `filterType` is `EQUIPMENT_FILTER_TYPE_*` (1 Light … 11 Bow); `icon`/`categoryIcons` need iasync 1.6.0; `quality`, `reconCost` (transmute cost) and `uiColors` need iasync 1.7.0 |
 | `GET /api/ww_builds` | `{builds: {charId: [build, ...]}}` |
 | `GET /api/set_bonus?set_id=&set_name=` | Set bonuses from eso-sets.com (memory cached) |
 | `GET /api/skill_info?name=` | Skill details from eso-skillbook.com (memory cached) |

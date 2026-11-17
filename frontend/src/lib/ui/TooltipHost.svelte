@@ -59,7 +59,7 @@
   .tip :global(.t-off) { opacity: 0.45; }
 
   /* Classic: the game's tooltip (ZO_BaseTooltip: ui-border + tooltip centre + munge overlay). */
-  :global(:root[data-ui='classic']) .tip { background: url('/assets/esoui/tooltips/munge_overlay.png') repeat; border: 0 solid transparent; border-image: var(--eso-backdrop) 16 fill / 16px;
+  :global(:root[data-ui='classic']) .tip { background: url('/assets/esoui/tooltips/munge_overlay.png') repeat, #000a; border: 0 solid transparent; border-image: var(--eso-backdrop) 16 fill / 16px;
     padding: 16px 18px; font-family: var(--eso-font-medium); text-shadow: var(--eso-shadow-thin); }
   :global(:root[data-ui='classic']) .tip :global(.t-name) { font: 700 20px var(--eso-font); letter-spacing: 0; text-transform: uppercase; text-align: center; }
   :global(:root[data-ui='classic']) .tip :global(.t-head) { font: 700 16px var(--eso-font); color: var(--eso-normal); }

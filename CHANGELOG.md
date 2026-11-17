@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [0.2.0-beta.3] - 2026-11-18
+
+### Added
+- **Classic UI** (new default) - the whole app in the game's keyboard UI art from UESP: darkened loading-screen background, main menu icon bar for the tabs, label button bar for character views, window titles with the game's dividers, game buttons, edit boxes, dropdowns, checkboxes and scrollbars, tooltip and dialog backdrops, list rows with the teal highlight, inventory tab icons and arrow progress bars
+- **Achievements and Collections redrawn from the game's own layouts** - positions, sizes and fonts copied from the esoui UI source; tiered achievements fold into one row with their tiers shown when expanded, rows expand to criteria and rewards, set headers show the transmute cost, locked pieces show as silhouettes; Classic keeps the timeline, set links and per-category counts
+- **UI switch** - a top-bar dropdown between Classic and Simple (the previous look), remembered per browser
+- **Server** passes through achievement rewards and tier lines, set reconstruction cost and piece quality, and the client's interface colours (`uiColors`, iasync 1.7.0)
+
+### Changed
+- `make assets` downloads about 120 more UI textures, including a 3 MB loading screen (download timeout raised to 120 s)
+
 ## [0.2.0-beta.2] - 2026-11-17
 
 ### Added
