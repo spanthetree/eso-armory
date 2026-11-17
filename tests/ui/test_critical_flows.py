@@ -300,3 +300,18 @@ def test_collections_piece_grid_filters(page: Page, app_url: str, fixtures_dir):
     page.get_by_label("Show Locked").uncheck()
     expect(pieces).to_have_count(1)
     expect(page.get_by_label("Mock Sword", exact=True)).to_be_visible()
+
+
+@pytest.mark.ui
+def test_ui_style_switch_is_remembered(page: Page, app_url: str, fixtures_dir):
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    open_tab(page, "Achievements")
+    expect(page.get_by_text("Achievement Points Earned")).to_be_visible(timeout=15000)
+
+    page.get_by_label("UI style").select_option("simple")
+    expect(page.get_by_role("heading", name="SUMMARY")).to_be_visible()
+    page.reload()
+    open_tab(page, "Achievements")
+    expect(page.get_by_role("heading", name="SUMMARY")).to_be_visible(timeout=15000)
+    expect(page.locator("html")).to_have_attribute("data-ui", "simple")

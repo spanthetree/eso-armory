@@ -1,4 +1,5 @@
 <script>
+  import { ui, setUiMode } from '../uimode.svelte.js';
   import { app, refresh, switchSlot, deleteShadow, toast } from '../store.svelte.js';
   import { nav, go } from '../nav.svelte.js';
   import { watch, checkFolder } from '../upload.svelte.js';
@@ -74,6 +75,13 @@
   {/if}
 
   <div class="actions">
+    <label class="uisel" title="Classic: the in-game look. Simple: the plain web look.">
+      <span>UI</span>
+      <select class="field" value={ui.mode} onchange={(e) => setUiMode(/** @type {any} */ (e.currentTarget).value)} aria-label="UI style">
+        <option value="classic">Classic</option>
+        <option value="simple">Simple</option>
+      </select>
+    </label>
     {#if watch.handle}<span class="watch" title="Watching {watch.handle.name} for new SavedVariables">● {watch.handle.name}</span>{/if}
     <span class="live" class:on={app.live} title={app.live ? 'Live updates connected' : 'Live updates reconnecting'}></span>
     <button class="btn" disabled={refreshing} onclick={onRefresh} title="Check for updated SavedVariables data">
@@ -90,6 +98,8 @@
 </header>
 
 <style>
+  .uisel { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .uisel select { width: auto; padding: 3px 6px; }
   .bar {
     position: sticky;
     top: 0;

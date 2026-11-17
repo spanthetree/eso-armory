@@ -17,6 +17,9 @@
   import InventoryTab from './lib/inventory/InventoryTab.svelte';
   import AchievementsTab from './lib/achievements/AchievementsTab.svelte';
   import CollectionsTab from './lib/collections/CollectionsTab.svelte';
+  import AchievementsSimple from './lib/achievements/AchievementsSimple.svelte';
+  import CollectionsSimple from './lib/collections/CollectionsSimple.svelte';
+  import { ui } from './lib/uimode.svelte.js';
   import Segmented from './lib/ui/Segmented.svelte';
   import ShareDialog from './lib/shell/ShareDialog.svelte';
   import PasswordDialog from './lib/shell/PasswordDialog.svelte';
@@ -105,9 +108,9 @@
           {:else if nav.tab === 'inventory'}
             <InventoryTab />
           {:else if nav.tab === 'achievements'}
-            <AchievementsTab />
+            {#if ui.mode === 'classic'}<AchievementsTab />{:else}<AchievementsSimple />{/if}
           {:else if nav.tab === 'collections'}
-            <CollectionsTab />
+            {#if ui.mode === 'classic'}<CollectionsTab />{:else}<CollectionsSimple />{/if}
           {/if}
         </section>
       {/key}
