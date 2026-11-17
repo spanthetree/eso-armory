@@ -23,7 +23,7 @@ from pathlib import Path
 import bcrypt
 import uvicorn
 from fastapi import FastAPI, File, Form, Query, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
@@ -1325,6 +1325,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="ESO Armory", lifespan=lifespan)
+Path("static/dist").mkdir(parents=True, exist_ok=True)  # built frontend; absent until `make ui-build`
 app.mount("/static", StaticFiles(directory="static"), name="static")
 Path("assets").mkdir(exist_ok=True)  # icons are downloaded, not committed
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
@@ -1351,25 +1352,23 @@ async def log_requests(request: Request, call_next):
     return response
 
 
+_APP_HTML = Path("static/dist/index.html")
+_APP_HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
+_NOT_BUILT_HTML = (
+    "<!doctype html><meta charset=utf-8><title>ESO Armory</title>"
+    "<body style='background:#07070a;color:#e8dfc9;font:16px system-ui;padding:40px'>"
+    "<h1>ESO Armory frontend is not built</h1>"
+    "<p>Run <code>make ui-install</code> once, then <code>make ui-build</code>, and reload. "
+    "The Docker image builds it for you.</p></body>"
+)
+
+
 @app.get("/")
 async def root():
-    return FileResponse(
-        "static/index.html",
-        media_type="text/html; charset=utf-8",
-        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
-    )
-
-
-@app.get("/next")
-async def next_ui():
-    """Svelte UI under migration; replaces / at cutover."""
-    if not Path("static/dist/index.html").exists():
-        return JSONResponse({"detail": "Svelte UI not built. Run `make ui-build`."}, status_code=404)
-    return FileResponse(
-        "static/dist/index.html",
-        media_type="text/html; charset=utf-8",
-        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
-    )
+    """The Svelte app (built by Vite into static/dist)."""
+    if not _APP_HTML.exists():
+        return HTMLResponse(_NOT_BUILT_HTML, status_code=503, headers=_APP_HEADERS)
+    return FileResponse(_APP_HTML, media_type="text/html; charset=utf-8", headers=_APP_HEADERS)
 
 
 @app.head("/")

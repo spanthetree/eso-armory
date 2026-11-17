@@ -13,6 +13,7 @@ export default defineConfig({
       '/api': backend,
       '/events': backend,
       '/assets': backend,
+      '/esoicons': backend,
     },
   },
 });

@@ -90,19 +90,10 @@ def test_upload_errors_are_json(client, fixtures_dir):
 
 @pytest.mark.api
 def test_static_and_cached_lookup_endpoints(client, isolated_server, monkeypatch):
-    root = client.get("/")
     root_head = client.head("/")
-    static_index = client.get("/static/index.html")
-    assert root.status_code == 200
-    assert root.headers["content-type"].startswith("text/html")
-    assert root.headers["cache-control"] == "no-store"
-    assert root.headers["x-content-type-options"] == "nosniff"
     assert root_head.status_code == 200
     assert root_head.headers["content-type"].startswith("text/html")
     assert root_head.headers["x-content-type-options"] == "nosniff"
-    assert static_index.status_code == 200
-    assert static_index.headers["content-type"].startswith("text/html")
-    assert static_index.headers["x-content-type-options"] == "nosniff"
 
     monkeypatch.setattr(isolated_server, "_build_ability_icon_map", lambda: {"mock_whip": "/assets/abilities/mock.png"})
     icons = client.get("/api/ability_icons")
@@ -360,18 +351,20 @@ def test_admin_requires_config_entry_and_password(client, isolated_server, uploa
 
 
 @pytest.mark.api
-def test_next_ui_serves_build_or_explains_missing_build(client, tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    missing = client.get("/next")
-    assert missing.status_code == 404
-    assert "make ui-build" in missing.json()["detail"]
+def test_root_serves_built_app_or_explains_missing_build(client, isolated_server, tmp_path, monkeypatch):
+    monkeypatch.setattr(isolated_server, "_APP_HTML", tmp_path / "dist" / "index.html")
+    missing = client.get("/")
+    assert missing.status_code == 503
+    assert missing.headers["content-type"].startswith("text/html")
+    assert "make ui-build" in missing.text
 
-    (tmp_path / "static" / "dist").mkdir(parents=True)
-    (tmp_path / "static" / "dist" / "index.html").write_text("<div id=app></div>")
-    built = client.get("/next")
+    (tmp_path / "dist").mkdir()
+    (tmp_path / "dist" / "index.html").write_text('<div id="app"></div>')
+    built = client.get("/")
     assert built.status_code == 200
     assert built.headers["content-type"].startswith("text/html")
     assert built.headers["cache-control"] == "no-store"
+    assert built.headers["x-content-type-options"] == "nosniff"
 
 
 @pytest.mark.api
