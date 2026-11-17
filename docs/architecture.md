@@ -5,7 +5,7 @@ ESO Armory is a FastAPI server and a single-page frontend. Players upload the `S
 ```text
 ESO addons ─▶ SavedVariables/*.lua ─▶ browser upload or folder watcher
    ─▶ POST /api/upload ─▶ lua_parser ─▶ data_processor ─▶ SQLite (per account)
-   ─▶ GET /api/* ─▶ static/index.html (Alpine.js)
+   ─▶ GET /api/* ─▶ Svelte app (frontend/ built into static/dist, served at /)
 ```
 
 ## Data Sources
@@ -22,12 +22,14 @@ Data reaches the server via browser upload or the folder watcher - the server do
 ```
 iasync_data
   .chars[charId]         -- keyed by tostring(GetCurrentCharacterId())
-    .name, .gold/ap/tv/wv, .spaceUsed/.spaceMax
+    .name, .race, .class, .alliance, .gold/ap/tv/wv, .spaceUsed/.spaceMax
+    .gender              -- "female"/"male" (iasync >= 1.4.0; missing in older files)
     .bags[bagId][slot]   -- item: link, name, qty, traitType/Name, enchantId/Name, setId/Name,
                          --   quality, filterType, weaponType (per-slot, may be stale), armorType
                          --   bagId: 0=Worn, 1=Backpack
     .build_bars.primary/backup[slot]  -- abilityId; slots 3-7=skills, 8=ultimate
     .build_attributes.health/magicka/stamina
+    .build_pools.health/magicka/stamina  -- max pools as on the character sheet (iasync >= 1.4.0)
     .build_mundus        -- list of stone names (stripped "Boon: " prefix)
     .build_cp.earned + .slots[1..12]  -- abilityId per HOTBAR_CATEGORY_CHAMPION slot
   .bank
@@ -161,8 +163,8 @@ The ESO account name in an upload is not proof of ownership. An account with no 
 - **Rate limiting**: `_check_login_rate_limit(ip)` / `_record_login_failure(ip)` - 5 failures in 60 s → 5-min lockout; HTTP 429
 - **Timing oracle**: always runs `bcrypt.checkpw` (against a dummy hash when the account doesn't exist); bcrypt offloaded to thread executor to avoid blocking the event loop
 
-### XSS - `x-html` with user data
-Any function that uses `x-html` to render user-supplied text **must** call `escapeHtml(s)` before interpolating. Example: `abilitySlotHtml` (local and compare builds via `cmpId`) escapes ability names before placing them in `<span>` tags. Ability names come from uploaded Lua data and imported build payloads and are shared across users via share codes - escaping is required.
+### XSS - user-supplied text in the UI
+Ability names, CP names and build payloads come from uploaded Lua files and share codes. The Svelte frontend renders them as text (escaped by default) and never uses `{@html}`; keep it that way. Links built from names (eso-sets, eso-skillbook, TTC) go through `slugify` / `encodeURIComponent`.
 
 ### SSE connection cap
 Session-scoped SSE queue sets are capped at `_MAX_SSE_PER_SESSION = 10`; excess connections return HTTP 429.

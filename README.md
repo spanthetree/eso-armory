@@ -20,15 +20,15 @@ ESO has no way to see your account outside the game. Gear is spread across chara
 
 ## Features
 
-- **Characters.** Equipped gear for every character, with the current skill bars, Champion Points, attributes and Mundus Stone. Saved WizardsWardrobe setups appear beside each character.
+- **Characters.** Each character's equipped gear on an in-game style "Equipped" panel with the race silhouette, plus skill bars, Champion Points, attributes, max Health/Magicka/Stamina and Mundus Stone. Switch a character between Sheet, Wardrobe (saved WizardsWardrobe setups), Bags, Compare and SuperStar views.
 - **Inventory.** Every item across characters, bank, ESO Plus bank, craft bag, house chests and guild banks. Search and filter by quality, type, trait, location and character, or group by set.
 - **Build compare.** Export a build as a short code, import someone else's, and compare gear side by side. Missing pieces are listed with their source (dungeon, trial, arena) and an estimated Tamriel Trade Centre cost.
 - **SuperStar import.** Upload a screenshot from the SuperStar addon and compare that build against your gear, slot by slot. Needs an Anthropic API key.
-- **Achievements.** Account-wide progress by category, with per-character completions and recent unlocks.
+- **Achievements.** Account-wide progress by category, with achievement icons, per-character completions, criteria progress and recent unlocks.
 - **Collections.** Set collection progress by category, with Tamriel Trade Centre prices on each piece.
 - **Workspaces.** Each ESO account's data is stored once and reopens without re-uploading. Share a workspace with a pairing code, or load a second account beside your own.
 - **Auto-sync.** In Chrome and Edge, point the app at your ESO folder once and it uploads changed files as you play.
-- **Themes.** Five colour palettes.
+- **Looks like the game.** Dark panels with gold rules, the game's own icons, animated loading and transitions, and a layout that fits one screen.
 
 ## How it works
 
@@ -56,15 +56,18 @@ docker compose up -d
 
 This pulls `ghcr.io/spanthetree/eso-armory` and serves on port 5000. The first start downloads the game icons from UESP (about 2 minutes). Data lives in two volumes: `data` (accounts, config and its encryption key) and `assets` (icons).
 
-- `ESO_ARMORY_PORT=8080` changes the port; `ESO_ARMORY_VERSION=0.1.0-beta.39` pins a release.
+- `ESO_ARMORY_PORT=8080` changes the port; `ESO_ARMORY_VERSION=0.2.0-beta.1` pins a release.
 - Put `ANTHROPIC_API_KEY=...` in a `.env` file next to `compose.yaml` to enable SuperStar import.
 - From a checkout, `docker compose up -d --build` runs your local code instead.
 - To change [configuration](#configuration), copy it out with `docker compose cp web:/app/uploads/config.json .`, edit it, copy it back with `docker compose cp config.json web:/app/uploads/`, then `docker compose restart`.
 
 ### Run from source
 
+Also needs [Node.js](https://nodejs.org/) 18 or newer to build the frontend.
+
 ```bash
 uv sync
+make ui-build                 # install frontend packages and build the app into static/dist
 make assets                   # download game icons from UESP (about 2 minutes)
 uv run server.py              # port 5000
 uv run server.py --port 8080  # or another port
@@ -108,10 +111,14 @@ The server speaks plain HTTP. Put it behind a reverse proxy such as Caddy or ngi
 ```bash
 uv sync --dev
 make playwright-install  # once, for browser tests
-make test-fast           # unit + API tests
-make test-ui             # Playwright, Chromium + Firefox
-make test-all            # both
+make ui-dev              # frontend with hot reload on :5173; run the server on :5000 alongside
+make test-fast           # Python unit + API tests
+make frontend-test       # JavaScript unit tests
+make test-ui             # builds the frontend, then Playwright in Chromium + Firefox
+make test-all            # all of the above
 ```
+
+The frontend is [Svelte 5](https://svelte.dev/) built with Vite, in `frontend/`. `make ui-build` writes it to `static/dist/`, which the server serves at `/`. Game data colours (item quality, resources) are fixed; everything else comes from the tokens in `frontend/src/lib/styles/tokens.css`.
 
 How the server, storage and API fit together: [docs/architecture.md](docs/architecture.md).
 
@@ -124,7 +131,7 @@ Test fixtures in `tests/fixtures/` are sanitized. Do not commit live account dat
 | `lua_parser.py` | SavedVariables Lua parser |
 | `data_processor.py` | iasync and WizardsWardrobe data to API payloads |
 | `item_link_decoder.py` | ESO item link decoder |
-| `static/index.html` | Single-file frontend (Alpine.js + Tailwind) |
+| `frontend/` | Svelte 5 frontend: `src/App.svelte` shell, `src/lib/` tabs, components and logic (unit-tested `*.test.js`) |
 | `scripts/assets_manifest.json` | Game icon sources; `make assets` downloads them into `assets/` |
 
 ## Contributing

@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [0.2.0-beta.1] - 2026-11-17
+
+### Changed
+- **New frontend** - the single-file Alpine.js UI is replaced by a Svelte 5 + Vite app in `frontend/`, built into `static/dist/` and served at `/`. The look follows ESO's own interface: dark panels with gold rules, Cinzel and Barlow Condensed type, game icons, and animated loading, tabs and tooltips. Running from source now needs Node.js 18+ (`make ui-build`); the Docker image builds it for you
+- **Character pages** - an in-game style "Equipped" panel with the race silhouette (human, Argonian or Khajiit, female when iasync records it) and the game's empty-slot outlines; each character has Sheet, Wardrobe, Bags, Compare and SuperStar views with their own URLs
+- **Fits one screen** - character views and the Inventory, Achievements and Collections tabs fit a 1400x900 window; long lists scroll inside their panel, and the 2,000+ item inventory renders in batches
+- **Achievements** - achievements filed under a subcategory their category doesn't list (e.g. "Group Dungeons") get their own section instead of being hidden
+- **Upload** - after the first upload the live-update connection reconnects, so later changes reach that browser without a reload
+
+### Added
+- **Achievement icons** - `GET /esoicons/<name>.png` downloads `/esoui/art/icons` textures from UESP on first use into `assets/esoicons/`, then serves them locally; achievement icons previously never loaded
+- **Ability names for saved builds** - `GET /api/ability_names?ids=` resolves ability ids iasync couldn't name (often WizardsWardrobe skills) from UESP, so every skill slot shows its icon and details
+- **Gender and max resource pools** - characters carry `gender` and builds carry `pools` (max Health/Magicka/Stamina) from iasync 1.4.0; the Attributes panel shows the pools beside attribute points
+- **Game art in the asset manifest** - race silhouettes, empty gear-slot outlines and a lock icon
+- **Frontend unit tests** - `make frontend-test` runs `node --test` over the frontend logic (item filters, achievement merging, collections, build compare, routing, API errors)
+
+### Removed
+- **Colour themes** - the five palettes are gone; the app has one look
+- **`static/index.html` and vendored Alpine.js**
+
 ## [0.1.0-beta.39] - 2026-11-17
 
 ### Added
