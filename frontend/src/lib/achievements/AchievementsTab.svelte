@@ -1,6 +1,7 @@
 <script>
   import Frame from '../ui/Frame.svelte';
   import Progress from '../ui/Progress.svelte';
+  import CountBar from '../ui/CountBar.svelte';
   import AchievTip from '../tips/AchievTip.svelte';
   import { tooltip } from '../ui/tooltip.svelte.js';
   import { app } from '../store.svelte.js';
@@ -53,13 +54,6 @@
     subName = sname;
   }
 </script>
-
-{#snippet bar(/** @type {number} */ v, /** @type {number} */ max, /** @type {boolean} */ big)}
-  <span class="bar" class:big role="progressbar" aria-valuenow={v} aria-valuemin="0" aria-valuemax={max}>
-    <span class="fill" style="width: {max ? Math.min(100, (v / max) * 100) : 0}%"></span>
-    <span class="bt num">{fmt(v)}/{fmt(max)}</span>
-  </span>
-{/snippet}
 
 {#snippet icon(/** @type {any} */ a, /** @type {number} */ size)}
   {@const src = gameIcon(a.icon)}
@@ -154,12 +148,12 @@
       {:else if !cat}
         <div class="body">
           <h3 class="first">ACHIEVEMENT POINTS EARNED</h3>
-          {@render bar(data.earnedPts, data.totalPts, true)}
+          <CountBar value={data.earnedPts} max={data.totalPts} big />
           <div class="cats">
             {#each data.categories as c (c.name)}
               <button class="cg" onclick={() => pick(c.name)}>
                 <span class="cgn">{c.name.toUpperCase()}</span>
-                {@render bar(c.earnedPts, c.totalPts, false)}
+                <CountBar value={c.earnedPts} max={c.totalPts} />
               </button>
             {/each}
           </div>
@@ -198,7 +192,7 @@
           <div class="crumbs"><button class="link" onclick={() => pick(null)}>Summary</button> › <span>{cat.name}</span>{#if sub}{' '}› <span>{sub.name}</span>{/if}</div>
           {#if sub}
             <div class="subhead"><span class="sn">{sub.name}</span><span class="muted num">{sub.complete}/{sub.total} complete</span></div>
-            {@render bar(sub.earnedPts, sub.totalPts, false)}
+            <CountBar value={sub.earnedPts} max={sub.totalPts} />
             <div class="items" role="list">
               {#each list as a (`${charId}_${a.id}`)}{@render row(a)}{:else}<p class="hint">No individual achievement data for this subcategory.</p>{/each}
             </div>
@@ -256,12 +250,6 @@
   .crumbs span { color: var(--accent-hi); }
   .muted { color: var(--muted); font-size: 13px; }
 
-  /* In-game bars: a teal fill with the count printed over it. */
-  .bar { position: relative; display: block; height: 16px; background: #0b1114; border: 1px solid #3a4a52; box-shadow: inset 0 1px 3px #000; overflow: hidden; }
-  .bar.big { height: 20px; }
-  .fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(#9fe3f2, #4aa7c4 45%, #2f7f9d); box-shadow: 0 0 8px #5cc3e080; transition: width 0.8s var(--ease-out); }
-  .bt { position: relative; display: block; text-align: center; font-size: 12px; line-height: 14px; color: #fff; text-shadow: 0 0 3px #000, 0 0 2px #000; }
-  .big .bt { line-height: 18px; font-size: 13px; }
   .cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 10px 26px; margin-top: 16px; }
   .cg { all: unset; display: grid; gap: 3px; cursor: pointer; }
   .cg:hover .cgn, .cg:focus-visible .cgn { color: var(--accent-hi); }
