@@ -218,8 +218,19 @@ iasync_data = {
         ["completionDate"] = "2023-11-14",
         ["persistenceLevel"] = 0,
         ["criteria"] = {},
+        ["lineBaseId"] = 8999,
+        ["linePreviousId"] = 8999,
+        ["lineNextId"] = 0,
+        ["rewards"] = {
+          [1] = { ["type"] = "title", ["name"] = "Mock Title", ["id"] = 7 },
+          [2] = { ["type"] = "tribute_card_upgrade", ["patronId"] = 1, ["cardIndex"] = 2 },
+        },
       },
     },
+  },
+  ["uiColors"] = {
+    ["textNormal"] = "C5C29E",
+    ["xpStart"] = "not-a-colour",
   },
   ["stickerbook"] = {
     ["lastUpdate"] = 1700000030,
@@ -233,8 +244,12 @@ iasync_data = {
         ["subcategory"] = "Test Dungeon",
         ["numCollected"] = 1,
         ["numTotal"] = 2,
+        ["reconCurrency"] = 5,
+        ["reconCost"] = 25,
         ["pieces"] = {
           [1] = {
+            ["id"] = 42,
+            ["quality"] = 4,
             ["filterType"] = 6,
             ["collected"] = true,
             ["name"] = "Mock Sword",

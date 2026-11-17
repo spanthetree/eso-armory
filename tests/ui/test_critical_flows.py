@@ -114,10 +114,11 @@ def test_achievements_tab_renders_summary_and_category(page: Page, app_url: str,
     upload_all_fixtures(page, fixtures_dir)
     open_tab(page, "Achievements")
 
-    expect(page.get_by_role("heading", name="SUMMARY")).to_be_visible(timeout=15000)
+    expect(page.get_by_text("Achievement Points Earned")).to_be_visible(timeout=15000)
     nav = page.get_by_role("navigation", name="Achievement categories")
     nav.get_by_role("button").nth(1).click()
-    expect(page.get_by_text("Summary ›", exact=False)).to_be_visible()
+    expect(page.get_by_role("listitem").filter(has_text="Mock Account Achievement")).to_be_visible()
+    expect(page.get_by_label("Filter achievements")).to_be_visible()
 
 
 @pytest.mark.ui
@@ -152,7 +153,7 @@ def test_collections_tooltip_shows_bonus_lookup_error(page: Page, app_url: str, 
     upload_all_fixtures(page, fixtures_dir)
     open_tab(page, "Collections")
     page.get_by_role("navigation").get_by_role("button", name=re.compile(r"Dungeons")).click()
-    page.get_by_role("link", name="Mock Set").first.hover()
+    page.get_by_text("Mock Set", exact=True).first.hover()
 
     expect(page.get_by_text("Set bonuses blocked")).to_be_visible(timeout=15000)
 
@@ -280,7 +281,8 @@ def test_achievements_search_spans_categories(page: Page, app_url: str, fixtures
 
     expect(page.get_by_text("RECENT ACHIEVEMENTS")).to_be_visible(timeout=15000)
     page.get_by_label("Search achievements").fill("mock")
-    expect(page.get_by_role("heading", name="SEARCH")).to_be_visible()
+    # Like the game, the search narrows the tree and lists the matches of the first matching category.
+    expect(page.get_by_role("navigation", name="Achievement categories").get_by_role("button", name="Summary")).to_have_count(0)
     expect(page.get_by_text("Mock Account Achievement")).to_be_visible()
 
 
