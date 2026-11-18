@@ -7,7 +7,7 @@
   import { app } from '../store.svelte.js';
   import { ui } from '../uimode.svelte.js';
   import { gameIcon, pressedIcon, pct } from '../achievements.js';
-  import { bookCategories, bookItems, COLLECTIBLE_FILTERS } from '../collections.js';
+  import { bookCategories, bookItems, patronBook, COLLECTIBLE_FILTERS } from '../collections.js';
 
   // Classic: the in-game keyboard Collections book (esoui ingame/collections/keyboard/collectionsbook.xml and the
   // specialized books) on EsoWindow's stage: category tree, Filter By search, show filter, 175x125 collectible tiles.
@@ -16,7 +16,8 @@
   let { book } = $props();
 
   const sb = $derived(app.stickerbook.value);
-  const col = $derived(sb?.collectibles);
+  // Tales of Tribute: the patrons as the game's tree shows them (iasync 1.10.0), when present.
+  const col = $derived(book.spec === 4 ? patronBook(sb?.collectibles) : sb?.collectibles);
   $effect(() => applyUiColors(sb?.uiColors));
   const cats = $derived(bookCategories(col, book.spec));
 
@@ -150,7 +151,7 @@
           {#each items.slice(0, limit) as it (it.id)}
             {@const img = gameIcon(it.icon)}
             <!-- ZO_CollectibleTile_Keyboard: 175x125, 52px icon centred 41px from the top, name below -->
-            <div class="ct" class:locked={!it.unlocked} role="listitem" tabindex="0" title="{it.name}{it.unlocked ? '' : ' (locked)'}">
+            <div class="ct" class:locked={!it.unlocked} class:coin={it.icon.includes('/tribute/patrons/')} role="listitem" tabindex="0" title="{it.name}{it.unlocked ? '' : ' (locked)'}">
               {#if img}<img src={img} alt="" loading="lazy" />{/if}
               <span class="nm">{it.name}</span>
             </div>
@@ -175,6 +176,9 @@
   .ct:hover::after, .ct:focus-visible::after { opacity: 1; }
   .ct img { position: absolute; left: 61px; top: 15px; width: 52px; height: 52px; transition: transform 0.15s; }
   .ct:hover img, .ct:focus-visible img { transform: scale(1.15); }
+  /* Patron coins fill only the middle 57% of their texture. */
+  .ct.coin img { transform: scale(1.7); }
+  .ct.coin:hover img, .ct.coin:focus-visible img { transform: scale(1.95); }
   .nm {
     position: absolute; left: 7px; right: 7px; top: 73px; text-align: center;
     font: 700 18px/20px var(--eso-font); color: var(--eso-selected); text-shadow: var(--eso-shadow);

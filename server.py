@@ -2279,9 +2279,10 @@ async def api_skill_info(name: str):
     return JSONResponse(result)
 
 
-_GAME_ICON_RE = re.compile(r"^[a-z0-9_]{1,120}$")
+_GAME_ICON_RE = re.compile(r"^[a-z0-9_][a-z0-9_-]{0,119}$")  # hyphens: patron coins (saint-pelin_coin)
 # esoui/art folders the proxy may fetch from besides icons/ (category tree icons)
-_GAME_ICON_DIRS = {"treeicons", "collections", "achievements", "charactercreate"}  # charactercreate: alliance set categories
+# charactercreate: alliance set categories; tribute(/patrons): Tales of Tribute tree icons and patron coins
+_GAME_ICON_DIRS = {"treeicons", "collections", "achievements", "charactercreate", "tribute", "tribute/patrons"}
 _GAME_ICON_DIR = Path("assets") / "esoicons"
 _game_icon_missing: collections.OrderedDict = collections.OrderedDict()  # names UESP doesn't have
 
@@ -2310,6 +2311,12 @@ async def game_icon(name: str):
 async def game_icon_in(folder: str, name: str):
     """Category tree icons from /esoui/art/{treeicons,collections,achievements}."""
     return await _serve_game_icon(folder.lower(), name)
+
+
+@app.get("/esoicons/{folder}/{sub}/{name}.png")
+async def game_icon_in_sub(folder: str, sub: str, name: str):
+    """Icons one folder deeper (tribute/patrons); only folders listed in _GAME_ICON_DIRS."""
+    return await _serve_game_icon(f"{folder}/{sub}".lower(), name)
 
 
 async def _serve_game_icon(folder: str, name: str):

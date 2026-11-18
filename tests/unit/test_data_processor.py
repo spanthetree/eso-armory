@@ -142,4 +142,21 @@ def test_collectibles_sorted_by_index_with_subcategories():
     assert col["categories"][1]["specialization"] == 3
     assert [(i["id"], i["name"], i["unlocked"], i["sub"]) for i in col["items"]] == [(3, "A Chest", False, 2), (7, "b helm", True, 1)]
     assert col["lastUpdate"] == 5
-    assert process_iasync_collectibles({}) == {"categories": [], "items": [], "lastUpdate": 0}
+    assert process_iasync_collectibles({}) == {"categories": [], "items": [], "patrons": [], "lastUpdate": 0}
+
+
+def test_tribute_patrons_in_tree_order_with_unlock_state():
+    from data_processor import process_iasync_collectibles
+
+    raw = {"collectibles": {
+        "items": {"500": {"name": "Saint Pelin", "unlocked": True, "cat": 2, "sub": 0}},
+        "patrons": {
+            "2": {"name": "Treasury", "category": "Neutral", "categoryOrder": 2, "collectibleId": 0, "icon": "/esoui/art/tribute/patrons/patron_coin_neutral.dds"},
+            "9": {"name": "Zed", "category": "Patrons", "categoryOrder": 1, "collectibleId": 501},
+            "1": {"name": "Saint Pelin", "category": "Patrons", "categoryOrder": 1, "collectibleId": 500},
+            "40": {"name": "Not In Tree", "categoryOrder": 0},
+        },
+    }}
+    patrons = process_iasync_collectibles(raw)["patrons"]
+    assert [(p["name"], p["category"], p["unlocked"]) for p in patrons] == [
+        ("Saint Pelin", "Patrons", True), ("Zed", "Patrons", False), ("Treasury", "Neutral", True)]

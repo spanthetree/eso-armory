@@ -96,3 +96,22 @@ test('collectible books: categories by tab, items by category, search, show filt
   assert.deepEqual(ids({ cat: 2, sub: null }), []); // hidesLocked
   assert.deepEqual(ids({ cat: null, sub: null }, { search: 'horse' }), [10]); // search stays inside this tab
 });
+
+test('Tales of Tribute book: patron categories in tree order, patrons as tiles', async () => {
+  const { patronBook, bookCategories, bookItems } = await import('./collections.js');
+  const col = {
+    categories: [{ idx: 1, name: 'Stories', specialization: 1 }, { idx: 2, name: 'Patrons', specialization: 4 }],
+    items: [{ id: 7, name: 'A Story', cat: 1, sub: 0, unlocked: true }],
+    patrons: [
+      { id: 1, name: 'Saint Pelin', category: 'Patrons', categoryOrder: 1, categoryIcon: 'p.dds', icon: 'c.dds', unlocked: true },
+      { id: 9, name: 'Zed', category: 'Patrons', categoryOrder: 1, categoryIcon: 'p.dds', icon: 'z.dds', unlocked: false },
+      { id: 2, name: 'Treasury', category: 'Neutral', categoryOrder: 2, categoryIcon: 'n.dds', icon: 't.dds', unlocked: true },
+    ],
+  };
+  const book = patronBook(col);
+  const cats = bookCategories(book, 4);
+  assert.deepEqual(cats.map((c) => [c.name, c.unlocked, c.total]), [['Patrons', 1, 2], ['Neutral', 1, 1]]);
+  const names = bookItems(book, cats, { cat: cats[0].idx, sub: null }, { search: '', show: 'all' }).map((i) => i.name);
+  assert.deepEqual(names, ['Saint Pelin', 'Zed']);
+  assert.equal(patronBook({ categories: [], items: [] }).items.length, 0); // no patron data: unchanged
+});

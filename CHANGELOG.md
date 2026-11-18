@@ -7,11 +7,17 @@
 ### Added
 - **The in-game Collections book** - the Collections tab gets the game's tab bar: Collectibles, Housing, Outfit Styles, Set Items and Tales of Tribute, each with its UESP tab icon. Every book has the in-game category tree with tree icons and completion, a Filter By search, a Show All / Locked / Unlocked filter and the game's 175x125 collectible tiles, in both Classic and Simple. Categories the game hides locked collectibles in hide them here too. The game's Stories tab (a list of DLC quests) is left out. Needs iasync 1.9.0; each book has its own link (`#/collections/housing`)
 - The server passes iasync's `collectibles` through in `/api/stickerbook`
+- **Tales of Tribute patrons** (iasync 1.10.0) - the book shows the in-game tree's Patrons and Neutral groups with their icons, and each patron's coin, unlocked or locked
+- **Spinner on icons still loading** - game icons fetched on demand spin until they arrive
 - Set Items tree: the game's Summary icon, and the alliance category icons (the `/esoicons/charactercreate/` folder is now allowed)
 
 ### Changed
+- **Character views (Sheet, Wardrobe, Bags, Compare, SuperStar) switch from an icon row under the main tabs**, like the Collections books; the book and view bars show icons only
 - **"Collections" (the set collection) is now "Set Items"**, as in game. Without collectibles data the Collections tab opens on it, as before
 - `/api/data`, `/api/achievements`, `/api/stickerbook` and the build payloads are gzipped (a full account's collectibles are about 4 MB, 400 KB compressed)
+
+### Fixed
+- Filtering the inventory by location (e.g. Bank) no longer shows an item's other stacks: each row's locations, quantity and value cover only the filtered locations
 
 ## [0.2.0-beta.6] - 2026-11-18
 

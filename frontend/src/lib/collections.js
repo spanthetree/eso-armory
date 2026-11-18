@@ -178,3 +178,28 @@ export function bookItems(col, cats, at, f) {
     return !(it.unlocked && f.show === 'locked');
   });
 }
+
+/**
+ * Tales of Tribute book from iasync 1.10.0 `patrons`: the in-game tree's patron categories (Patrons, Neutral) as
+ * categories and the patrons as their collectibles. Negative category numbers keep them apart from real
+ * collectible categories. Without patron data the collectibles' own Patrons category is used.
+ * @param {any} col
+ */
+export function patronBook(col) {
+  const pats = col?.patrons ?? [];
+  if (!pats.length) return col;
+  /** @type {Map<number, any>} */
+  const cats = new Map();
+  for (const p of pats) {
+    const c = cats.get(p.categoryOrder) ?? cats.set(p.categoryOrder, {
+      idx: -p.categoryOrder, name: p.category, icon: p.categoryIcon, specialization: 4, unlocked: 0, total: 0, hidesLocked: false, subcats: [],
+    }).get(p.categoryOrder);
+    c.total++;
+    if (p.unlocked) c.unlocked++;
+  }
+  return {
+    ...col,
+    categories: [...(col.categories ?? []).filter((/** @type {any} */ c) => c.specialization !== 4), ...cats.values()],
+    items: pats.map((/** @type {any} */ p) => ({ id: `patron-${p.id}`, name: p.name, icon: p.icon, unlocked: p.unlocked, cat: -p.categoryOrder, sub: 0 })),
+  };
+}

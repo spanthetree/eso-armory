@@ -692,7 +692,28 @@ def process_iasync_collectibles(raw: dict) -> dict:
             "sub":      int(it.get("sub") or 0),
         })
     items.sort(key=lambda i: i["name"].lower())
-    return {"categories": categories, "items": items, "lastUpdate": int(src.get("lastUpdate") or 0)}
+
+    # iasync 1.10.0: Tales of Tribute patrons as the in-game tree groups them (category headers by categoryOrder).
+    # categoryOrder 0 = not in that tree (early 1.10.0 builds saved those too). collectibleId 0 = everyone has it.
+    unlocked_ids = {i["id"] for i in items if i["unlocked"]}
+    patrons = []
+    for pid, p in _indexed(src.get("patrons")):
+        order = int(p.get("categoryOrder") or 0)
+        if order <= 0:
+            continue
+        cid = int(p.get("collectibleId") or 0)
+        patrons.append({
+            "id":            pid,
+            "name":          str(p.get("name") or ""),
+            "icon":          str(p.get("icon") or ""),
+            "category":      str(p.get("category") or ""),
+            "categoryOrder": order,
+            "categoryIcon":  str(p.get("categoryIcon") or ""),
+            "collectibleId": cid,
+            "unlocked":      cid == 0 or cid in unlocked_ids,
+        })
+    patrons.sort(key=lambda p: (p["categoryOrder"], p["name"].lower()))
+    return {"categories": categories, "items": items, "patrons": patrons, "lastUpdate": int(src.get("lastUpdate") or 0)}
 
 
 def process_iasync_stickerbook(raw: dict) -> dict:

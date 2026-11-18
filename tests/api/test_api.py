@@ -41,7 +41,7 @@ def test_upload_and_read_workspace(client, uploaded_workspace):
     assert ww.json()["builds"]["char-a"][0]["name"] == "Mock Raid Build"
     assert achievements.json()["earnedPts"] == 10
     assert stickerbook.json()["sets"][0]["name"] == "Mock Set"
-    assert stickerbook.json()["collectibles"] == {"categories": [], "items": [], "lastUpdate": 0}  # no iasync 1.9.0 data
+    assert stickerbook.json()["collectibles"] == {"categories": [], "items": [], "patrons": [], "lastUpdate": 0}  # no iasync 1.9.0 data
 
 
 @pytest.mark.api
