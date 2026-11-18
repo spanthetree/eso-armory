@@ -69,3 +69,30 @@ test('piece source and whether TTC prices apply', () => {
   assert.deepEqual(pieceSource({ category: 'Dungeons', subcategory: 'Arx' }), { where: 'Dungeons › Arx', kind: 'Dungeon', priced: false });
   assert.deepEqual(pieceSource({ category: 'Overland', subcategory: '' }), { where: 'Overland', kind: '', priced: true });
 });
+
+test('collectible books: categories by tab, items by category, search, show filter and hidesLocked', async () => {
+  const { bookCategories, bookItems } = await import('./collections.js');
+  const col = {
+    categories: [
+      { idx: 1, name: 'Mounts', specialization: 0, hidesLocked: false },
+      { idx: 2, name: 'Upgrade', specialization: 0, hidesLocked: true },
+      { idx: 3, name: 'Armor Styles', specialization: 3, hidesLocked: false },
+    ],
+    items: [
+      { id: 10, name: 'Horse', cat: 1, sub: 1, unlocked: true },
+      { id: 11, name: 'Bear', cat: 1, sub: 1, unlocked: false },
+      { id: 12, name: 'Camel', cat: 1, sub: 0, unlocked: false },
+      { id: 13, name: 'Bag Space', cat: 2, sub: 0, unlocked: false },
+      { id: 14, name: 'Horse Helm', cat: 3, sub: 2, unlocked: true },
+    ],
+  };
+  const cats = bookCategories(col, 0);
+  assert.deepEqual(cats.map((c) => c.name), ['Mounts', 'Upgrade']);
+  const ids = (/** @type {any} */ at, f = {}) => bookItems(col, cats, at, { search: '', show: 'all', ...f }).map((i) => i.id);
+  assert.deepEqual(ids({ cat: 1, sub: 1 }), [10, 11]);
+  assert.deepEqual(ids({ cat: 1, sub: null }), [12]); // sub 0: directly under the category
+  assert.deepEqual(ids({ cat: 1, sub: 1 }, { show: 'locked' }), [11]);
+  assert.deepEqual(ids({ cat: 1, sub: 1 }, { show: 'unlocked' }), [10]);
+  assert.deepEqual(ids({ cat: 2, sub: null }), []); // hidesLocked
+  assert.deepEqual(ids({ cat: null, sub: null }, { search: 'horse' }), [10]); // search stays inside this tab
+});

@@ -20,6 +20,8 @@
   import CollectionsTab from './lib/collections/CollectionsTab.svelte';
   import AchievementsSimple from './lib/achievements/AchievementsSimple.svelte';
   import CollectionsSimple from './lib/collections/CollectionsSimple.svelte';
+  import CollectiblesBook from './lib/collections/CollectiblesBook.svelte';
+  import { BOOKS } from './lib/collections.js';
   import { ui } from './lib/uimode.svelte.js';
   import { applyUiColors } from './lib/eso/tex.js';
   import Segmented from './lib/ui/Segmented.svelte';
@@ -47,6 +49,10 @@
     { id: 'achievements', label: 'Achievements', icon: 'journal' },
     { id: 'collections', label: 'Collections', icon: 'collections' },
   ];
+
+  // Collections book tab: as linked, else Collectibles once iasync 1.9.0 data is there, else Set Items.
+  const book = $derived(nav.book ?? (app.stickerbook.value?.collectibles?.categories?.length ? 'collectibles' : 'sets'));
+  const bookInfo = $derived(BOOKS.find((b) => b.id === book) ?? BOOKS[0]);
 
   // Slide tab content in from the side you moved towards.
   let dir = $state('');
@@ -93,9 +99,14 @@
         {/if}
       </header>
 
-      <Tabs items={TAB_ITEMS} active={nav.tab} onchange={(id) => go(/** @type {any} */ (id))} />
+      <div class="tabrow">
+        <Tabs items={TAB_ITEMS} active={nav.tab} onchange={(id) => go(/** @type {any} */ (id))} />
+        {#if nav.tab === 'collections'}
+          <div class="books"><Segmented label="Collections book" options={BOOKS} value={book} onchange={(v) => go('collections', null, 'sheet', /** @type {any} */ (v))} /></div>
+        {/if}
+      </div>
 
-      {#key `${nav.tab}/${nav.charId ?? ''}/${nav.charView}`}
+      {#key `${nav.tab}/${nav.charId ?? ''}/${nav.charView}/${nav.tab === 'collections' ? book : ''}`}
         <section class="pane {dir}">
           {#if nav.tab === 'characters' && !char}
             <Roster />
@@ -114,7 +125,7 @@
           {:else if nav.tab === 'achievements'}
             {#if ui.mode === 'classic'}<AchievementsTab />{:else}<AchievementsSimple />{/if}
           {:else if nav.tab === 'collections'}
-            {#if ui.mode === 'classic'}<CollectionsTab />{:else}<CollectionsSimple />{/if}
+            {#if book !== 'sets'}<CollectiblesBook book={bookInfo} />{:else if ui.mode === 'classic'}<CollectionsTab />{:else}<CollectionsSimple />{/if}
           {/if}
         </section>
       {/key}
@@ -128,6 +139,12 @@
 
 <style>
   .stage { position: relative; isolation: isolate; }
+  /* The Collections book switcher sits beside the main tabs (like the game's scene group bar), not on its own row. */
+  .tabrow { position: relative; }
+  .books { position: absolute; right: 0; bottom: 6px; }
+  /* Simple's text tabs fill the row: the switcher gets its own row there (and on narrow screens). */
+  :global(:root[data-ui='simple']) .books { position: static; display: flex; justify-content: center; margin-top: 8px; }
+  @media (max-width: 1100px) { .books { position: static; display: flex; justify-content: center; margin-top: 6px; } }
   .legal { max-width: 1240px; margin: 0 auto; padding: 0 16px 8px; text-align: center; font-size: 11px; line-height: 1.3; color: var(--muted); opacity: 0.7; }
   main { max-width: 1240px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .hero { position: relative; isolation: isolate; text-align: center; display: grid; gap: 2px; padding-top: 4px; }

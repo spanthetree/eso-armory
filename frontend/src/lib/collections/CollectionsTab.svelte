@@ -120,13 +120,13 @@
 {/snippet}
 
 {#if app.stickerbook.loading && !sb}
-  <Frame title="COLLECTIONS"><p class="hint center">Loading collections…</p></Frame>
+  <Frame title="SET ITEMS"><p class="hint center">Loading collections…</p></Frame>
 {:else if app.stickerbook.error}
-  <Frame title="COLLECTIONS">
+  <Frame title="SET ITEMS">
     <div class="err-box" role="alert"><b>User data not loaded</b><span>{app.stickerbook.error}</span></div>
   </Frame>
 {:else if sb}
-  <EsoWindow title="Collections">
+  <EsoWindow title="Set Items">
     <div class="eso-combo eso-abs" style="left: 768px; top: 24px; width: 222px">
       <select aria-label="Completion" bind:value={f.completion}>
         {#each COMPLETION as c (c.v)}<option value={c.v}>{c.l}</option>{/each}

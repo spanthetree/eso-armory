@@ -139,3 +139,43 @@ export function pieceSource(s) {
   const kind = /trial/.test(cat) ? 'Trial' : /arena/.test(cat) ? 'Arena' : /dungeon/.test(cat) ? 'Dungeon' : '';
   return { where, kind, priced: !kind };
 }
+
+// ── Collectibles (iasync 1.9.0) ──────────────────────────────────────────────
+// The in-game Collections book's tabs. `spec` is COLLECTIBLE_CATEGORY_SPECIALIZATION_*; `sets` is the set
+// collection above. Order and icons follow the game (keyboardingamescenes.lua).
+export const BOOKS = [
+  { id: 'collectibles', label: 'Collectibles', icon: 'collections/collections_tabicon_collectibles', spec: 0 },
+  { id: 'stories', label: 'Stories', icon: 'collections/collections_tabicon_dlc', spec: 1 },
+  { id: 'housing', label: 'Housing', icon: 'collections/collections_tabicon_housing', spec: 2 },
+  { id: 'outfits', label: 'Outfit Styles', icon: 'collections/collections_tabicon_outfitstyles', spec: 3 },
+  { id: 'sets', label: 'Set Items', icon: 'collections/collections_tabicon_itemsets', spec: null },
+  { id: 'tribute', label: 'Tales of Tribute', icon: 'collections/collections_tabicon_tributepatrons', spec: 4 },
+];
+
+/** SI_COLLECTIONS_BOOK_FILTER_SHOW_* the web can answer (no "new" or "usable" outside the game). */
+export const COLLECTIBLE_FILTERS = [
+  { v: 'all', l: 'Show All' },
+  { v: 'locked', l: 'Show Locked' },
+  { v: 'unlocked', l: 'Show Unlocked' },
+];
+
+/** One book tab's categories (in game order). @param {any} col @param {number} spec */
+export const bookCategories = (col, spec) => (col?.categories ?? []).filter((/** @type {any} */ c) => c.specialization === spec);
+
+/**
+ * Collectibles to show: in the picked category/subcategory, or across the whole tab while searching. Categories
+ * that hide locked collectibles in game (hidesLocked) hide them here too.
+ * @param {any} col @param {any[]} cats this tab's categories @param {{ cat: number | null, sub: number | null }} at
+ * @param {{ search: string, show: string }} f
+ */
+export function bookItems(col, cats, at, f) {
+  const q = f.search.trim().toLowerCase();
+  const byIdx = new Map(cats.map((c) => [c.idx, c]));
+  return (col?.items ?? []).filter((/** @type {any} */ it) => {
+    const c = byIdx.get(it.cat);
+    if (!c) return false;
+    if (q ? !it.name.toLowerCase().includes(q) : it.cat !== at.cat || it.sub !== (at.sub ?? 0)) return false;
+    if (!it.unlocked && (c.hidesLocked || f.show === 'unlocked')) return false;
+    return !(it.unlocked && f.show === 'locked');
+  });
+}
