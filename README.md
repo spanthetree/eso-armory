@@ -21,11 +21,11 @@ ESO has no way to see your account outside the game. Gear is spread across chara
 ## Features
 
 - **Characters.** Each character's equipped gear on an in-game style "Equipped" panel with the race silhouette, plus skill bars, Champion Points, attributes, max Health/Magicka/Stamina and Mundus Stone. Switch a character between Sheet, Wardrobe (saved WizardsWardrobe setups), Bags, Compare and SuperStar views.
-- **Inventory.** Every item across characters, bank, ESO Plus bank, craft bag, house chests and guild banks. Search and filter by quality, type, trait, location and character, or group by set.
+- **Inventory.** Every item across characters, bank, ESO Plus bank, craft bag, house chests and guild banks. Search and filter by quality, type, trait, location and character, or group by set. Tamriel Trade Centre values per item with totals by type and location, a duplicate-gear finder, and filter chips you can save.
 - **Build compare.** Export a build as a short code, import someone else's, and compare gear side by side. Missing pieces are listed with their source (dungeon, trial, arena) and an estimated Tamriel Trade Centre cost.
 - **SuperStar import.** Upload a screenshot from the SuperStar addon and compare that build against your gear, slot by slot. Needs an Anthropic API key.
-- **Achievements.** Account-wide progress by category, with achievement icons, per-character completions, criteria progress and recent unlocks.
-- **Collections.** Set collection progress by category, with Tamriel Trade Centre prices on each piece.
+- **Achievements.** Laid out like the in-game journal: a category tree, progress bars, recent unlocks and a timeline, criteria progress per character, and search across every category.
+- **Collections.** Laid out like the in-game Sets collection: every set as a grid of its pieces, filtered by apparel and weapon type, completion and locked pieces, with where each piece drops and its Tamriel Trade Centre price.
 - **Workspaces.** Each ESO account's data is stored once and reopens without re-uploading. Share a workspace with a pairing code, or load a second account beside your own.
 - **Auto-sync.** In Chrome and Edge, point the app at your ESO folder once and it uploads changed files as you play.
 - **Looks like the game.** Dark panels with gold rules, the game's own icons, animated loading and transitions, and a layout that fits one screen.

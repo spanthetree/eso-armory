@@ -78,7 +78,12 @@ def test_process_achievements_and_stickerbook(raw_iasync):
     assert achievements["items_by_char"]["char-a"][0]["name"] == "Mock Character Achievement"
     assert stickerbook["sets"][0]["name"] == "Mock Set"
     assert stickerbook["sets"][0]["complete"] is False
-    assert stickerbook["sets"][0]["pieces"][0]["filterName"] == "Weapons"
+    pieces = stickerbook["sets"][0]["pieces"]
+    assert [p["filterName"] for p in pieces] == ["One-Handed", "Heavy"]
+    assert pieces[0]["icon"] == "/esoui/art/icons/gear_mock_1hsword_a.dds"
+    assert pieces[1]["icon"] == ""
+    assert stickerbook["categoryIcons"] == {"Dungeons": "/esoui/art/collections/collections_categoryicon_dungeons_up.dds"}
+    assert achievements["categories"][0]["icon"] == "/esoui/art/treeicons/achievements_indexicon_general_up.dds"
 
 
 @pytest.mark.unit

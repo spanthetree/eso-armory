@@ -25,7 +25,7 @@ Before making code or file changes, ask for explicit approval unless the user ha
 | `frontend/src/lib/store.svelte.js` | App state and API loaders (payloads are `$state.raw`), live updates (SSE), sharing, auth, compare/SuperStar calls |
 | `frontend/src/lib/api.js` | Session id + share code (same localStorage keys as before), URL building, `readJson` error handling |
 | `frontend/src/lib/{gear,items,achievements,collections,compare,route}.js` | Pure, unit-tested logic: icons/slots, item filters, achievement merge, collection grouping, build compare, URL hash routing |
-| `frontend/src/lib/ui/` | Building blocks: Frame, Slot, Tabs, Segmented, MultiSelect, Modal, Progress, ResourceBar, tooltip host |
+| `frontend/src/lib/ui/` | Building blocks: Frame, Slot, Tabs, Segmented, MultiSelect, Modal, Progress, CountBar (in-game teal count bar), ResourceBar, tooltip host |
 | `frontend/src/lib/{character,inventory,achievements,collections,shell,tips}/` | Views, tabs, dialogs and tooltip components |
 | `frontend/src/lib/styles/tokens.css` | Design tokens (colours, fonts, motion) |
 | `tests/fixtures/` | Sanitized deterministic Lua/TTC fixtures; do not commit live user data |
@@ -104,4 +104,7 @@ Agents may run git and `gh` commands (branch, commit, push, open PRs).
 - **Achievements mixed-persistence**: `achievementsIn()` (`achievements.js`) merges `account_items` with character-specific `items_by_char`, deduped by id (character copy wins). `extraSubcats()` surfaces achievements filed under a subcategory the category doesn't list (e.g. "Group Dungeons").
 - **Duplicate keys**: Svelte `{#each}` keys must be unique or the render aborts (`each_key_duplicate`); `recent` achievements can repeat an id, so key by position there.
 - **Unnamed abilities**: iasync only names abilities that were slotted when it scanned; `SkillBars` asks `/api/ability_names` (UESP) for the rest.
-- **`/esoicons/<name>.png`**: achievement and other `/esoui/art/icons` textures are fetched from UESP on first use into `assets/esoicons/` (gitignored).
+- **`/esoicons/<name>.png`**: achievement and other `/esoui/art/icons` textures are fetched from UESP on first use into `assets/esoicons/` (gitignored). `/esoicons/<folder>/<name>.png` does the same for `treeicons`, `collections` and `achievements` (category tree icons). Use `gameIcon(path)` (`achievements.js`) to turn a `.dds` path into either URL.
+- **Set collection `filterType`** is `EQUIPMENT_FILTER_TYPE_*` (1 Light, 2 Medium, 3 Heavy, 4 Necklace, 5 Ring, 6 One-Handed, 7 Shield, 8 Two-Handed, 9 Destruction, 10 Restoration, 11 Bow), not the inventory `filter_type`.
+- **No `structuredClone` on state**: it throws on Svelte `$state` proxies; use `$state.snapshot` or a JSON copy.
+- **Inventory values** come from one `POST /api/ttc_prices` per item list (`loadAvgPrices`); don't call `/api/ttc_price` per row.

@@ -3,9 +3,10 @@
   import ItemTip from '../tips/ItemTip.svelte';
   import { tooltip } from '../ui/tooltip.svelte.js';
   import { itemIcon } from '../gear.js';
+  import { avgPrices, loadAvgPrices } from '../lookups.svelte.js';
   import {
-    TYPE_OPTIONS, BAG_OPTIONS, LOCATION_OPTIONS, TRAIT_GROUPS, QUALITY_OPTIONS,
-    emptyFilters, hasFilters, filterItems, sortItems, displayRows,
+    TYPE_OPTIONS, BAG_OPTIONS, LOCATION_OPTIONS, TRAIT_GROUPS, QUALITY_OPTIONS, PRESETS,
+    emptyFilters, hasFilters, filterItems, sortItems, displayRows, withValues, summarize, priceName, applyPreset, isPreset,
   } from '../items.js';
 
   /**
@@ -21,8 +22,70 @@
   let sort = $state({ key: 'name', dir: /** @type {'asc' | 'desc'} */ ('asc') });
   let extrasOpen = $state(false);
 
-  const filtered = $derived(sortItems(filterItems(items, f), sort.key, sort.dir));
-  const rows = $derived(displayRows(filtered, groupBySet));
+  // TTC values: one bulk request for every tradeable name in the list.
+  $effect(() => {
+    loadAvgPrices(items.filter((i) => !i.is_bound).map((i) => priceName(i.name)));
+  });
+  const valued = $derived(withValues(items, avgPrices.map));
+  const filtered = $derived(sortItems(filterItems(valued, f), sort.key, sort.dir));
+  const rows = $derived(displayRows(filtered, f.dupes ? 'name' : groupBySet ? 'set' : ''));
+  const sum = $derived(summarize(filtered));
+  const all = $derived(where === 'account' ? summarize(valued) : null);
+  const gold = (/** @type {number} */ n) =>
+    n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}M` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : Math.round(n).toLocaleString('en-US');
+
+  // Saved filter chips live in this browser only.
+  const SAVED_KEY = 'eso-armory:item-presets';
+  /** @type {{ name: string, f: any }[]} */
+  let saved = $state(readSaved());
+  function readSaved() {
+    try {
+      const v = JSON.parse(localStorage.getItem(SAVED_KEY) || '[]');
+      return Array.isArray(v) ? v : [];
+    } catch {
+      return [];
+    }
+  }
+  function writeSaved() {
+    try {
+      localStorage.setItem(SAVED_KEY, JSON.stringify(saved));
+    } catch {
+      // storage blocked: chips last for this page only
+    }
+  }
+  let naming = $state(false);
+  let newName = $state('');
+  const matchesChip = $derived([...PRESETS, ...saved].some((p) => isPreset(f, p.f)));
+  function saveChip() {
+    const name = newName.trim();
+    if (!name) return;
+    const { search, ...rest } = $state.snapshot(f);
+    saved = [...saved.filter((p) => p.name !== name), { name, f: { ...rest, search } }];
+    writeSaved();
+    naming = false;
+    newName = '';
+  }
+  /** @param {string} name */
+  function dropChip(name) {
+    saved = saved.filter((p) => p.name !== name);
+    writeSaved();
+  }
+  /** @param {any} p */
+  const useChip = (p) => (f = isPreset(f, p.f) ? emptyFilters() : applyPreset(p.f));
+
+  /** Toggle one value in a list filter (strip chips, type cells, location chips). @param {'types' | 'locTypes' | 'chars' | 'bags'} key @param {string} v */
+  function toggleIn(key, v) {
+    f[key] = f[key].includes(v) ? f[key].filter((x) => x !== v) : [...f[key], v];
+  }
+  /** @param {any} loc */
+  function filterLoc(loc) {
+    if (where === 'bags') toggleIn('bags', String(loc.bag_id));
+    else if (loc.location_type === 'character') toggleIn('chars', loc.location_key);
+    else toggleIn('locTypes', loc.location_type);
+  }
+  /** @param {any} loc */
+  const locOn = (loc) =>
+    where === 'bags' ? f.bags.includes(String(loc.bag_id)) : loc.location_type === 'character' ? f.chars.includes(loc.location_key) : f.locTypes.includes(loc.location_type);
 
   // Render rows in batches as the table scrolls, so thousands of items stay responsive.
   const BATCH = 150;
@@ -43,7 +106,7 @@
   }
   /** Locations shown per row before "+N more". */
   const MAX_LOCS = where === 'account' ? 2 : 99;
-  const extrasOn = $derived(f.quality !== '' || f.transmuted || f.crafted);
+  const extrasOn = $derived(f.quality !== '' || f.transmuted || f.crafted || f.unbound || f.hasSet);
 
   /** @param {string} key */
   function sortBy(key) {
@@ -57,8 +120,31 @@
 
 <svelte:window onpointerdown={(e) => extrasOpen && !(/** @type {Element} */ (e.target)).closest('.extras') && (extrasOpen = false)} />
 
+{#snippet coin(/** @type {number} */ n)}<span class="g num">{gold(n)}<img src="/assets/currencies/gold.png" alt="gold" /></span>{/snippet}
+
 <div class="list">
   <div class="filters">
+    <div class="chips" role="group" aria-label="Saved filters">
+      {#each PRESETS as p (p.name)}
+        <button type="button" class="fchip" aria-pressed={isPreset(f, p.f)} onclick={() => useChip(p)}>{p.name}</button>
+      {/each}
+      {#each saved as p (p.name)}
+        <span class="fchip own" class:on={isPreset(f, p.f)}>
+          <button type="button" aria-pressed={isPreset(f, p.f)} onclick={() => useChip(p)}>{p.name}</button>
+          <button type="button" class="x" aria-label="Delete saved filter {p.name}" onclick={() => dropChip(p.name)}>×</button>
+        </span>
+      {/each}
+      {#if naming}
+        <form class="name" onsubmit={(e) => { e.preventDefault(); saveChip(); }}>
+          <!-- svelte-ignore a11y_autofocus -->
+          <input class="field" bind:value={newName} placeholder="Name this filter" aria-label="Saved filter name" maxlength="40" autofocus
+            onkeydown={(e) => e.key === 'Escape' && (naming = false)} />
+          <button class="btn" disabled={!newName.trim()}>Save</button>
+        </form>
+      {:else if hasFilters(f) && !matchesChip}
+        <button type="button" class="fchip add" onclick={() => (naming = true)}>+ Save filter</button>
+      {/if}
+    </div>
     <input class="field search" type="search" bind:value={f.search} {placeholder} aria-label="Search items" />
     <div class="row">
       <MultiSelect label="All types" options={TYPE_OPTIONS} bind:selected={f.types} />
@@ -84,15 +170,42 @@
             </div>
             <label class="tick"><input type="checkbox" bind:checked={f.transmuted} /><img src="/assets/services/transmutation_station.png" alt="" />Transmuted</label>
             <label class="tick"><input type="checkbox" bind:checked={f.crafted} />Crafted</label>
+            <label class="tick"><input type="checkbox" bind:checked={f.unbound} />Not bound</label>
+            <label class="tick"><input type="checkbox" bind:checked={f.hasSet} />Part of a set</label>
           </div>
         {/if}
       </div>
 
       <button type="button" class="btn" class:active={groupBySet} aria-pressed={groupBySet} onclick={() => (groupBySet = !groupBySet)}>Group by set</button>
       {#if hasFilters(f)}<button type="button" class="btn" onclick={() => (f = emptyFilters())}>Clear</button>{/if}
-      <span class="count num">{filtered.length.toLocaleString('en-US')} of {items.length.toLocaleString('en-US')}</span>
+      <span class="count num">
+        {filtered.length.toLocaleString('en-US')} of {items.length.toLocaleString('en-US')}
+        {#if sum.value}<span class="total" title="Average TTC listing price × quantity, unbound items only"> · ≈ {@render coin(sum.value)}</span>{/if}
+      </span>
     </div>
   </div>
+
+  {#if all}
+    <div class="strip" aria-label="Item types and locations">
+      {#each TYPE_OPTIONS as t (t.v)}
+        {@const s = all.types[t.v]}
+        {#if s}
+          <button type="button" class="stat" aria-pressed={f.types.includes(t.v)} onclick={() => toggleIn('types', t.v)}>
+            <span class="sl">{t.l}</span><span class="sv"><span class="num">{s.count.toLocaleString('en-US')}</span>{#if s.value}{@render coin(s.value)}{/if}</span>
+          </button>
+        {/if}
+      {/each}
+      <span class="sep"></span>
+      {#each LOCATION_OPTIONS as l (l.v)}
+        {@const s = all.locs[l.v]}
+        {#if s}
+          <button type="button" class="stat" aria-pressed={f.locTypes.includes(l.v)} onclick={() => toggleIn('locTypes', l.v)}>
+            <span class="sl">{l.l}</span><span class="sv"><span class="num">{s.count.toLocaleString('en-US')}</span>{#if s.value}{@render coin(s.value)}{/if}</span>
+          </button>
+        {/if}
+      {/each}
+    </div>
+  {/if}
 
   <div class="scroll" bind:this={scroller}>
     <table>
@@ -101,13 +214,14 @@
           <th class="name"><button onclick={() => sortBy('name')}>Item {arrow('name')}</button></th>
           <th class="type"><button onclick={() => sortBy('filter_type_name')}>Type {arrow('filter_type_name')}</button></th>
           <th class="qty"><button onclick={() => sortBy('total_quantity')}>Qty {arrow('total_quantity')}</button></th>
+          <th class="val"><button onclick={() => sortBy('value')} title={avgPrices.error || 'Average TTC listing price × quantity'}>Value {arrow('value')}</button></th>
           <th class="where">Where</th>
         </tr>
       </thead>
       <tbody>
         {#each shown as r (r.t === 'h' ? `h:${r.set}` : `i:${r.item.key}`)}
           {#if r.t === 'h'}
-            <tr class="set"><td colspan="4">{r.set} <span>({r.count})</span></td></tr>
+            <tr class="set"><td colspan="5">{r.set} <span>({r.count})</span></td></tr>
           {:else}
             {@const item = r.item}
             <tr class="item" tabindex="0" use:tooltip={{ component: ItemTip, props: { item } }}>
@@ -116,20 +230,22 @@
                 <span class="nm" style="color: {item.quality_color}">{item.name}</span>
                 {#if item.level > 0}<span class="lv">Lv {item.level}</span>{/if}
               </td>
-              <td class="type">{item.filter_type_name}</td>
+              <td class="type"><button class="cell" aria-pressed={f.types.includes(String(item.filter_type))} title="Filter by {item.filter_type_name}"
+                onclick={() => toggleIn('types', String(item.filter_type))}>{item.filter_type_name}</button></td>
               <td class="qty num">{item.total_quantity.toLocaleString('en-US')}</td>
+              <td class="val num">{#if item.value != null}<span title="≈ {gold(item.unit)} gold each">{@render coin(item.value)}</span>{:else if item.is_bound}<span class="dim">bound</span>{/if}</td>
               <td class="where">
                 {#each item.locations.slice(0, MAX_LOCS) as loc (loc.location_key + loc.bag_id)}
-                  <span class="chip">{locLabel(loc)}{item.locations.length > 1 ? ` ×${loc.quantity}` : ''}</span>
+                  <button class="chip" aria-pressed={locOn(loc)} title="Filter by this location" onclick={() => filterLoc(loc)}>{locLabel(loc)}{item.locations.length > 1 ? ` ×${loc.quantity}` : ''}</button>
                 {/each}
                 {#if item.locations.length > MAX_LOCS}<span class="chip more">+{item.locations.length - MAX_LOCS} more</span>{/if}
               </td>
             </tr>
           {/if}
         {:else}
-          <tr><td colspan="4" class="empty">No items match these filters.</td></tr>
+          <tr><td colspan="5" class="empty">No items match these filters.</td></tr>
         {/each}
-        {#if limit < rows.length}<tr use:more><td colspan="4" class="empty">Loading more…</td></tr>{/if}
+        {#if limit < rows.length}<tr use:more><td colspan="5" class="empty">Loading more…</td></tr>{/if}
       </tbody>
     </table>
   </div>
@@ -143,6 +259,32 @@
   .btn.active { color: var(--accent-hi); border-color: var(--accent); }
   .caret { font-size: 11px; opacity: 0.7; }
   .count { margin-left: auto; font-size: 13px; color: var(--muted); }
+  .total { color: var(--accent-hi); }
+
+  .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .fchip, .fchip.own button { all: unset; padding: 2px 10px; font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; cursor: pointer; transition: color 0.2s, border-color 0.2s; }
+  .fchip.own { all: unset; display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; }
+  .fchip.own button { border: 0; padding-right: 4px; }
+  .fchip.own .x { padding: 0 8px 0 2px; }
+  .fchip:hover, .fchip.own button:hover { color: var(--fg); }
+  .fchip[aria-pressed='true'], .fchip.own.on { color: var(--accent-hi); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .fchip:focus-visible, .fchip.own button:focus-visible { outline: 1px solid var(--accent-hi); }
+  .fchip.add { border-style: dashed; }
+  .name { display: flex; gap: 4px; }
+  .name .field { width: 170px; padding: 2px 8px; font-size: 13px; }
+  .name .btn { padding: 2px 10px; }
+
+  .strip { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+  .stat { all: unset; flex: 1 0 auto; display: grid; padding: 4px 10px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; transition: border-color 0.2s; }
+  .stat:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
+  .stat[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+  .stat:focus-visible { outline: 1px solid var(--accent-hi); }
+  .sl { font: 600 11px var(--f-display); letter-spacing: 0.05em; color: var(--muted); text-transform: uppercase; }
+  .sv { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+  .g { display: inline-flex; align-items: center; gap: 2px; }
+  .g img { width: 14px; height: 14px; }
+  .sv .g { color: var(--accent-hi); }
+  .sep { flex: none; width: 1px; background: var(--line); margin: 4px 2px; }
 
   .extras { position: relative; }
   .pop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; width: 270px; padding: 12px; background: #0d0c0b; border: 1px solid var(--line); box-shadow: 0 16px 40px #000c; display: grid; gap: 8px; }
@@ -155,13 +297,12 @@
   .tick input { accent-color: var(--accent); }
 
   /* The table scrolls inside the page so the view fits one screen. */
-  .scroll { max-height: max(300px, calc(100dvh - 400px)); overflow: auto; background: var(--panel); border: 1px solid var(--line); }
+  .scroll { max-height: max(300px, calc(100dvh - 470px)); overflow: auto; background: var(--panel); border: 1px solid var(--line); }
   table { width: 100%; border-collapse: collapse; font-size: 14px; }
   thead th { position: sticky; top: 0; z-index: 1; background: #0e0d0c; border-bottom: 1px solid var(--line); text-align: left; padding: 0; }
   th button { all: unset; display: block; padding: 8px 12px; font: 600 12px var(--f-display); letter-spacing: 0.12em; color: var(--muted); cursor: pointer; white-space: nowrap; }
   th button:hover { color: var(--fg); }
   th.where { padding: 8px 12px; font: 600 12px var(--f-display); letter-spacing: 0.12em; color: var(--muted); }
-  th.qty button { text-align: right; }
   td { padding: 5px 12px; border-bottom: 1px solid #ffffff0a; vertical-align: middle; }
   tr.item { cursor: default; transition: background 0.15s; }
   tr.item:hover, tr.item:focus-visible { background: #ffffff0a; outline: none; }
@@ -170,11 +311,20 @@
   .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lv { font-size: 12px; color: var(--muted); white-space: nowrap; }
   td.type { color: var(--muted); white-space: nowrap; }
-  td.qty { text-align: right; color: var(--muted); }
+  td.qty, td.val { text-align: right; color: var(--muted); white-space: nowrap; }
+  th.qty button, th.val button { box-sizing: border-box; width: 100%; text-align: right; }
+  .dim { font-size: 12px; opacity: 0.6; }
+  .cell { all: unset; cursor: pointer; }
+  .cell:hover, .cell[aria-pressed='true'] { color: var(--accent-hi); }
+  .cell:focus-visible { outline: 1px solid var(--accent-hi); }
   .chip.more { color: var(--accent); }
-  .chip { display: inline-block; margin: 1px 4px 1px 0; padding: 0 6px; font-size: 12px; color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+  .chip { all: unset; display: inline-block; margin: 1px 4px 1px 0; padding: 0 6px; font-size: 12px; color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+  button.chip { cursor: pointer; }
+  button.chip:hover { color: var(--fg); }
+  button.chip[aria-pressed='true'] { color: var(--accent-hi); border-color: var(--accent); }
+  button.chip:focus-visible { outline: 1px solid var(--accent-hi); }
   tr.set td { padding: 6px 12px; background: #ffffff06; font: 600 13px var(--f-display); letter-spacing: 0.06em; color: var(--accent-hi); }
   tr.set span { font: 400 12px var(--f-ui); color: var(--muted); letter-spacing: 0; }
   .empty { text-align: center; padding: 36px; color: var(--muted); }
-  @media (max-width: 760px) { .type, .where { display: none; } }
+  @media (max-width: 760px) { .type, .where, .val { display: none; } }
 </style>

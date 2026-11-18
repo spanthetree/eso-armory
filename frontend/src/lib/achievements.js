@@ -39,11 +39,70 @@ export function achievementsIn(idx, cat, subcat, charId, search = '') {
 /** Earned share as a whole percent. @param {number} earned @param {number} total */
 export const pct = (earned, total) => (total ? Math.round((earned / total) * 100) : 0);
 
-/** "/esoui/art/icons/foo.dds" -> "/esoicons/foo.png" (served and cached by the server); null otherwise. @param {string} icon */
-export function achievementIcon(icon) {
-  const m = /^\/esoui\/art\/icons\/([a-z0-9_]+)\.dds$/i.exec(icon ?? '');
-  return m ? `/esoicons/${m[1].toLowerCase()}.png` : null;
+/**
+ * Game texture path -> URL the server proxies from UESP and caches: "/esoui/art/icons/foo.dds" -> "/esoicons/foo.png",
+ * "/esoui/art/treeicons/bar_up.dds" -> "/esoicons/treeicons/bar_up.png"; null for anything else.
+ * @param {string} icon
+ */
+export function gameIcon(icon) {
+  const m = /^\/esoui\/art\/(icons|treeicons|collections|achievements)\/([a-z0-9_]+)\.dds$/i.exec(icon ?? '');
+  if (!m) return null;
+  const folder = m[1].toLowerCase();
+  return folder === 'icons' ? `/esoicons/${m[2].toLowerCase()}.png` : `/esoicons/${folder}/${m[2].toLowerCase()}.png`;
 }
+export const achievementIcon = gameIcon;
+
+/** A tree icon's pressed variant ("..._up" -> "..._down"), as the game shows for the open category. @param {string | null} url */
+export const pressedIcon = (url) => (url ? url.replace(/_up\.png$/, '_down.png') : url);
+
+/**
+ * Search every category for one character: groups of hits by "Category › Subcategory", in category order.
+ * @param {ReturnType<typeof buildIndex>} idx @param {any[]} categories @param {string | null} charId @param {string} q
+ * @param {number} [limit] stop after this many hits
+ */
+export function searchAll(idx, categories, charId, q, limit = 300) {
+  const needle = q.toLowerCase().trim();
+  if (!needle) return { groups: [], total: 0, capped: false };
+  const keys = new Set([...idx.account.keys(), ...((charId && idx.byChar.get(charId)?.keys()) || [])]);
+  const order = new Map((categories ?? []).map((c, i) => [c.name, i]));
+  const sorted = [...keys].sort((a, b) => {
+    const [ca, sa] = a.split('||');
+    const [cb, sb] = b.split('||');
+    return (order.get(ca) ?? 999) - (order.get(cb) ?? 999) || sa.localeCompare(sb);
+  });
+  const groups = [];
+  let total = 0;
+  for (const key of sorted) {
+    const [cat, sub] = key.split('||');
+    const hits = achievementsIn(idx, cat, sub, charId, needle);
+    if (!hits.length) continue;
+    total += hits.length;
+    groups.push({ cat, sub, list: hits });
+    if (total >= limit) return { groups, total, capped: true };
+  }
+  return { groups, total, capped: false };
+}
+
+/**
+ * Recent completions grouped by day, newest first, one entry per achievement.
+ * @param {any[]} recent newest first
+ */
+export function timeline(recent) {
+  const seen = new Set();
+  /** @type {{ day: string, list: any[] }[]} */
+  const days = [];
+  for (const a of recent ?? []) {
+    if (seen.has(a.id)) continue;
+    seen.add(a.id);
+    const day = a.completionDate || 'Unknown date';
+    if (days.at(-1)?.day !== day) days.push({ day, list: [] });
+    /** @type {any} */ (days.at(-1)).list.push(a);
+  }
+  return days;
+}
+
+/** Character names carry a grammar suffix ("Name^Mx"); drop it. @param {string} name */
+export const charName = (name) => (name || '').replace(/\^.*$/, '');
 
 /**
  * Subcategories that have achievements but aren't in the category's own subcategory list (iasync files

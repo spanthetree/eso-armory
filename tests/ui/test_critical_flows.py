@@ -247,3 +247,54 @@ def test_share_code_joins_uploaded_workspace(page: Page, browser: Browser, app_u
         expect(other.get_by_text("@test_account · NA · 6 items")).to_be_visible()
     finally:
         other_context.close()
+
+
+@pytest.mark.ui
+def test_inventory_strip_and_saved_filter_chip(page: Page, app_url: str, fixtures_dir):
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    open_tab(page, "Inventory")
+
+    page.get_by_label("Item types and locations").get_by_role("button", name=re.compile("Consumables")).click()
+    expect(page.get_by_text("Mock Potion").first).to_be_visible()
+    expect(page.get_by_text("Mock Sword")).to_have_count(0)
+
+    page.get_by_role("button", name="+ Save filter").click()
+    page.get_by_label("Saved filter name").fill("Potions only")
+    page.get_by_role("button", name="Save", exact=True).click()
+    page.get_by_role("button", name="Clear").click()
+    expect(page.get_by_text("Mock Sword").first).to_be_visible()
+
+    expect(page.get_by_role("button", name="Potions only", exact=True)).to_be_visible()
+    page.reload()  # saved chips persist; the URL keeps the Inventory tab open
+    page.get_by_role("button", name="Potions only", exact=True).click(timeout=15000)
+    expect(page.get_by_text("Mock Sword")).to_have_count(0)
+    expect(page.get_by_text("Mock Potion").first).to_be_visible()
+
+
+@pytest.mark.ui
+def test_achievements_search_spans_categories(page: Page, app_url: str, fixtures_dir):
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    open_tab(page, "Achievements")
+
+    expect(page.get_by_text("RECENT ACHIEVEMENTS")).to_be_visible(timeout=15000)
+    page.get_by_label("Search achievements").fill("mock")
+    expect(page.get_by_role("heading", name="SEARCH")).to_be_visible()
+    expect(page.get_by_text("Mock Account Achievement")).to_be_visible()
+
+
+@pytest.mark.ui
+def test_collections_piece_grid_filters(page: Page, app_url: str, fixtures_dir):
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    open_tab(page, "Collections")
+    page.get_by_role("navigation").get_by_role("button", name=re.compile(r"Dungeons")).click()
+
+    pieces = page.get_by_role("list").get_by_role("listitem")
+    expect(pieces).to_have_count(2)
+    expect(page.get_by_label("Mock Cuirass (not collected)")).to_be_visible()
+
+    page.get_by_label("Show Locked").uncheck()
+    expect(pieces).to_have_count(1)
+    expect(page.get_by_label("Mock Sword", exact=True)).to_be_visible()

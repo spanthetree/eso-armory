@@ -2228,12 +2228,14 @@ async def api_skill_info(name: str):
 
 
 _GAME_ICON_RE = re.compile(r"^[a-z0-9_]{1,120}$")
+# esoui/art folders the proxy may fetch from besides icons/ (category tree icons)
+_GAME_ICON_DIRS = {"treeicons", "collections", "achievements"}
 _GAME_ICON_DIR = Path("assets") / "esoicons"
 _game_icon_missing: collections.OrderedDict = collections.OrderedDict()  # names UESP doesn't have
 
 
-def _fetch_game_icon(name: str) -> bytes | None:
-    url = f"https://esoicons.uesp.net/esoui/art/icons/{name}.png"
+def _fetch_game_icon(name: str, folder: str = "icons") -> bytes | None:
+    url = f"https://esoicons.uesp.net/esoui/art/{folder}/{name}.png"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 ESO-Armory/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -2249,22 +2251,34 @@ def _fetch_game_icon(name: str) -> bytes | None:
 async def game_icon(name: str):
     """Game icon from /esoui/art/icons (e.g. achievement icons). Downloaded from UESP on first use and
     kept under assets/ like every other icon, so it is never committed and later requests are local."""
+    return await _serve_game_icon("icons", name)
+
+
+@app.get("/esoicons/{folder}/{name}.png")
+async def game_icon_in(folder: str, name: str):
+    """Category tree icons from /esoui/art/{treeicons,collections,achievements}."""
+    return await _serve_game_icon(folder.lower(), name)
+
+
+async def _serve_game_icon(folder: str, name: str):
     name = name.lower()
-    if not _GAME_ICON_RE.match(name):
+    if folder not in _GAME_ICON_DIRS | {"icons"} or not _GAME_ICON_RE.match(name):
         return JSONResponse({"error": "invalid icon name"}, status_code=400)
-    path = _GAME_ICON_DIR / f"{name}.png"
+    base = _GAME_ICON_DIR if folder == "icons" else _GAME_ICON_DIR / folder
+    path = base / f"{name}.png"
+    key = f"{folder}/{name}"
     if not path.exists():
-        if _lru_get(_game_icon_missing, name):
+        if _lru_get(_game_icon_missing, key):
             return Response(status_code=404)
         try:
-            data = await asyncio.get_event_loop().run_in_executor(None, _fetch_game_icon, name)
+            data = await asyncio.get_event_loop().run_in_executor(None, _fetch_game_icon, name, folder)
         except Exception as exc:
-            logger.warning("Game icon fetch failed: {}: {}", name, exc)
+            logger.warning("Game icon fetch failed: {}: {}", key, exc)
             return Response(status_code=502)
         if data is None:
-            _lru_put(_game_icon_missing, name, True, _EXTERNAL_CACHE_MAX * 4)
+            _lru_put(_game_icon_missing, key, True, _EXTERNAL_CACHE_MAX * 4)
             return Response(status_code=404)
-        _GAME_ICON_DIR.mkdir(parents=True, exist_ok=True)
+        base.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".tmp")
         tmp.write_bytes(data)
         tmp.replace(path)
@@ -2318,6 +2332,49 @@ async def api_ttc_price(name: str, session: str | None = Query(None), share: str
             "error": str(exc),
         }
         logger.warning("TTC price fetch failed: {}: {}", name, exc)
+    return JSONResponse(result)
+
+
+_TTC_BATCH_MAX = 10_000
+
+
+def _ttc_avg_prices(names: list[str]) -> dict:
+    """Average TTC listing price per lower-cased item name, for names TTC knows and has prices for."""
+    db_path, price_time, _ = _ensure_ttc_db()
+    keys = sorted({re.sub(r"\s+", " ", n).strip().lower() for n in names if isinstance(n, str) and n.strip()})
+    out: dict[str, int] = {}
+    with sqlite3.connect(db_path) as conn:
+        for i in range(0, len(keys), 500):
+            chunk = keys[i:i + 500]
+            rows = conn.execute(
+                f"SELECT l.item_name, p.avg FROM lookup l JOIN prices p ON p.item_id = l.item_id "
+                f"WHERE p.avg IS NOT NULL AND l.item_name IN ({','.join('?' * len(chunk))})",
+                chunk,
+            ).fetchall()
+            out.update({name: avg for name, avg in rows})
+    return {"prices": out, "priceTableTime": price_time, "priceTableTimeText": _fmt_ttc_time(price_time)}
+
+
+@app.post("/api/ttc_prices")
+async def api_ttc_prices(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
+    """Average TTC prices for many item names at once (Inventory values). Body: {"names": [...]}."""
+    sid, err = _resolve_session_context(session, share)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
+    try:
+        body = await request.json()
+        names = body.get("names") if isinstance(body, dict) else None
+    except ValueError:
+        names = None
+    if not isinstance(names, list) or len(names) > _TTC_BATCH_MAX:
+        return JSONResponse({"error": f"names must be a list of at most {_TTC_BATCH_MAX}"}, status_code=400)
+    try:
+        result = await asyncio.get_event_loop().run_in_executor(None, _ttc_avg_prices, names)
+    except FileNotFoundError as exc:
+        return JSONResponse({"prices": {}, "error": str(exc)})
+    except Exception as exc:
+        logger.warning("TTC batch price lookup failed: {}", exc)
+        return JSONResponse({"prices": {}, "error": "TTC price lookup failed"}, status_code=500)
     return JSONResponse(result)
 
 
