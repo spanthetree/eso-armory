@@ -139,12 +139,8 @@
 
 <style>
   .stage { position: relative; isolation: isolate; }
-  /* The Collections book switcher sits beside the main tabs (like the game's scene group bar), not on its own row. */
-  .tabrow { position: relative; }
-  .books { position: absolute; right: 0; bottom: 6px; }
-  /* Simple's text tabs fill the row: the switcher gets its own row there (and on narrow screens). */
-  :global(:root[data-ui='simple']) .books { position: static; display: flex; justify-content: center; margin-top: 8px; }
-  @media (max-width: 1100px) { .books { position: static; display: flex; justify-content: center; margin-top: 6px; } }
+  /* The Collections book switcher: its own row under the main tabs. */
+  .books { display: flex; justify-content: center; margin-top: 6px; }
   .legal { max-width: 1240px; margin: 0 auto; padding: 0 16px 8px; text-align: center; font-size: 11px; line-height: 1.3; color: var(--muted); opacity: 0.7; }
   main { max-width: 1240px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .hero { position: relative; isolation: isolate; text-align: center; display: grid; gap: 2px; padding-top: 4px; }
