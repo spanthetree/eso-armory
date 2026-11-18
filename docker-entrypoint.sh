@@ -16,7 +16,7 @@ if [ "$(id -u)" = 0 ]; then
     fi
     [ "$(stat -c %u assets)" = 0 ] && chown "$uid:$gid" assets
     chown -R "$uid:$gid" logs
-    exec setpriv --reuid="$uid" --regid="$gid" --clear-groups "$0" "$@"
+    exec su-exec "$uid:$gid" "$0" "$@"
 fi
 
 # First start: reuse what is already there instead of starting empty.
