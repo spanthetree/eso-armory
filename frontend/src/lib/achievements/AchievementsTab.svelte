@@ -78,7 +78,7 @@
   /** @param {any} a */
   const expandable = (a) => !!(a.criteria?.length || a.rewards?.length || a.line || (a.desc?.length ?? 0) > 90);
   /** @param {any} r */
-  const rewardText = (r) => (r.type === 'title' ? `Title: ${r.name}` : r.type === 'dye' ? `Dye: ${r.name ?? ''}` : r.type === 'collectible' || r.type === 'item' ? (r.name ?? '') : '');
+  const rewardText = (r) => (r.type === 'title' ? `Title: ${r.name}` : r.type === 'dye' ? `Dye: ${r.name ?? ''}` : r.type === 'collectible' || r.type === 'item' ? (r.name ?? '') : r.type === 'tribute_card_upgrade' ? `Tales of Tribute card upgrade${r.name ? `: ${r.name}` : ''}` : '');
 </script>
 
 {#snippet icon(/** @type {any} */ a, /** @type {number} */ size)}

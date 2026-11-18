@@ -52,6 +52,7 @@ def test_process_iasync_labels_storage_locations(raw_iasync):
 
     assert {"character", "bank", "craftbag", "house_chest", "guild_bank"} <= locations
     assert data["house_chests"]["7"]["capacity"] == 30
+    assert data["house_chests"]["7"]["label"] == "House Chest 1 · Test House"
 
 
 @pytest.mark.unit
@@ -85,7 +86,7 @@ def test_process_achievements_and_stickerbook(raw_iasync):
     assert stickerbook["categoryIcons"] == {"Dungeons": "/esoui/art/collections/collections_categoryicon_dungeons_up.dds"}
     assert achievements["categories"][0]["icon"] == "/esoui/art/treeicons/achievements_indexicon_general_up.dds"
     acct = achievements["account_items"][0]
-    assert acct["rewards"] == [{"type": "title", "name": "Mock Title", "id": 7}]
+    assert acct["rewards"] == [{"type": "title", "name": "Mock Title", "id": 7}, {"type": "tribute_card_upgrade", "patronId": 1, "cardIndex": 2}]
     assert (acct["lineBaseId"], acct["linePreviousId"], acct["lineNextId"]) == (8999, 8999, 0)
     assert (stickerbook["sets"][0]["reconCost"], stickerbook["sets"][0]["reconCurrency"]) == (25, 5)
     assert [p["quality"] for p in pieces] == [4, 0]

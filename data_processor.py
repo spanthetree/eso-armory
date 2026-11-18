@@ -183,10 +183,11 @@ def _collect_bank_items(item_map: dict, bank_raw: dict):
 def _collect_house_chests(item_map: dict, houses_raw: dict) -> dict:
     house_chests: dict[str, dict] = {}
     for house_id, house_data in houses_raw.items():
+        house_name = house_data.get("name") or ""
         for chest_id_raw, chest in house_data.get("chests", {}).items():
             chest_id  = int(chest_id_raw)
             chest_num = chest.get("chestNum", chest_id - _HOUSE_BAG_START + 1)
-            label     = f"House Chest {chest_num}"
+            label     = f"House Chest {chest_num} · {house_name}" if house_name else f"House Chest {chest_num}"
             house_chests[str(chest_id)] = {
                 "bag_id":   chest_id,
                 "label":    label,
@@ -374,16 +375,17 @@ def process_ww_builds(raw: dict) -> dict:
     return {"builds": builds_by_char}
 
 
-_REWARD_FIELDS = ("type", "name", "id", "icon")
+_REWARD_FIELDS = ("type", "name", "id", "icon", "patronId", "cardIndex")
+_REWARD_TYPES = ("title", "dye", "collectible", "item", "tribute_card_upgrade")
 _HEX6 = re.compile(r"^[0-9a-fA-F]{6}$")
 
 
 def _parse_rewards(raw) -> list[dict]:
-    """Achievement rewards (title, dye, collectible, item) as iasync records them; Lua arrays may arrive as dicts."""
+    """Achievement rewards (title, dye, collectible, item, Tales of Tribute card upgrade) as iasync records them; Lua arrays may arrive as dicts."""
     items = raw.values() if isinstance(raw, dict) else raw if isinstance(raw, list) else []
     out = []
     for r in items:
-        if isinstance(r, dict) and r.get("type") in ("title", "dye", "collectible", "item"):
+        if isinstance(r, dict) and r.get("type") in _REWARD_TYPES:
             out.append({k: r[k] for k in _REWARD_FIELDS if r.get(k) not in (None, "")})
     return out
 
