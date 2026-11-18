@@ -117,11 +117,21 @@ export function forCharacter(items, charId) {
   return out;
 }
 
-/** @param {any[]} items @param {Filters} f */
+/**
+ * Items passing the filters. With a location filter (bag, location type, character) each row keeps only the matching
+ * locations, and its quantity and value cover just those, so "Bank" doesn't show an item's guild bank stacks.
+ * @param {any[]} items @param {Filters} f
+ */
 export function filterItems(items, f) {
   const q = f.search.toLowerCase().trim();
   const dupes = f.dupes ? duplicateNames(items) : null;
-  return items.filter((i) => {
+  const byLocation = !!(f.bags.length || f.locTypes.length || f.chars.length);
+  /** @param {any} l */
+  const at = (l) =>
+    (!f.bags.length || f.bags.includes(String(l.bag_id))) &&
+    (!f.locTypes.length || f.locTypes.includes(l.location_type)) &&
+    (!f.chars.length || f.chars.includes(l.location_key));
+  const kept = items.filter((i) => {
     if (dupes && !dupes.has(i.name)) return false;
     if (f.unbound && i.is_bound) return false;
     if (f.hasSet && !i.set_name) return false;
@@ -131,16 +141,14 @@ export function filterItems(items, f) {
     if (f.traits.length && !(f.traits.includes('any') ? i.trait_id > 0 : f.traits.includes(String(i.trait_id)))) return false;
     if (f.transmuted && !i.is_transmuted) return false;
     if (f.crafted && !i.is_crafted) return false;
-    if (f.bags.length || f.locTypes.length || f.chars.length) {
-      const hit = i.locations.some(
-        (/** @type {any} */ l) =>
-          (!f.bags.length || f.bags.includes(String(l.bag_id))) &&
-          (!f.locTypes.length || f.locTypes.includes(l.location_type)) &&
-          (!f.chars.length || f.chars.includes(l.location_key)),
-      );
-      if (!hit) return false;
-    }
-    return true;
+    return !byLocation || i.locations.some(at);
+  });
+  if (!byLocation) return kept;
+  return kept.map((i) => {
+    const locations = i.locations.filter(at);
+    if (locations.length === i.locations.length) return i;
+    const total_quantity = locations.reduce((/** @type {number} */ s, /** @type {any} */ l) => s + (l.quantity || 0), 0);
+    return { ...i, locations, total_quantity, value: i.unit != null ? i.unit * total_quantity : i.value };
   });
 }
 
