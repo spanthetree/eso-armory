@@ -206,3 +206,14 @@ def test_merged_item_takes_its_icon_from_any_copy():
     _add_slot(item_map, {"link": link, "name": "Mask"}, 1, "character", "c1", "Old Scan", 0, "Equipped")
     _add_slot(item_map, {"link": link, "name": "Mask", "icon": "/esoui/art/icons/gear_mask.dds"}, 1, "character", "c2", "New Scan", 0, "Equipped")
     assert item_map[link]["icon"] == "/esoui/art/icons/gear_mask.dds"
+
+
+def test_items_lend_their_icon_across_links_of_the_same_item():
+    from data_processor import process_iasync
+
+    old = "|H1:item:5001:363:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"
+    new = "|H1:item:5001:364:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"
+    raw = {"accountName": "@a", "chars": {"c1": {"name": "Old", "bags": {"1": {"0": {"link": old, "name": "Coil"}}}},
+                                          "c2": {"name": "New", "bags": {"1": {"0": {"link": new, "name": "Coil", "icon": "/esoui/art/icons/coil.dds"}}}}}}
+    items = process_iasync(raw)["items"]
+    assert {i["icon"] for i in items} == {"/esoui/art/icons/coil.dds"}

@@ -411,6 +411,12 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
     _collect_guild_bank_items(item_map, raw.get("guildBanks", {}))
 
     items = list(item_map.values())
+    # The icon belongs to the item, not the link (trait, enchant, level): lend it across links of the same item id,
+    # so a copy on a character not yet rescanned by a recent iasync still gets it.
+    icons = {i["item_id"]: i["icon"] for i in items if i.get("icon") and i.get("item_id")}
+    for i in items:
+        if not i.get("icon") and i.get("item_id") in icons:
+            i["icon"] = icons[i["item_id"]]
     parse_ms = int((time.monotonic() - t0) * 1000)
 
     return {
