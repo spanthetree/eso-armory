@@ -1023,7 +1023,6 @@
  "esoui/inventory/inventory_tabicon_weapons_down.png": "https://esoicons.uesp.net/esoui/art/inventory/inventory_tabicon_weapons_down.png",
  "esoui/inventory/inventory_tabicon_weapons_over.png": "https://esoicons.uesp.net/esoui/art/inventory/inventory_tabicon_weapons_over.png",
  "esoui/inventory/inventory_tabicon_weapons_up.png": "https://esoicons.uesp.net/esoui/art/inventory/inventory_tabicon_weapons_up.png",
- "esoui/loadingscreens/charload_01.png": "https://esoicons.uesp.net/esoui/art/loadingscreens/charload_01.png",
  "esoui/mainmenu/menubar_character_down.png": "https://esoicons.uesp.net/esoui/art/mainmenu/menubar_character_down.png",
  "esoui/mainmenu/menubar_character_over.png": "https://esoicons.uesp.net/esoui/art/mainmenu/menubar_character_over.png",
  "esoui/mainmenu/menubar_character_up.png": "https://esoicons.uesp.net/esoui/art/mainmenu/menubar_character_up.png",
@@ -1285,5 +1284,6 @@
  "esoui/lfg/lfg_indexicon_promotionalevents_up.png": "https://esoicons.uesp.net/esoui/art/lfg/lfg_indexicon_promotionalevents_up.png",
  "esoui/lfg/lfg_indexicon_promotionalevents_down.png": "https://esoicons.uesp.net/esoui/art/lfg/lfg_indexicon_promotionalevents_down.png",
  "esoui/lfg/lfg_indexicon_promotionalevents_over.png": "https://esoicons.uesp.net/esoui/art/lfg/lfg_indexicon_promotionalevents_over.png",
- "esoui/icons/icon_missing.png": "https://esoicons.uesp.net/esoui/art/icons/icon_missing.png"
+ "esoui/icons/icon_missing.png": "https://esoicons.uesp.net/esoui/art/icons/icon_missing.png",
+ "esoui/loadingscreens/charload_01_small.png": "https://i0.wp.com/esoicons.uesp.net/esoui/art/loadingscreens/charload_01.png?w=480"
 }

@@ -16,11 +16,12 @@
   --f-ui: var(--eso-font-medium);
 }
 
-/* The game draws its menus over the world: a darkened, blurred loading screen stands in for it. */
+/* The game draws its menus over the world: a darkened, blurred loading screen stands in for it. Blurred and darkened,
+   a 480px copy (~90 KB) looks the same as the 1680px original (3.2 MB); index.html preloads it. */
 :root[data-ui='classic'] body { background: #000; text-shadow: var(--eso-shadow-thin); }
 :root[data-ui='classic'] body::before {
   content: ''; position: fixed; inset: -24px; z-index: -1; pointer-events: none;
-  background: url('/assets/esoui/loadingscreens/charload_01.png') center / cover no-repeat;
+  background: url('/assets/esoui/loadingscreens/charload_01_small.png') center / cover no-repeat;
   filter: blur(7px) brightness(0.32) saturate(0.8);
 }
 :root[data-ui='classic'] body::after {
