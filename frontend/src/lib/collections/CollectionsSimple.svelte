@@ -106,7 +106,7 @@
   <div class="layout">
     <nav class="nav" aria-label="Collection categories">
       <button class="cat" aria-current={catName === null && !searching} onclick={() => pick(null)}>
-        {@render treeIcon(null, false)}<span class="cn">SUMMARY</span>
+        {@render treeIcon('/assets/esoui/collections/collections_tabicon_itemsets_up.png', catName === null && !searching)}<span class="cn">SUMMARY</span>
       </button>
       {#each cats as c (c.name)}
         {@const on = catName === c.name && !searching}

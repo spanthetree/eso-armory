@@ -144,7 +144,7 @@
 
     <!-- Categories (353 wide at -28,77) -->
     <nav class="eso-abs eso-scroll eso-tree tree" aria-label="Collection categories">
-      {@render treeHead('/esoicons/treeicons/achievements_indexicon_summary_up.png', 'Summary', catName === null && !searching, undefined, () => pick(null))}
+      {@render treeHead('/assets/esoui/collections/collections_tabicon_itemsets_up.png', 'Summary', catName === null && !searching, undefined, () => pick(null))}
       {#each cats as c (c.name)}
         {@const isOpen = catName === c.name && !searching}
         {@render treeHead(gameIcon(icons[c.name]), c.name, false, isOpen, () => pick(c.name), `${fmt(c.collected)} / ${fmt(c.total)} pieces (${pct(c.collected, c.total)}%)`, pct(c.collected, c.total))}

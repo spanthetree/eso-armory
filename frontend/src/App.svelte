@@ -102,7 +102,7 @@
       <div class="tabrow">
         <Tabs items={TAB_ITEMS} active={nav.tab} onchange={(id) => go(/** @type {any} */ (id))} />
         {#if nav.tab === 'collections'}
-          <div class="books"><Segmented label="Collections book" options={BOOKS} value={book} onchange={(v) => go('collections', null, 'sheet', /** @type {any} */ (v))} /></div>
+          <div class="books"><Segmented label="Collections book" options={BOOKS} value={book} showLabel={false} onchange={(v) => go('collections', null, 'sheet', /** @type {any} */ (v))} /></div>
         {/if}
       </div>
 

@@ -2281,7 +2281,7 @@ async def api_skill_info(name: str):
 
 _GAME_ICON_RE = re.compile(r"^[a-z0-9_]{1,120}$")
 # esoui/art folders the proxy may fetch from besides icons/ (category tree icons)
-_GAME_ICON_DIRS = {"treeicons", "collections", "achievements"}
+_GAME_ICON_DIRS = {"treeicons", "collections", "achievements", "charactercreate"}  # charactercreate: alliance set categories
 _GAME_ICON_DIR = Path("assets") / "esoicons"
 _game_icon_missing: collections.OrderedDict = collections.OrderedDict()  # names UESP doesn't have
 

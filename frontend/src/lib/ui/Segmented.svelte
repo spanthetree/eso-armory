@@ -3,9 +3,10 @@
    * Small segmented control with a sliding gold pill.
    * Classic UI with icons: the game's ZO_LabelButtonBar (selected name, then 32px icons growing to 50px when hovered or
    * selected; drawn at 28/40px here to fit the header row, 16px apart). `icon` is a path under /assets/esoui/ without the _up/_down/_over suffix.
-   * @type {{ options: { id: string, label: string, icon?: string }[], value: string, label: string, onchange: (id: string) => void }}
+   * `showLabel` false drops the selected name in front of the icons (Classic).
+   * @type {{ options: { id: string, label: string, icon?: string }[], value: string, label: string, onchange: (id: string) => void, showLabel?: boolean }}
    */
-  let { options, value, label, onchange } = $props();
+  let { options, value, label, onchange, showLabel = true } = $props();
   import { ui } from '../uimode.svelte.js';
   const classic = $derived(ui.mode === 'classic' && options.every((o) => o.icon));
 
@@ -26,7 +27,7 @@
 
 {#if classic}
   <div class="lbb" role="group" aria-label={label}>
-    <span class="lbl">{options.find((o) => o.id === value)?.label}</span>
+    {#if showLabel}<span class="lbl">{options.find((o) => o.id === value)?.label}</span>{/if}
     {#each options as o (o.id)}
       <button type="button" aria-pressed={value === o.id} aria-label={o.label} title={o.label} onclick={() => value !== o.id && onchange(o.id)}>
         <img src="/assets/esoui/{o.icon}_{value === o.id ? 'down' : 'up'}.png" alt="" />

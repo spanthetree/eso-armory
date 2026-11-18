@@ -9,7 +9,7 @@ export const CHAR_VIEWS = /** @type {const} */ (['sheet', 'wardrobe', 'bags', 'c
 /** @typedef {typeof CHAR_VIEWS[number]} CharView */
 
 /** Collections book tabs (collections.js BOOKS). Plain #/collections leaves the choice to the app (book null). */
-export const BOOK_IDS = /** @type {const} */ (['collectibles', 'stories', 'housing', 'outfits', 'sets', 'tribute']);
+export const BOOK_IDS = /** @type {const} */ (['collectibles', 'housing', 'outfits', 'sets', 'tribute']);
 /** @typedef {typeof BOOK_IDS[number]} Book */
 
 /** @param {string} hash */

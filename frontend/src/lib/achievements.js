@@ -45,7 +45,7 @@ export const pct = (earned, total) => (total ? Math.round((earned / total) * 100
  * @param {string} icon
  */
 export function gameIcon(icon) {
-  const m = /^\/esoui\/art\/(icons|treeicons|collections|achievements)\/([a-z0-9_]+)\.dds$/i.exec(icon ?? '');
+  const m = /^\/esoui\/art\/(icons|treeicons|collections|achievements|charactercreate)\/([a-z0-9_]+)\.dds$/i.exec(icon ?? '');
   if (!m) return null;
   const folder = m[1].toLowerCase();
   return folder === 'icons' ? `/esoicons/${m[2].toLowerCase()}.png` : `/esoicons/${folder}/${m[2].toLowerCase()}.png`;

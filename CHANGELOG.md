@@ -5,8 +5,9 @@
 ## [0.2.0-beta.7] - 2026-11-18
 
 ### Added
-- **The in-game Collections book** - the Collections tab gets the game's tab bar: Collectibles, Stories, Housing, Outfit Styles, Set Items and Tales of Tribute, each with its UESP tab icon. Every book has the in-game category tree with tree icons and completion, a Filter By search, a Show All / Locked / Unlocked filter and the game's 175x125 collectible tiles, in both Classic and Simple. Categories the game hides locked collectibles in hide them here too. Needs iasync 1.9.0; each book has its own link (`#/collections/housing`)
+- **The in-game Collections book** - the Collections tab gets the game's tab bar: Collectibles, Housing, Outfit Styles, Set Items and Tales of Tribute, each with its UESP tab icon. Every book has the in-game category tree with tree icons and completion, a Filter By search, a Show All / Locked / Unlocked filter and the game's 175x125 collectible tiles, in both Classic and Simple. Categories the game hides locked collectibles in hide them here too. The game's Stories tab (a list of DLC quests) is left out. Needs iasync 1.9.0; each book has its own link (`#/collections/housing`)
 - The server passes iasync's `collectibles` through in `/api/stickerbook`
+- Set Items tree: the game's Summary icon, and the alliance category icons (the `/esoicons/charactercreate/` folder is now allowed)
 
 ### Changed
 - **"Collections" (the set collection) is now "Set Items"**, as in game. Without collectibles data the Collections tab opens on it, as before

@@ -145,7 +145,6 @@ export function pieceSource(s) {
 // collection above. Order and icons follow the game (keyboardingamescenes.lua).
 export const BOOKS = [
   { id: 'collectibles', label: 'Collectibles', icon: 'collections/collections_tabicon_collectibles', spec: 0 },
-  { id: 'stories', label: 'Stories', icon: 'collections/collections_tabicon_dlc', spec: 1 },
   { id: 'housing', label: 'Housing', icon: 'collections/collections_tabicon_housing', spec: 2 },
   { id: 'outfits', label: 'Outfit Styles', icon: 'collections/collections_tabicon_outfitstyles', spec: 3 },
   { id: 'sets', label: 'Set Items', icon: 'collections/collections_tabicon_itemsets', spec: null },
