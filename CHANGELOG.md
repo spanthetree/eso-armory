@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.2.0-beta.10] - 2026-11-18
+
+### Changed
+- **Classic background loads about 35x faster** - the page blurs and darkens the loading screen, so it now uses a 480px copy (about 90 KB, resized by the image proxy) instead of the 3.2 MB original, and the page preloads it alongside the scripts instead of after them. `make assets` and the container download the small copy; the old file is no longer used
+
 ## [0.2.0-beta.9] - 2026-11-18
 
 ### Added
