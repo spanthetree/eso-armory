@@ -55,7 +55,7 @@
   :global(:root[data-ui='classic']) .card { background: none; border: 0 solid transparent; border-image: var(--eso-list-bg) 8 0 16 0 fill / 16px 0 32px 0; padding: 12px 18px 14px 52px; min-height: 76px; transform: none; box-shadow: none; }
   :global(:root[data-ui='classic']) .card:hover, :global(:root[data-ui='classic']) .card:focus-visible { transform: none; box-shadow: none; }
   :global(:root[data-ui='classic']) .hl { display: block; position: absolute; inset: 0; opacity: 0; transition: opacity 0.15s; pointer-events: none;
-    background: url('/assets/esoui/miscellaneous/listitem_highlight.png') center / 100% 100%; }
+    background: var(--eso-hover) center / 100% 100%; }
   :global(:root[data-ui='classic']) .card:hover .hl, :global(:root[data-ui='classic']) .card:focus-visible .hl { opacity: 1; }
   :global(:root[data-ui='classic']) .banner { position: absolute; left: 12px; top: 50%; width: 24px; height: 48px; margin-top: -24px; }
   :global(:root[data-ui='classic']) .name { font: 700 20px var(--eso-font); letter-spacing: 0; color: var(--eso-selected); text-shadow: var(--eso-shadow); }

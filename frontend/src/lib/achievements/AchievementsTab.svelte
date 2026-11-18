@@ -88,13 +88,14 @@
   </span>
 {/snippet}
 
-{#snippet treeHead(/** @type {string | null} */ src, /** @type {string} */ label, /** @type {boolean} */ on, /** @type {boolean | undefined} */ expanded, /** @type {() => void} */ click, /** @type {string | undefined} */ tip = undefined)}
+{#snippet treeHead(/** @type {string | null} */ src, /** @type {string} */ label, /** @type {boolean} */ on, /** @type {boolean | undefined} */ expanded, /** @type {() => void} */ click, /** @type {string | undefined} */ tip = undefined, /** @type {number | undefined} */ pc = undefined)}
   <button class="eso-th" aria-current={on} aria-expanded={expanded} onclick={click} title={tip}>
     {#if src}
       <img class="ico" src={on || expanded ? pressedIcon(src) : src} alt="" onerror={(e) => (/** @type {HTMLElement} */ (e.currentTarget).style.visibility = 'hidden')} />
       <img class="ico-hl" src={overIcon(src)} alt="" onerror={(e) => (/** @type {HTMLElement} */ (e.currentTarget).style.display = 'none')} />
     {/if}
     <span class="txt">{label}</span>
+    {#if pc !== undefined}<span class="pc">{pc}%</span>{/if}
   </button>
 {/snippet}
 
@@ -163,7 +164,7 @@
       {/if}
       {#each cats as c (c.name)}
         {@const isOpen = cat?.name === c.name}
-        {@render treeHead(catIcon(c), c.name, false, isOpen, () => pick(c.name), `${fmt(c.earnedPts)} / ${fmt(c.totalPts)} points (${pct(c.earnedPts, c.totalPts)}%)`)}
+        {@render treeHead(catIcon(c), c.name, false, isOpen, () => pick(c.name), `${fmt(c.earnedPts)} / ${fmt(c.totalPts)} points (${pct(c.earnedPts, c.totalPts)}%)`, pct(c.earnedPts, c.totalPts))}
         {#if isOpen}
           {#each subcats as s (s.key ?? s.name)}
             <button class="eso-ts" class:dim={!withData.has(s.name)} aria-current={sub?.name === s.name} onclick={() => pickSub(c.name, s.name)} title={s.total ? `${s.complete}/${s.total} complete` : undefined}>{s.name}</button>

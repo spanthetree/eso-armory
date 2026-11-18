@@ -78,13 +78,14 @@
   </div>
 {/snippet}
 
-{#snippet treeHead(/** @type {string | null} */ src, /** @type {string} */ label, /** @type {boolean} */ on, /** @type {boolean | undefined} */ expanded, /** @type {() => void} */ click, /** @type {string | undefined} */ tip = undefined)}
+{#snippet treeHead(/** @type {string | null} */ src, /** @type {string} */ label, /** @type {boolean} */ on, /** @type {boolean | undefined} */ expanded, /** @type {() => void} */ click, /** @type {string | undefined} */ tip = undefined, /** @type {number | undefined} */ pc = undefined)}
   <button class="eso-th" aria-current={on} aria-expanded={expanded} onclick={click} title={tip}>
     {#if src}
       <img class="ico" src={on || expanded ? pressedIcon(src) : src} alt="" onerror={(e) => (/** @type {HTMLElement} */ (e.currentTarget).style.visibility = 'hidden')} />
       <img class="ico-hl" src={src.replace(/_up\.png$/, '_over.png')} alt="" onerror={(e) => (/** @type {HTMLElement} */ (e.currentTarget).style.display = 'none')} />
     {/if}
     <span class="txt">{label}</span>
+    {#if pc !== undefined}<span class="pc">{pc}%</span>{/if}
   </button>
 {/snippet}
 
@@ -146,7 +147,7 @@
       {@render treeHead('/esoicons/treeicons/achievements_indexicon_summary_up.png', 'Summary', catName === null && !searching, undefined, () => pick(null))}
       {#each cats as c (c.name)}
         {@const isOpen = catName === c.name && !searching}
-        {@render treeHead(gameIcon(icons[c.name]), c.name, false, isOpen, () => pick(c.name), `${fmt(c.collected)} / ${fmt(c.total)} pieces (${pct(c.collected, c.total)}%)`)}
+        {@render treeHead(gameIcon(icons[c.name]), c.name, false, isOpen, () => pick(c.name), `${fmt(c.collected)} / ${fmt(c.total)} pieces (${pct(c.collected, c.total)}%)`, pct(c.collected, c.total))}
         {#if isOpen && (subs.length > 1 || subs[0]?.name)}
           {#each subs as s (s.name)}
             <button class="eso-ts" aria-current={subName === s.name} onclick={() => (subName = s.name)} title="{fmt(s.collected)} / {fmt(s.total)} pieces">{s.name || c.name}</button>

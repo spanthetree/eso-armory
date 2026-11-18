@@ -88,6 +88,8 @@
 .eso-th .txt { display: block; max-width: 227px; font-size: 24px; font-weight: 700; color: var(--eso-normal); text-transform: none; }
 .eso-th:hover .txt { color: var(--eso-highlight); }
 .eso-th[aria-expanded='true'] .txt, .eso-th[aria-current='true'] .txt { color: var(--eso-selected); }
+.eso-th .pc { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font: 500 16px var(--eso-font-medium); color: var(--eso-normal); }
+.eso-th:hover .pc, .eso-th[aria-expanded='true'] .pc { color: var(--eso-selected); }
 .eso-th .stat { position: absolute; left: 0; top: 8px; width: 32px; height: 32px; }
 .eso-th:focus-visible .txt, .eso-ts:focus-visible { outline: 1px solid var(--eso-normal); }
 .eso-ts { all: unset; position: relative; display: block; box-sizing: border-box; width: 228px; margin-left: 76px; padding: 2px 0; font-size: 18px; font-weight: 700; color: var(--eso-normal); cursor: pointer; text-shadow: var(--eso-shadow); }

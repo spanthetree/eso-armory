@@ -78,6 +78,9 @@ const PIECES = {
   '--eso-bar-edge-gloss': () => crop('miscellaneous/progressbar_genericfill_leadingedge_gloss', 0, 0, 8, 20),
   // ZO_ListEntryBackdrop: rows 0-40 of the file, drawn with 16/stretch/32 px bands.
   '--eso-list-bg': () => crop('miscellaneous/listitem_backdrop', 0, 0, 512, 40),
+  // Only the top 80 rows / visible 30-1018 x 0-897 of these files are drawn; stretching the whole file leaves the art short of its box.
+  '--eso-hover': () => crop('miscellaneous/listitem_highlight', 0, 0, 512, 80),
+  '--eso-panel': () => crop('miscellaneous/centerscreen_left', 30, 0, 988, 897),
   '--eso-list-hl': () => crop('miscellaneous/listitem_selectedhighlight', 0, 0, 512, 80),
   // ZO_ContextualActionsTile highlight cell of the market slot sheet.
   '--eso-slot-hl': () => crop('market/market_slotbgandhighlight', 295, 0, 295, 155),

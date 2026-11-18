@@ -102,8 +102,8 @@
   :global(:root[data-ui='classic']) .sets { max-height: 160px; overflow-y: auto; }
   :global(:root[data-ui='classic']) .list { max-height: 520px; }
   :global(:root[data-ui='classic']) .build { background: var(--eso-list-bg) 0 0 / 100% 100%; border-left: 0; }
-  :global(:root[data-ui='classic']) .build:hover { background: url('/assets/esoui/miscellaneous/listitem_highlight.png') 0 0 / 100% 100%; }
-  :global(:root[data-ui='classic']) .build[aria-selected='true'] { background: url('/assets/esoui/miscellaneous/listitem_selectedhighlight.png') 0 0 / 100% 100%; }
+  :global(:root[data-ui='classic']) .build:hover { background: var(--eso-hover) 0 0 / 100% 100%; }
+  :global(:root[data-ui='classic']) .build[aria-selected='true'] { background: var(--eso-list-hl) 0 0 / 100% 100%; }
   :global(:root[data-ui='classic']) .name { font: 700 18px var(--eso-font); color: var(--eso-selected); }
   :global(:root[data-ui='classic']) .where { font: 500 15px var(--eso-font-medium); color: var(--eso-normal); }
   :global(:root[data-ui='classic']) .set { border-left: 0; background: var(--eso-list-bg) 0 0 / 100% 100%; font: 500 17px var(--eso-font-medium); color: var(--eso-selected); }

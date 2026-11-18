@@ -1,4 +1,5 @@
 <script>
+  import Currencies from './lib/shell/Currencies.svelte';
   import { app, start } from './lib/store.svelte.js';
   import { restoreFolder } from './lib/upload.svelte.js';
   import { nav, go, TABS } from './lib/nav.svelte.js';
@@ -87,6 +88,7 @@
         {:else}
           <div class="sub">{data.meta.server} · {data.meta.character_count} characters</div>
           <h1>{data.meta.account}</h1>
+          <Currencies />
           <div class="orn" aria-hidden="true">◆</div>
         {/if}
       </header>
@@ -120,9 +122,14 @@
   </div>
 {/if}
 
+<footer class="legal">
+  Fan-made and not affiliated with or endorsed by ZeniMax Online Studios, Bethesda or Microsoft. The Elder Scrolls Online, its names and its art are trademarks and copyright of ZeniMax Media Inc.
+</footer>
+
 <style>
   .stage { position: relative; isolation: isolate; }
-  main { max-width: 1240px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .legal { max-width: 1240px; margin: 0 auto; padding: 0 16px 8px; text-align: center; font-size: 11px; line-height: 1.3; color: var(--muted); opacity: 0.7; }
+  main { max-width: 1240px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .hero { position: relative; isolation: isolate; text-align: center; display: grid; gap: 2px; padding-top: 4px; }
   .hero h1 { color: var(--fg); font-size: clamp(24px, 3.4vw, 34px); letter-spacing: 0.12em; text-shadow: 0 0 18px #ffffff26; text-wrap: balance; }
   .sub { color: var(--muted); text-transform: uppercase; letter-spacing: 0.2em; font-size: 13px; }

@@ -279,7 +279,7 @@
   .name .field { width: 170px; padding: 2px 8px; font-size: 13px; }
   .name .btn { padding: 2px 10px; }
 
-  .strip { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+  .strip { display: flex; flex-wrap: wrap; gap: 6px; }
   .stat { all: unset; flex: 1 0 auto; display: grid; padding: 4px 10px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; transition: border-color 0.2s; }
   .stat:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
   .stat[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
@@ -335,7 +335,7 @@
   .ti { display: none; }
   /* Classic: the in-game inventory window. Panels on the window backdrop, list rows on ZO_ListEntryBackdrop with the
      teal mouse-over highlight, sort headers in the header font, type stats with the inventory tab icons. */
-  :global(:root[data-ui='classic']) .filters, :global(:root[data-ui='classic']) .scroll { background: url('/assets/esoui/miscellaneous/centerscreen_left.png') center / 100% 100%; border: 0; }
+  :global(:root[data-ui='classic']) .filters, :global(:root[data-ui='classic']) .scroll { background: var(--eso-panel) center / 100% 100%; border: 0; }
   :global(:root[data-ui='classic']) .filters { padding: 12px 16px; }
   :global(:root[data-ui='classic']) .count { font: 500 16px var(--eso-font-medium); color: var(--eso-normal); }
   :global(:root[data-ui='classic']) .total, :global(:root[data-ui='classic']) .sv .g { color: var(--eso-selected); }
@@ -345,11 +345,12 @@
   :global(:root[data-ui='classic']) .fchip:hover, :global(:root[data-ui='classic']) .fchip.own button:hover { color: var(--eso-highlight); }
   :global(:root[data-ui='classic']) .fchip[aria-pressed='true'], :global(:root[data-ui='classic']) .fchip.own.on { color: var(--eso-selected); background: none; border-image-source: url('/assets/esoui/buttons/eso_buttonllarge_mousedown.png'); }
   :global(:root[data-ui='classic']) .fchip.add { border-style: solid; }
-  :global(:root[data-ui='classic']) .stat { position: relative; grid-template-columns: auto 1fr; column-gap: 4px; align-items: center; background: none; border: 0; padding: 2px 5px; }
+  :global(:root[data-ui='classic']) .stat { position: relative; grid-template-columns: auto 1fr; column-gap: 4px; align-items: center; background: none; border: 0; padding: 2px 3px; }
+  :global(:root[data-ui='classic']) .strip { gap: 2px; }
   :global(:root[data-ui='classic']) .stat > .sl, :global(:root[data-ui='classic']) .stat > .sv { grid-column: 2; }
-  :global(:root[data-ui='classic']) .ti { display: block; grid-row: span 2; width: 30px; height: 30px; }
-  :global(:root[data-ui='classic']) .stat:hover { border-color: transparent; background: url('/assets/esoui/miscellaneous/listitem_highlight.png') center / 100% 100%; }
-  :global(:root[data-ui='classic']) .stat[aria-pressed='true'] { box-shadow: none; background: url('/assets/esoui/miscellaneous/listitem_selectedhighlight.png') center / 100% 100%; }
+  :global(:root[data-ui='classic']) .ti { display: block; grid-row: span 2; width: 28px; height: 28px; }
+  :global(:root[data-ui='classic']) .stat:hover { border-color: transparent; background: var(--eso-hover) center / 100% 100%; }
+  :global(:root[data-ui='classic']) .stat[aria-pressed='true'] { box-shadow: none; background: var(--eso-list-hl) center / 100% 100%; }
   :global(:root[data-ui='classic']) .sl { font: 700 15px var(--eso-font); letter-spacing: 0; color: var(--eso-normal); }
   :global(:root[data-ui='classic']) .sv { font: 500 16px var(--eso-font-medium); color: var(--eso-selected); }
   :global(:root[data-ui='classic']) .sep { width: 8px; margin: 0 4px; background: url('/assets/esoui/miscellaneous/verticaldivider_64.png') center / 8px 100% no-repeat; }
@@ -362,7 +363,7 @@
   :global(:root[data-ui='classic']) th button:hover { color: var(--eso-highlight); }
   :global(:root[data-ui='classic']) td { border-bottom: 0; padding: 4px 12px; }
   :global(:root[data-ui='classic']) tr.item { background: var(--eso-list-bg) 0 0 / 100% 100%; }
-  :global(:root[data-ui='classic']) tr.item:hover, :global(:root[data-ui='classic']) tr.item:focus-visible { background: url('/assets/esoui/miscellaneous/listitem_highlight.png') 0 0 / 100% 100%; }
+  :global(:root[data-ui='classic']) tr.item:hover, :global(:root[data-ui='classic']) tr.item:focus-visible { background: var(--eso-hover) 0 0 / 100% 100%; }
   :global(:root[data-ui='classic']) td.name img { width: 40px; height: 40px; }
   :global(:root[data-ui='classic']) td.type, :global(:root[data-ui='classic']) td.qty, :global(:root[data-ui='classic']) td.val { color: var(--eso-selected); }
   :global(:root[data-ui='classic']) .lv { font-size: 16px; color: var(--eso-normal); }
