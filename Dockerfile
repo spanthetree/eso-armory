@@ -32,15 +32,16 @@ WORKDIR /app
 
 COPY --from=build /opt/venv /opt/venv
 
-# assets/ and uploads/ become volumes; create them owned by the app user so the volumes inherit it.
-RUN addgroup -S armory && adduser -S -D -u 10001 -G armory -h /app armory \
+# assets/ and uploads/ are mounted from the host. The entrypoint starts as root, then runs the app (su-exec) as the
+# owner of uploads/: the armory user when nothing owns it yet.
+RUN apk add --no-cache su-exec \
+    && addgroup -S armory && adduser -S -D -u 10001 -G armory -h /app armory \
     && mkdir -p assets uploads logs \
     && chown armory:armory assets uploads logs
 
 COPY . .
 COPY --from=frontend /static/dist ./static/dist
 
-USER armory
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=3 \

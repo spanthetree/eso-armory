@@ -1,4 +1,14 @@
-.PHONY: assets ui-install ui-dev ui-build frontend-test test test-fast test-ui test-ui-chromium test-ui-firefox test-all playwright-install playwright-install-deps
+.PHONY: up down upgrade assets ui-install ui-dev ui-build frontend-test test test-fast test-ui test-ui-chromium test-ui-firefox test-all playwright-install playwright-install-deps
+
+# Docker: start, stop, and upgrade to the latest published image (data in ./uploads and ./assets is kept).
+up:
+	docker compose up -d
+
+down:
+	docker compose down
+
+upgrade:
+	docker compose pull && docker compose up -d
 
 assets:
 	uv run scripts/download_assets.py

@@ -1,7 +1,7 @@
 # ESO Armory - Agent Notes
 
 ## Project Overview
-Local web app that reads ESO SavedVariables and presents inventory, equipment, and builds in a WoW-Armory-style browser. FastAPI backend, Svelte 5 + Vite frontend in `frontend/` built into `static/dist/`. Designed for WSL2 on Windows where the ESO client runs natively.
+Local web app that reads ESO SavedVariables and presents inventory, equipment, and builds in a web-based armory. FastAPI backend, Svelte 5 + Vite frontend in `frontend/` built into `static/dist/`. Designed for WSL2 on Windows where the ESO client runs natively.
 
 ## Stack
 - **Backend**: Python / FastAPI + Uvicorn (`server.py`)
