@@ -119,7 +119,8 @@
   /** @param {string} key */
   const arrow = (key) => (sort.key === key ? (sort.dir === 'asc' ? '▲' : '▼') : '');
   /** @param {any} loc */
-  const locLabel = (loc) => (where === 'bags' || loc.location_type !== 'character' ? loc.bag_label : `${loc.location_label} · ${loc.bag_label}`);
+  // Characters and guild banks name which one; other locations are unique.
+  const locLabel = (loc) => (where === 'bags' || !['character', 'guild_bank'].includes(loc.location_type) ? loc.bag_label : `${loc.location_label} · ${loc.bag_label}`);
 </script>
 
 <svelte:window onpointerdown={(e) => extrasOpen && !(/** @type {Element} */ (e.target)).closest('.extras') && (extrasOpen = false)} />
@@ -351,8 +352,8 @@
   :global(:root[data-ui='classic']) .ti { display: block; grid-row: span 2; width: 28px; height: 28px; }
   :global(:root[data-ui='classic']) .stat:hover { border-color: transparent; background: var(--eso-hover) center / 100% 100%; }
   :global(:root[data-ui='classic']) .stat[aria-pressed='true'] { box-shadow: none; background: var(--eso-list-hl) center / 100% 100%; }
-  :global(:root[data-ui='classic']) .sl { font: 700 15px var(--eso-font); letter-spacing: 0; color: var(--eso-normal); }
-  :global(:root[data-ui='classic']) .sv { font: 500 16px var(--eso-font-medium); color: var(--eso-selected); }
+  :global(:root[data-ui='classic']) .sl { font: 700 14px var(--eso-font); letter-spacing: 0; color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .sv { gap: 6px; font: 500 15px var(--eso-font-medium); color: var(--eso-selected); }
   :global(:root[data-ui='classic']) .sep { width: 8px; margin: 0 4px; background: url('/assets/esoui/miscellaneous/verticaldivider_64.png') center / 8px 100% no-repeat; }
   :global(:root[data-ui='classic']) .pop { background: none; border: 0 solid transparent; border-image: var(--eso-backdrop) 16 fill / 16px; padding: 18px; }
   :global(:root[data-ui='classic']) .pill { font: 500 16px var(--eso-font-medium); }
