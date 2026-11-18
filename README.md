@@ -55,12 +55,23 @@ curl -O https://raw.githubusercontent.com/spanthetree/eso-armory/master/compose.
 docker compose up -d
 ```
 
-This pulls `ghcr.io/spanthetree/eso-armory` and serves on port 5000. The first start downloads the game icons from UESP (about 2 minutes). Data lives in two volumes: `data` (accounts, config and its encryption key) and `assets` (icons).
+This pulls `ghcr.io/spanthetree/eso-armory` and serves on port 5000. The first start downloads the game icons from UESP (about 2 minutes).
 
-- `ESO_ARMORY_PORT=8080` changes the port; `ESO_ARMORY_VERSION=0.2.0-beta.1` pins a release.
-- Put `ANTHROPIC_API_KEY=...` in a `.env` file next to `compose.yaml` to enable SuperStar import.
-- From a checkout, `docker compose up -d --build` runs your local code instead.
-- To change [configuration](#configuration), copy it out with `docker compose cp web:/app/uploads/config.json .`, edit it, copy it back with `docker compose cp config.json web:/app/uploads/`, then `docker compose restart`.
+| Task | Command | From a checkout |
+|------|---------|-----------------|
+| Start | `docker compose up -d` | `make up` |
+| Stop | `docker compose down` | `make down` |
+| Upgrade to the latest release | `docker compose pull && docker compose up -d` | `make upgrade` |
+| Run your local code | `docker compose up -d --build` | |
+
+Data lives in two folders next to `compose.yaml`, the same ones a source install uses: `uploads/` (accounts, TTC tables, `config.json` with its encryption key) and `assets/` (icons). Stopping, upgrading or removing the container keeps them.
+
+- **Existing source install:** run compose in that checkout, or set `ESO_ARMORY_DIR=/path/to/checkout`. On first start the container uses its database, icons and `config.json` (whose `db_secret` decrypts the database). The container runs as the owner of `uploads/`, so the files stay yours.
+- **Upgrading from an earlier release:** older compose files kept data in a Docker volume. Download the new `compose.yaml` into the same folder; the first start copies the volume into `uploads/` when `uploads/` has no database yet. Icons are downloaded again.
+- **Nothing there yet:** the container creates a new database and config.
+- `ESO_ARMORY_PORT=8080` changes the port; `ESO_ARMORY_VERSION=0.2.0-beta.4` pins a release. Both can go in a `.env` file next to `compose.yaml`.
+- Put `ANTHROPIC_API_KEY=...` in `.env` to enable SuperStar import.
+- To change [configuration](#configuration), edit `uploads/config.json`, then `docker compose restart`.
 
 ### Run from source
 

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.2.0-beta.4] - 2026-11-18
+
+### Changed
+- **Docker data lives in `uploads/` and `assets/` next to `compose.yaml`**, the same folders a source install uses, instead of Docker volumes. Started in (or pointed at with `ESO_ARMORY_DIR`) an existing checkout, the container uses its database, icons and `config.json`; with nothing there it creates new ones
+- The container runs as the owner of `uploads/`, so bind-mounted files stay yours, and always listens on 5000 inside whatever port the config names
+- `make up`, `make down` and `make upgrade` (pull the latest image and restart)
+
+### Fixed
+- Data from the old `data` volume is copied into `uploads/` on the first start after upgrading, so no accounts are lost
+
 ## [0.2.0-beta.3] - 2026-11-18
 
 ### Added
