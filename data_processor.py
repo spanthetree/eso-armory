@@ -78,8 +78,168 @@ def _process_characters(chars_raw: dict) -> dict:
             "wv":         int(c.get("wv", 0)),
             "space_used": int(c.get("spaceUsed", 0)),
             "space_max":  int(c.get("spaceMax", 0)),
+            **_char_details(c),
         }
     return characters
+
+
+# ── iasync 1.11.0: character details, crafting, scribing; account currencies, activities, antiquities ────────────
+_INLINE_ICON = re.compile(r"\|t[^|]*\|t")
+
+
+def _text(v) -> str:
+    """Game text without inline icon markup (|t32:32:EsoUI/Art/...dds|t)."""
+    return _INLINE_ICON.sub("", str(v or "")).strip()
+
+
+def _inline_icon(v) -> str:
+    """First inline icon in game text, as a lowercase /esoui/art path ('' if none)."""
+    m = re.search(r"\|t[^|]*?:(EsoUI/[^|:]+\.dds)\|t", str(v or ""), re.I)
+    return "/" + m.group(1).lower() if m else ""
+
+
+def _int(v) -> int:
+    try:
+        return int(v or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _values(table) -> list:
+    """Values of a Lua array-like table, in index order."""
+    return [v for _, v in _indexed(table)]
+
+
+def _char_details(c: dict) -> dict:
+    """Character details iasync 1.11.0 records (empty for older SavedVariables or characters not logged in since)."""
+    riding = c.get("riding") if isinstance(c.get("riding"), dict) else {}
+    research = {}
+    for craft, lines in (c.get("research") or {}).items():
+        if not isinstance(lines, dict):
+            continue
+        research[str(craft)] = [{
+            "name":        str(l.get("name") or ""),
+            "icon":        str(l.get("icon") or ""),
+            "numTraits":   _int(l.get("numTraits")),
+            "known":       sorted(_int(t) for t in (l.get("known") or {}).values()),
+            "researching": [{"trait": _int(r.get("traitType")), "endTime": _int(r.get("endTime"))}
+                            for r in _values(l.get("researching")) if isinstance(r, dict)],
+        } for _, l in _indexed(lines)]
+    motifs = [{
+        "id":    mid,
+        "name":  str(m.get("name") or ""),
+        "known": _int(m.get("numKnown")),
+        "total": _int(m.get("total")),
+        "books": [{"title": str(b.get("title") or ""), "known": bool(b.get("known"))} for b in _values(m.get("books"))],
+    } for mid, m in _indexed(c.get("motifs"))]
+    recipes = [{
+        "name":  str(r.get("name") or ""),
+        "total": _int(r.get("total")),
+        "known": [str(n) for n in _values_any(r.get("known"))],
+    } for _, r in _indexed(c.get("recipes"))]
+    scr = c.get("scribing") if isinstance(c.get("scribing"), dict) else {}
+    scribing = {
+        "grimoires": [{
+            "id":       gid,
+            "name":     str(g.get("name") or ""),
+            "icon":     str(g.get("icon") or ""),
+            "unlocked": bool(g.get("unlocked")),
+            "scribed":  bool(g.get("scribed")),
+            "scripts":  {slot: [_int(x) for x in _values_any((g.get("scripts") or {}).get(slot))] for slot in ("primary", "secondary", "tertiary")},
+        } for gid, g in _indexed(scr.get("grimoires")) if g.get("name")],
+        "scripts": {str(sid): {"name": str(x.get("name") or ""), "unlocked": bool(x.get("unlocked"))} for sid, x in _indexed(scr.get("scripts"))},
+    }
+    return {
+        "level":         _int(c.get("level")),
+        "cp":            _int(c.get("championPoints")),
+        "title":         str(c.get("title") or ""),
+        "zone":          str(c.get("zone") or ""),
+        "ava_rank":      _int(c.get("avaRank")),
+        "ava_rank_name": str(c.get("avaRankName") or ""),
+        "riding":        {k: _int(riding.get(k)) for k in ("inventory", "inventoryMax", "stamina", "staminaMax", "speed", "speedMax")} if riding else None,
+        "guilds":        [{"name": str(g.get("name") or ""), "rank": str(g.get("rankName") or "")} for g in _values(c.get("guilds"))],
+        "currencies":    {str(k): _int(v) for k, v in (c.get("currencies") or {}).items()} if isinstance(c.get("currencies"), dict) else {},
+        "research":      research,
+        "motifs":        motifs,
+        "recipes":       recipes,
+        "scribing":      scribing,
+    }
+
+
+def _values_any(table) -> list:
+    """Values of a Lua array-like table of scalars (numbers or strings), in index order."""
+    pairs = table.items() if isinstance(table, dict) else enumerate(table or [], 1)
+    out = []
+    for k, v in pairs:
+        try:
+            out.append((int(k), v))
+        except (TypeError, ValueError):
+            continue
+    return [v for _, v in sorted(out, key=lambda kv: kv[0])]
+
+
+def _account_currencies(raw: dict) -> list[dict]:
+    """Account-held currencies ({name, account}) and banked amounts of character-held ones ({name, bank})."""
+    out = []
+    for key, c in (raw.get("currencies") or {}).items():
+        if not isinstance(c, dict):
+            continue
+        out.append({"key": str(key), "name": str(c.get("name") or key), "icon": str(c.get("icon") or ""),
+                    "account": _int(c["account"]) if "account" in c else None, "bank": _int(c["bank"]) if "bank" in c else None})
+    return sorted(out, key=lambda c: c["name"].lower())
+
+
+def _activities(raw: dict) -> dict:
+    a = raw.get("activities") or {}
+    if not isinstance(a, dict):
+        a = {}
+    timed = [{
+        "id": _int(t.get("id")), "name": _text(t.get("name")), "icon": _inline_icon(t.get("name")), "description": _text(t.get("description")),
+        "type": str(t.get("type") or ""), "progress": _int(t.get("progress")), "max": _int(t.get("maxProgress")),
+        "endTime": _int(t.get("endTime")), "currencyType": _int(t.get("currencyType")), "reward": _int(t.get("currencyQty")),
+        "claimed": _int(t.get("timesClaimed")), "claimable": _int(t.get("timesClaimable")),
+    } for t in _values(a.get("timed"))]
+    campaigns = [{
+        "id": _int(c.get("id")), "name": _text(c.get("name")), "description": _text(c.get("description")),
+        "completed": _int(c.get("numCompleted")), "capstone": _int(c.get("capstoneThreshold")), "capstoneClaimed": bool(c.get("capstoneClaimed")),
+        "endTime": _int(c.get("endTime")),
+        "activities": [{"id": _int(x.get("id")), "name": _text(x.get("name")), "description": _text(x.get("description")),
+                        "progress": _int(x.get("progress")), "max": _int(x.get("maxProgress")), "claimed": bool(x.get("claimed"))}
+                       for x in _values(c.get("activities"))],
+        "milestones": [{"threshold": _int(m.get("threshold")), "claimed": bool(m.get("claimed"))} for m in _values(c.get("milestones"))],
+    } for c in _values(a.get("campaigns"))]
+    t = a.get("tome") if isinstance(a.get("tome"), dict) else None
+    tome = None
+    if t:
+        def rewards(lst):
+            return [{"name": _text(r.get("name")), "icon": str(r.get("icon") or ""), "quantity": _int(r.get("quantity")) or 1,
+                     "quality": _int(r.get("quality")), "claimed": bool(r.get("claimed"))} for r in _values_any(lst) if isinstance(r, dict)]
+        tome = {
+            "name": _text(t.get("name")), "tier": _int(t.get("tier")), "progressToNext": _int(t.get("progressToNext")),
+            "endTime": _int(t.get("endTime")), "premium": bool(t.get("premium") or t.get("premiumPlus")),
+            "tiers": [{"tier": n, "total": _int(x.get("totalProgress")), "free": rewards(x.get("primary")), "premium": rewards(x.get("secondary"))}
+                      for n, x in _indexed(t.get("tiers"))],
+        }
+    limits = {str(k): _int((v or {}).get("resetTime")) for k, v in (a.get("limits") or {}).items() if isinstance(v, dict)}
+    return {"timed": timed, "campaigns": campaigns, "tome": tome, "resets": limits}
+
+
+def _antiquities(raw: dict) -> list[dict]:
+    an = raw.get("antiquities") or {}
+    if not isinstance(an, dict):
+        return []
+    sets = {str(k): str(v) for k, v in (an.get("sets") or {}).items()}
+    zones = {str(k): str(v) for k, v in (an.get("zones") or {}).items()}
+    out = []
+    for aid, x in _indexed(an.get("items")):
+        out.append({
+            "id": aid, "name": str(x.get("name") or ""), "icon": str(x.get("icon") or ""), "quality": _int(x.get("quality")),
+            "set": sets.get(str(_int(x.get("setId"))), ""), "zone": zones.get(str(_int(x.get("zoneId"))), ""),
+            "repeatable": bool(x.get("repeatable")), "recovered": _int(x.get("numRecovered")),
+            "lore": _int(x.get("loreAcquired")), "loreTotal": _int(x.get("loreTotal")),
+            "lead": bool(x.get("hasLead")), "leadExpires": _int(x.get("leadExpires")),
+        })
+    return sorted(out, key=lambda x: x["name"].lower())
 
 
 def _new_item_entry(link: str, iid: int | None, item_data: dict) -> dict:
@@ -264,6 +424,9 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
         "house_chests": house_chests,
         "items":        items,
         "uiColors":     ui_colors(raw),
+        "currencies":   _account_currencies(raw),
+        "activities":   _activities(raw),
+        "antiquities":  _antiquities(raw),
     }
 
 
@@ -622,6 +785,9 @@ def process_iasync_builds(raw: dict) -> dict:
             "attributes": c.get("build_attributes", {}),
             "pools":      c.get("build_pools", {}),  # max health/magicka/stamina, iasync >= 1.5.0
             "mundus":     mundus,
+            # iasync: tooltip text for the mundus stone(s) and slotted CP stars, when recorded
+            "mundusDescriptions": {str(k): _game_text(v) for k, v in (c.get("mundusDescriptions") or {}).items()},
+            "cpDescriptions":     {str(k): _game_text(v) for k, v in (c.get("cpDescriptions") or {}).items()},
         })
 
     # Merge ability/CP names from all characters (each char stores its own on login)
@@ -642,6 +808,14 @@ def process_iasync_builds(raw: dict) -> dict:
         "abilityNames": ability_names,
         "cpNames":      cp_names,
     }
+
+
+_COLOR_CODE = re.compile(r"\|c[0-9a-fA-F]{6}|\|r")
+
+
+def _game_text(v) -> str:
+    """Game text without colour codes (|cffffff...|r) or inline icons."""
+    return _INLINE_ICON.sub("", _COLOR_CODE.sub("", str(v or ""))).strip()
 
 
 def _indexed(table) -> list[tuple[int, dict]]:

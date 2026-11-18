@@ -1,11 +1,14 @@
 <script>
   import Frame from '../ui/Frame.svelte';
+  import TextTip from '../tips/TextTip.svelte';
+  import { tooltip } from '../ui/tooltip.svelte.js';
 
   /**
    * Slotted champion stars per tree. `cp` is { "1".."12": starId }: 1-4 Craft, 5-8 Warfare, 9-12 Fitness.
-   * @type {{ cp: Record<string, number> | null | undefined, names: Record<string, string>, delay?: number }}
+   * `descriptions` (star id -> text) feeds the hover tooltip when iasync recorded it.
+   * @type {{ cp: Record<string, number> | null | undefined, names: Record<string, string>, descriptions?: Record<string, string>, delay?: number }}
    */
-  let { cp, names, delay = 0.35 } = $props();
+  let { cp, names, descriptions = {}, delay = 0.35 } = $props();
 
   const TREES = [
     { label: 'Craft', color: '#A5DB52', icon: '/assets/interface/champion_stamina.png', slots: ['1', '2', '3', '4'] },
@@ -23,7 +26,7 @@
           <div class="cphead" style="color: {t.color}"><img src={t.icon} alt="" />{t.label}</div>
           <div class="cpnames">
             {#each t.slots as s (s)}
-              {#if cp?.[s]}<span>{names[String(cp[s])] || `#${cp[s]}`}</span>{/if}
+              {#if cp?.[s]}<span tabindex="0" use:tooltip={{ component: TextTip, props: { head: t.label, name: names[String(cp[s])] || `#${cp[s]}`, desc: descriptions?.[String(cp[s])] } }}>{names[String(cp[s])] || `#${cp[s]}`}</span>{/if}
             {/each}
           </div>
         </div>

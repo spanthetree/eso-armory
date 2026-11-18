@@ -22,6 +22,10 @@
   import CollectionsSimple from './lib/collections/CollectionsSimple.svelte';
   import CollectiblesBook from './lib/collections/CollectiblesBook.svelte';
   import { BOOKS } from './lib/collections.js';
+  import Crafting from './lib/character/Crafting.svelte';
+  import Scribing from './lib/character/Scribing.svelte';
+  import Antiquities from './lib/journal/Antiquities.svelte';
+  import TomeTab from './lib/tome/TomeTab.svelte';
   import { ui } from './lib/uimode.svelte.js';
   import { applyUiColors } from './lib/eso/tex.js';
   import Segmented from './lib/ui/Segmented.svelte';
@@ -37,6 +41,8 @@
 
   const CHAR_VIEW_ITEMS = [
     { id: 'sheet', label: 'Sheet', icon: 'inventory/inventory_tabicon_armor' },
+    { id: 'crafting', label: 'Crafting', icon: 'inventory/inventory_tabicon_crafting' },
+    { id: 'scribing', label: 'Scribing', icon: 'treeicons/tutorial_indexicon_scribing' },
     { id: 'wardrobe', label: 'Wardrobe', icon: 'inventory/inventory_tabicon_appearance' },
     { id: 'bags', label: 'Bags', icon: 'inventory/inventory_tabicon_items' },
     { id: 'compare', label: 'Compare', icon: 'inventory/inventory_tabicon_quickslot' },
@@ -48,10 +54,27 @@
     { id: 'inventory', label: 'Inventory', icon: 'inventory' },
     { id: 'achievements', label: 'Achievements', icon: 'journal' },
     { id: 'collections', label: 'Collections', icon: 'collections' },
+    { id: 'tome', label: 'Tamriel Tome', icon: 'tamrieltomes' },
   ];
 
+  // Books of the other tabs with a scene group in game (Collections' are in collections.js).
+  const JOURNAL_BOOKS = [
+    { id: 'achievements', label: 'Achievements', icon: 'journal/journal_tabicon_achievements' },
+    { id: 'antiquities', label: 'Antiquities', icon: 'journal/journal_tabicon_antiquities' },
+  ];
+  const TOME_BOOKS = [
+    { id: 'tome', label: 'Tamriel Tome', icon: 'mainmenu/menubar_tamrieltomes' },
+    { id: 'endeavors', label: 'Endeavors', icon: 'treeicons/tutorial_idexicon_timedactivities' },
+    { id: 'pursuits', label: 'Golden Pursuits', icon: 'lfg/lfg_indexicon_promotionalevents' },
+  ];
+  /** @type {Record<string, { id: string, label: string, icon: string }[]>} */
+  const TAB_BOOKS = { achievements: JOURNAL_BOOKS, collections: BOOKS, tome: TOME_BOOKS };
+
   // Collections book tab: as linked, else Collectibles once iasync 1.9.0 data is there, else Set Items.
-  const book = $derived(nav.book ?? (app.stickerbook.value?.collectibles?.categories?.length ? 'collectibles' : 'sets'));
+  const book = $derived(
+    nav.book ??
+      (nav.tab === 'collections' ? (app.stickerbook.value?.collectibles?.categories?.length ? 'collectibles' : 'sets') : TAB_BOOKS[nav.tab]?.[0]?.id ?? null),
+  );
   const bookInfo = $derived(BOOKS.find((b) => b.id === book) ?? BOOKS[0]);
 
   // Slide tab content in from the side you moved towards.
@@ -102,15 +125,19 @@
         <Tabs items={TAB_ITEMS} active={nav.tab} onchange={(id) => go(/** @type {any} */ (id))} />
         {#if nav.tab === 'characters' && char}
           <div class="subbar"><Segmented label="Character view" options={CHAR_VIEW_ITEMS} value={nav.charView} showLabel={false} onchange={(v) => go('characters', char.id, /** @type {any} */ (v))} /></div>
-        {:else if nav.tab === 'collections'}
-          <div class="subbar"><Segmented label="Collections book" options={BOOKS} value={book} showLabel={false} onchange={(v) => go('collections', null, 'sheet', /** @type {any} */ (v))} /></div>
+        {:else if TAB_BOOKS[nav.tab]}
+          <div class="subbar"><Segmented label="{TAB_ITEMS.find((t) => t.id === nav.tab)?.label} book" options={TAB_BOOKS[nav.tab]} value={book ?? ''} showLabel={false} onchange={(v) => go(nav.tab, null, 'sheet', v)} /></div>
         {/if}
       </div>
 
-      {#key `${nav.tab}/${nav.charId ?? ''}/${nav.charView}/${nav.tab === 'collections' ? book : ''}`}
+      {#key `${nav.tab}/${nav.charId ?? ''}/${nav.charView}/${book ?? ''}`}
         <section class="pane {dir}">
           {#if nav.tab === 'characters' && !char}
             <Roster />
+          {:else if nav.tab === 'characters' && nav.charView === 'crafting'}
+            <Crafting {char} />
+          {:else if nav.tab === 'characters' && nav.charView === 'scribing'}
+            <Scribing {char} />
           {:else if nav.tab === 'characters' && nav.charView === 'wardrobe'}
             <Wardrobe {char} />
           {:else if nav.tab === 'characters' && nav.charView === 'bags'}
@@ -123,8 +150,12 @@
             <CharacterSheet {char} />
           {:else if nav.tab === 'inventory'}
             <InventoryTab />
+          {:else if nav.tab === 'achievements' && book === 'antiquities'}
+            <Antiquities />
           {:else if nav.tab === 'achievements'}
             {#if ui.mode === 'classic'}<AchievementsTab />{:else}<AchievementsSimple />{/if}
+          {:else if nav.tab === 'tome'}
+            <TomeTab book={book ?? 'tome'} />
           {:else if nav.tab === 'collections'}
             {#if book !== 'sets'}<CollectiblesBook book={bookInfo} />{:else if ui.mode === 'classic'}<CollectionsTab />{:else}<CollectionsSimple />{/if}
           {/if}

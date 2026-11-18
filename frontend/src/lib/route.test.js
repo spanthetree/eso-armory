@@ -16,4 +16,9 @@ test('hash round-trip', () => {
   assert.equal(parseHash('#/collections/nope').book, null);
   assert.equal(toHash('collections', null, 'sheet', 'sets'), '#/collections/sets');
   assert.equal(toHash('collections'), '#/collections');
+  assert.equal(parseHash('#/tome/endeavors').book, 'endeavors');
+  assert.equal(parseHash('#/achievements/antiquities').book, 'antiquities');
+  assert.equal(parseHash('#/tome/antiquities').book, null); // another tab's book
+  assert.equal(toHash('tome', null, 'sheet', 'pursuits'), '#/tome/pursuits');
+  assert.equal(parseHash('#/characters/c1/crafting').charView, 'crafting');
 });

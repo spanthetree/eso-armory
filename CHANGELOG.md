@@ -5,6 +5,13 @@
 ## [0.2.0-beta.7] - 2026-11-18
 
 ### Added
+- **Character details** (iasync 1.11.0) - level, title and zone on the Character panel; a Profile panel with Alliance War rank, riding skills and guilds
+- **Crafting view** - trait research per craft (known traits, research in progress with time left), motifs with their chapters, and provisioning recipes
+- **Scribing view** - grimoires (unlocked, scribed) and each grimoire's focus, signature and affix scripts
+- **Tamriel Tome tab** - the season's reward track (free and premium per level, claimed and current level), weekly and seasonal Endeavors with progress, rewards and reset timers, and Golden Pursuits with milestones and activities
+- **Antiquities** in the Journal (the Achievements tab gets Achievements and Antiquities books) - leads with time left, then every zone, with recovered counts and Codex progress
+- **All currencies** - hover the account's currencies for every account-wide one (Seals, Transmute, Tome Points, Crowns…), with icons from iasync 1.12.0
+- **Tooltips on the character page** - set bonuses (active ones highlighted), and the mundus stone and slotted champion stars with their in-game descriptions (iasync 1.12.0)
 - **The in-game Collections book** - the Collections tab gets the game's tab bar: Collectibles, Housing, Outfit Styles, Set Items and Tales of Tribute, each with its UESP tab icon. Every book has the in-game category tree with tree icons and completion, a Filter By search, a Show All / Locked / Unlocked filter and the game's 175x125 collectible tiles, in both Classic and Simple. Categories the game hides locked collectibles in hide them here too. The game's Stories tab (a list of DLC quests) is left out. Needs iasync 1.9.0; each book has its own link (`#/collections/housing`)
 - The server passes iasync's `collectibles` through in `/api/stickerbook`
 - **Tales of Tribute patrons** (iasync 1.10.0) - the book shows the in-game tree's Patrons and Neutral groups with their icons, and each patron's coin, unlocked or locked
@@ -27,6 +34,8 @@
 - **Changing a password needs the current one**, so a browser left logged in can't lock the owner out
 
 ### Fixed
+- The `/api/data` parser dropped iasync's top-level `uiColors`
+- Character pages: the class and faction emblems fit the header; roster cards show the faction once in Classic
 - Filtering the inventory by location (e.g. Bank) no longer shows an item's other stacks: each row's locations, quantity and value cover only the filtered locations
 - After an upload or a primary/shadow switch, the password button and dialog showed the previous account's state
 - **An iasync.lua with no account name** (such as a fresh, empty file) was stored as an account called `@unknown`. It took the primary slot, so every later real upload landed in Alt, and other users' nameless uploads shared that same account. Such files are now rejected with a hint to log in and /reloadui first
