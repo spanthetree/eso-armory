@@ -127,7 +127,7 @@ export async function loadAll() {
 
 /** Everything that belongs to the active workspace slot. */
 async function reloadWorkspaceData() {
-  await Promise.all([loadData(true), loadBuilds(), loadWWBuilds(), loadCompare(), loadAchievements(), loadStickerbook()]);
+  await Promise.all([loadData(true), loadBuilds(), loadWWBuilds(), loadCompare(), loadAchievements(), loadStickerbook(), loadAuth()]);
 }
 
 /** @param {any} d */

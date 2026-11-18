@@ -1,7 +1,7 @@
 // Uploading SavedVariables: picked files, or a watched ESO "live" folder (Chrome/Edge File System Access API).
 // Ported from the classic uploadFiles / folder watcher.
 import * as api from './api.js';
-import { app, toast, loadWorkspace, loadData, loadBuilds, loadWWBuilds, loadCompare, loadAchievements, loadStickerbook, connectLive } from './store.svelte.js';
+import { app, toast, loadWorkspace, loadData, loadBuilds, loadWWBuilds, loadCompare, loadAchievements, loadStickerbook, loadAuth, connectLive } from './store.svelte.js';
 import { prices, resetAvgPrices } from './lookups.svelte.js';
 
 /** @typedef {{ iasync?: File | null, ww?: File | null, ttc_lookup?: File | null, ttc_price?: File | null }} UploadFiles */
@@ -17,7 +17,7 @@ export async function uploadFiles(files) {
   const d = await api.post('/api/upload', { label: 'Upload', init: { body } });
   await loadWorkspace();
   const tasks = [];
-  if (d.iasync?.ok) tasks.push(loadData(true), loadBuilds(), loadAchievements(), loadStickerbook());
+  if (d.iasync?.ok) tasks.push(loadData(true), loadBuilds(), loadAchievements(), loadStickerbook(), loadAuth());
   if (d.ww?.ok) tasks.push(loadWWBuilds());
   if (d.ttc_lookup?.ok || d.ttc_price?.ok) {
     for (const k of Object.keys(prices)) delete prices[k];

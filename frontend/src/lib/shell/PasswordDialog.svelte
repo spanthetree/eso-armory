@@ -36,6 +36,8 @@
 <Modal open={nav.dialog === 'password'} title={hasPassword ? 'Change Password' : 'Set Account Password'} onclose={() => (nav.dialog = '')}>
   <p class="hint">Protect your account so you can log in from any device with your ESO account name and this password.</p>
   <form onsubmit={(e) => { e.preventDefault(); save(); }}>
+    <!-- Read-only so password managers save the ESO account name with the password. -->
+    <input class="field" type="text" value={app.auth.account_name || ''} readonly autocomplete="username" aria-label="ESO account name" />
     <input class="field" type="password" bind:value={pwd} placeholder="New password (at least 8 characters)" autocomplete="new-password" aria-label="New password" />
     <input class="field" type="password" bind:value={confirm} placeholder="Confirm password" autocomplete="new-password" aria-label="Confirm password" />
     <button class="btn primary" disabled={busy}>{busy ? 'Saving…' : hasPassword ? 'Change password' : 'Save password'}</button>

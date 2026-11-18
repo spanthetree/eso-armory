@@ -7,6 +7,10 @@
   const data = $derived(app.data.value);
   const ws = $derived(app.workspace);
 
+  // Nag until the account has a password: without one it only opens in this browser.
+  let nudgeHidden = $state(false);
+  const nudge = $derived(!!data && !!app.auth.account_name && !app.auth.has_password && !nudgeHidden && nav.dialog !== 'password');
+
   let refreshing = $state(false);
   async function onRefresh() {
     refreshing = true;
@@ -67,7 +71,17 @@
       {app.shareCode ? `🔗 ${app.shareCode}` : 'Share'}
     </button>
     {#if data}
-      <button class="btn" onclick={() => (nav.dialog = 'password')}>{app.auth.has_password ? '🔐 Password' : '🔓 Set password'}</button>
+      <span class="pwd">
+        <button class="btn" class:ring={nudge} onclick={() => (nav.dialog = 'password')}>{app.auth.has_password ? '🔐 Password' : '🔓 Set password'}</button>
+        {#if nudge}
+          <span class="nudge ring" role="status">
+            <button class="msg" onclick={() => (nav.dialog = 'password')}>
+              Set a password for <b>{app.auth.account_name}</b> to open your armory on another device.
+            </button>
+            <button class="x" aria-label="Hide until reload" title="Hide until reload" onclick={() => (nudgeHidden = true)}>×</button>
+          </span>
+        {/if}
+      </span>
     {/if}
   </div>
 </header>
@@ -103,6 +117,23 @@
   .spin { display: inline-block; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  .pwd { position: relative; }
+  .nudge { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; display: flex; align-items: flex-start; gap: 6px; width: 240px;
+    padding: 8px 10px; font-size: 13px; color: var(--fg); background: #0b0b0bf2; border: 1px solid var(--accent); box-shadow: 0 6px 18px #000a; }
+  .nudge::before { content: ''; position: absolute; top: -6px; right: 22px; width: 10px; height: 10px; background: inherit;
+    border-left: 1px solid var(--accent); border-top: 1px solid var(--accent); transform: rotate(45deg); }
+  .nudge button { padding: 0; font: inherit; color: inherit; text-align: left; background: none; border: 0; cursor: pointer; }
+  .nudge .x { font-size: 16px; line-height: 1; color: var(--muted); }
+  .nudge .x:hover { color: var(--fg); }
+  /* Ring: a short bell wiggle at the start of every 30 s cycle. */
+  .ring { animation: ring 30s ease-in-out infinite; transform-origin: 50% 0; }
+  @keyframes ring {
+    0%, 4%, 100% { transform: rotate(0); }
+    0.5% { transform: rotate(-6deg); } 1% { transform: rotate(5deg); } 1.5% { transform: rotate(-4deg); }
+    2% { transform: rotate(3deg); } 2.5% { transform: rotate(-2deg); } 3% { transform: rotate(1deg); }
+  }
+  @media (prefers-reduced-motion: reduce) { .ring { animation: none; } }
+
   /* Classic: a dark band like the game's screen edge, with the title divider under it. */
   :global(:root[data-ui='classic']) .bar { background: linear-gradient(#000, #000c); backdrop-filter: none; border-bottom: 0; }
   :global(:root[data-ui='classic']) .bar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -3px; height: 6px; display: block;
@@ -112,4 +143,5 @@
   :global(:root[data-ui='classic']) .badge { font: 700 13px var(--eso-font); color: var(--eso-selected); background: var(--eso-normal); }
   :global(:root[data-ui='classic']) .slots .btn { font-size: 16px; padding: 0 10px; }
   :global(:root[data-ui='classic']) .slots [aria-pressed='true'] { color: var(--eso-selected); background: none; }
+  :global(:root[data-ui='classic']) .nudge { font: 500 16px var(--eso-font-medium); color: var(--eso-normal); background: #000e; }
 </style>

@@ -327,3 +327,20 @@ def test_collections_book_switcher(page: Page, app_url: str, fixtures_dir):
     page.get_by_role("group", name="Collections book").get_by_role("button", name="Collectibles").click()
     expect(page).to_have_url(re.compile(r"#/collections/collectibles$"))
     expect(page.get_by_text("Collectibles need iasync 1.9.0")).to_be_visible()
+
+
+@pytest.mark.ui
+def test_password_nudge_until_password_set(page: Page, app_url: str, fixtures_dir):
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    nudge = page.get_by_role("status").filter(has_text="to open your armory on another device")
+    expect(nudge).to_contain_text("@test_account")
+    nudge.get_by_role("button", name=re.compile("Set a password")).click()
+    expect(page.get_by_label("ESO account name")).to_have_value("@test_account")
+    page.get_by_label("New password").fill("hunter2hunter2")
+    page.get_by_label("Confirm password").fill("hunter2hunter2")
+    page.get_by_role("button", name="Save password").click()
+    expect(page.get_by_text("Password saved.")).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(page.get_by_role("button", name="🔐 Password")).to_be_visible()
+    expect(nudge).to_have_count(0)
