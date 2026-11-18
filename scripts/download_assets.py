@@ -9,7 +9,9 @@ being committed. Existing files are skipped; pass --force to re-download.
 import argparse
 import json
 import sys
+import threading
 import time
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -28,8 +30,8 @@ def fetch(url: str) -> bytes:
             if not body.startswith(PNG):
                 raise ValueError("not a PNG")
             return body
-        except Exception:
-            if attempt == 2:
+        except Exception as exc:
+            if attempt == 2 or (isinstance(exc, urllib.error.HTTPError) and exc.code in (403, 404)):
                 raise
             time.sleep(2 * (attempt + 1))
 
@@ -44,12 +46,22 @@ def main() -> int:
     todo = {p: u for p, u in manifest.items() if args.force or not (args.dest / p).is_file()}
     print(f"{len(manifest)} icons, {len(todo)} to download")
 
+    # UESP's Cloudflare refuses many cloud hosts with 403; stop early there instead of failing every icon slowly.
+    refused, ok_count, blocked = [0], [0], threading.Event()
+
     def one(item):
         path, url = item
+        if blocked.is_set():
+            return path, "skipped: UESP refuses this host"
         try:
             body = fetch(url)
         except Exception as exc:
+            if isinstance(exc, urllib.error.HTTPError) and exc.code == 403:
+                refused[0] += 1
+                if refused[0] >= 5 and not ok_count[0]:
+                    blocked.set()
             return path, f"{url}: {exc}"
+        ok_count[0] += 1
         out = args.dest / path
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(body)
@@ -58,8 +70,12 @@ def main() -> int:
     with ThreadPoolExecutor(4) as pool:  # keep load on UESP modest
         failed = [(p, e) for p, e in pool.map(one, todo.items()) if e]
 
-    for path, err in failed:
-        print(f"FAILED {path} <- {err}", file=sys.stderr)
+    if blocked.is_set():
+        print("UESP refuses downloads from this host (HTTP 403). Fetch the icons from another machine with "
+              "scripts/sync_icons.py, or copy an assets/ folder here.", file=sys.stderr)
+    else:
+        for path, err in failed:
+            print(f"FAILED {path} <- {err}", file=sys.stderr)
     print(f"done: {len(todo) - len(failed)} downloaded, {len(failed)} failed")
     return 1 if failed else 0
 

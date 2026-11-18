@@ -429,3 +429,40 @@ def test_game_icon_downloads_once_and_validates(client, isolated_server, monkeyp
     assert bad_folder.status_code == 400
     assert calls == ["achievement_x", "nope", "treeicons/tree_x"]  # cached on disk / remembered as missing
     assert bad.status_code in (400, 404)
+
+
+@pytest.mark.api
+def test_icons_this_host_cannot_download_go_to_uesp_and_are_recorded(client, isolated_server, monkeypatch, tmp_path):
+    import urllib.error
+
+    calls = []
+
+    def refused(name, folder="icons"):
+        calls.append(name)
+        raise urllib.error.HTTPError("https://esoicons.uesp.net/x", 403, "Forbidden", {}, None)
+
+    monkeypatch.setattr(isolated_server, "_fetch_game_icon", refused)
+    monkeypatch.setattr(isolated_server, "_GAME_ICON_DIR", tmp_path / "assets" / "esoicons")
+    monkeypatch.setattr(isolated_server, "_asset_manifest", {"esoui/x/missing.png": "https://esoicons.uesp.net/esoui/art/x/missing.png"})
+    monkeypatch.setattr(isolated_server, "_missing_assets", None)
+    monkeypatch.setattr(isolated_server, "_uesp_blocked_until", 0.0)
+    isolated_server._game_icon_missing.clear()
+
+    first = client.get("/esoicons/achievement_y.png", follow_redirects=False)
+    second = client.get("/esoicons/treeicons/tree_y.png", follow_redirects=False)
+    asset = client.get("/assets/esoui/x/missing.png", follow_redirects=False)
+    unknown = client.get("/assets/not/in/manifest.png", follow_redirects=False)
+    client.get("/esoicons/achievement_y.png", follow_redirects=False)
+
+    assert first.status_code == 307 and first.headers["location"] == "https://esoicons.uesp.net/esoui/art/icons/achievement_y.png"
+    assert first.headers["cache-control"] == "no-store"
+    assert second.status_code == 307 and second.headers["location"].endswith("/treeicons/tree_y.png")
+    assert calls == ["achievement_y"]  # after a 403, UESP is left alone for a while
+    assert asset.status_code == 307 and asset.headers["location"] == "https://esoicons.uesp.net/esoui/art/x/missing.png"
+    assert unknown.status_code == 404
+    log = (isolated_server.UPLOADS_DIR / "missing_assets.txt").read_text().splitlines()
+    assert log == [  # one line per icon, for scripts/sync_icons.py
+        "esoicons/achievement_y.png https://esoicons.uesp.net/esoui/art/icons/achievement_y.png",
+        "esoicons/treeicons/tree_y.png https://esoicons.uesp.net/esoui/art/treeicons/tree_y.png",
+        "esoui/x/missing.png https://esoicons.uesp.net/esoui/art/x/missing.png",
+    ]
