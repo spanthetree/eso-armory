@@ -1,12 +1,12 @@
 <script>
   /**
    * Obsidian panel: translucent black with gold rules that draw outward from the centre.
-   * @type {{ title?: string, delay?: number, children: import('svelte').Snippet }}
+   * @type {{ title?: string, delay?: number, fixedFade?: boolean, children: import('svelte').Snippet }}
    */
-  let { title = '', delay = 0, children } = $props();
+  let { title = '', delay = 0, fixedFade = false, children } = $props();
 </script>
 
-<section class="frame" style="--d: {delay}s">
+<section class="frame" class:fixed-fade={fixedFade} style="--d: {delay}s">
   {#if title}<h5>{title}</h5>{/if}
   {@render children()}
 </section>
@@ -35,8 +35,9 @@
   @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } }
 
   /* Classic: the game's soft-edged translucent window backdrop, a ZoFontWinH2-style title over horizontalDivider. */
-  /* The texture's soft top/bottom edges stay 22px on any panel height (stretched, tall panels looked washed out). */
-  :global(:root[data-ui='classic']) .frame { background: none; border: 0 solid transparent; border-image: var(--eso-panel) 44 0 43 0 fill / 22px 0 22px 0 stretch; backdrop-filter: none; padding: 10px 16px 14px; }
+  :global(:root[data-ui='classic']) .frame { background: var(--eso-panel) center / 100% 100%; backdrop-filter: none; padding: 10px 16px 14px; }
+  /* Include the full source fades in the caps so only the opaque middle stretches. */
+  :global(:root[data-ui='classic']) .frame.fixed-fade { background: none; border: 0 solid transparent; border-image: var(--eso-panel) 80 0 87 0 fill / 16px 0 16px 0 stretch; }
   :global(:root[data-ui='classic']) .frame::before { display: none; }
   :global(:root[data-ui='classic']) h5 { font: 700 18px var(--eso-font); letter-spacing: 0; text-transform: uppercase; color: var(--eso-selected); margin-bottom: 6px; padding-bottom: 7px;
     background: url('/assets/esoui/miscellaneous/horizontaldivider.png') bottom center / min(512px, 100%) 8px no-repeat; }

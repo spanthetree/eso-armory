@@ -42,7 +42,7 @@
     tip={item ? { component: ItemTip, props: { item, slotLabel: SLOT_LABELS[s], equippedFromSet: setCount(item) } } : null} />
 {/snippet}
 
-<Frame {title} delay={0.05}>
+<Frame {title} delay={0.05} fixedFade>
   <div class="label">Apparel</div>
   <div class="apparel">
     <div class="figure" style="background-image: url('/assets/silhouettes/{body}_{sex}.png')" title={race}></div>
