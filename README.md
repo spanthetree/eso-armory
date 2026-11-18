@@ -120,7 +120,7 @@ Open the server's address in a browser. The setup screen walks through the uploa
 | `port` | HTTP port |
 | `admin_accounts` | ESO account names (e.g. `@name`) allowed to upload TTC files. An account only counts as admin after it sets a password. |
 
-Set `ANTHROPIC_API_KEY` (or `anthropic_api_key` in `config.json`) to enable SuperStar import. Restart the server after changing the config.
+SuperStar import reads build screenshots with an AI service that can read images: OpenAI (default) or Anthropic. Each visitor can add their own key in the SuperStar view (stored encrypted for their browser session), with a link to create one. To provide a key for everyone, set `OPENAI_API_KEY` (or `openai_api_key` in `config.json`; `OPENAI_MODEL` / `openai_model` picks the model, default `gpt-4o`) or `ANTHROPIC_API_KEY` (or `anthropic_api_key`); OpenAI is used when both are set. Restart the server after changing the config.
 
 The server speaks plain HTTP. Put it behind a reverse proxy such as Caddy or nginx for HTTPS.
 

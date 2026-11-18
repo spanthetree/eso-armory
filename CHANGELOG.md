@@ -5,6 +5,7 @@
 ## [0.2.0-beta.7] - 2026-11-18
 
 ### Added
+- **SuperStar import with OpenAI or Anthropic** - pick the service when adding your key (OpenAI by default), with a link to create a key there. Servers can set `OPENAI_API_KEY` as well as `ANTHROPIC_API_KEY`
 - **Character details** (iasync 1.11.0) - level, title and zone on the Character panel; a Profile panel with Alliance War rank, riding skills and guilds
 - **Crafting view** - trait research per craft (known traits, research in progress with time left), motifs with their chapters, and provisioning recipes
 - **Scribing view** - grimoires (unlocked, scribed) and each grimoire's focus, signature and affix scripts

@@ -1545,13 +1545,15 @@ async def api_ww_builds(request: Request, session: str | None = Query(None), sha
 async def api_status(session: str | None = Query(None), share: str | None = Query(None)):
     cache, account_name = _resolve_cache_and_account(session, share)
     sid = _valid_session(session) if session else None
-    has_server_key = bool(os.environ.get("ANTHROPIC_API_KEY") or _config.get("anthropic_api_key", ""))
-    has_session_key = bool(_db_get_session_api_key(sid)) if sid else False
+    has_server_key = bool(_server_vision_key()[1])
+    session_key = _session_vision_key(sid) if sid else ("", "")
+    has_session_key = bool(session_key[1])
     is_admin = _is_admin(account_name)
     if cache["data_bytes"] is None:
         return {"ok": False, "item_count": 0, "character_count": 0,
                 "last_modified": None, "error": cache.get("error"),
                 "has_server_api_key": has_server_key, "has_session_api_key": has_session_key,
+                "session_api_provider": session_key[0] if has_session_key else None,
                 "is_admin": is_admin}
     meta = cache.get("meta") or {}
     return {
@@ -1562,6 +1564,7 @@ async def api_status(session: str | None = Query(None), share: str | None = Quer
         "error":              None,
         "has_server_api_key": has_server_key,
         "has_session_api_key": has_session_key,
+        "session_api_provider": session_key[0] if has_session_key else None,
         "is_admin":           is_admin,
     }
 
@@ -1826,18 +1829,97 @@ Rules:
 """.strip()
 
 
+# ── Vision provider for SuperStar screenshots: OpenAI (default) or Anthropic ────
+_VISION_PROVIDERS = ("openai", "anthropic")
+
+
+def _server_vision_key() -> tuple[str, str]:
+    """(provider, key) configured on the server: OpenAI first, then Anthropic; ('', '') if neither."""
+    key = os.environ.get("OPENAI_API_KEY") or _config.get("openai_api_key", "")
+    if key:
+        return "openai", key
+    key = os.environ.get("ANTHROPIC_API_KEY") or _config.get("anthropic_api_key", "")
+    return ("anthropic", key) if key else ("", "")
+
+
+def _session_vision_key(sid: str) -> tuple[str, str]:
+    """(provider, key) saved for a browser session. Keys saved before providers existed are Anthropic keys."""
+    blob = _db_get_session_api_key(sid)
+    raw = (_decrypt_api_key(blob) or "") if blob else ""
+    if raw.startswith("{"):
+        try:
+            obj = json.loads(raw)
+            return str(obj.get("provider") or "openai"), str(obj.get("key") or "")
+        except ValueError:
+            return "", ""
+    return ("anthropic", raw) if raw else ("", "")
+
+
+def _json_reply(text: str) -> dict:
+    """The model's JSON answer, tolerating a ```json fence around it."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else ""
+        text = text.rsplit("```", 1)[0]
+    return json.loads(text)
+
+
+def _read_screenshot_openai(api_key: str, media_type: str, image_b64: str) -> dict:
+    model = os.environ.get("OPENAI_MODEL") or _config.get("openai_model") or "gpt-4o"
+    body = json.dumps({
+        "model": model,
+        "response_format": {"type": "json_object"},
+        "messages": [{"role": "user", "content": [
+            {"type": "text", "text": _SUPERSTAR_PROMPT},
+            {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{image_b64}"}},
+        ]}],
+    }).encode()
+    req = urllib.request.Request("https://api.openai.com/v1/chat/completions", data=body, method="POST",
+                                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = json.loads(exc.read()).get("error", {}).get("message", "")
+        except Exception:
+            detail = ""
+        raise RuntimeError(f"OpenAI returned {exc.code}{': ' + detail if detail else ''}") from None
+    return _json_reply(data["choices"][0]["message"]["content"] or "")
+
+
+def _read_screenshot_anthropic(api_key: str, media_type: str, image_b64: str) -> dict:
+    import anthropic as _anthropic
+    client = _anthropic.Anthropic(api_key=api_key)
+    msg = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1500,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
+                {"type": "text", "text": _SUPERSTAR_PROMPT},
+            ],
+        }],
+    )
+    return _json_reply(next((b.text for b in msg.content if b.type == "text"), ""))
+
+
 @app.post("/api/session/apikey")
 async def api_save_session_apikey(
     api_key: str = Form(...),
+    provider: str = Form("openai"),
     session: str | None = Query(None),
 ):
-    """Encrypt and persist an Anthropic API key for this browser session."""
+    """Encrypt and persist an OpenAI or Anthropic API key (for reading SuperStar screenshots) for this browser session."""
     sid = _valid_session(session)
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
     if not api_key.strip():
         return JSONResponse({"error": "api_key must not be empty"}, status_code=400)
-    encrypted = _encrypt_api_key(api_key.strip())
+    if provider not in _VISION_PROVIDERS:
+        return JSONResponse({"error": f"provider must be one of {', '.join(_VISION_PROVIDERS)}"}, status_code=400)
+    encrypted = _encrypt_api_key(json.dumps({"provider": provider, "key": api_key.strip()}))
     _db_save_session_api_key(sid, encrypted)
     return {"ok": True}
 
@@ -1858,18 +1940,14 @@ async def api_parse_superstar(
     session: str | None = Query(None),
     share: str | None = Query(None),
 ):
-    """Accept a SuperStar screenshot and return extracted build JSON via Claude Vision."""
-    api_key = ""
+    """Accept a SuperStar screenshot and return extracted build JSON, read by OpenAI or Anthropic vision."""
     sid = _valid_session(session) if session else None
-    if sid:
-        blob = _db_get_session_api_key(sid)
-        if blob:
-            api_key = _decrypt_api_key(blob) or ""
+    provider, api_key = _session_vision_key(sid) if sid else ("", "")
     if not api_key:
-        api_key = os.environ.get("ANTHROPIC_API_KEY") or _config.get("anthropic_api_key", "")
+        provider, api_key = _server_vision_key()
 
     if not api_key:
-        return JSONResponse({"error": "No Anthropic API key configured. Enter your key via the key icon."}, status_code=503)
+        return JSONResponse({"error": "No API key configured. Add an OpenAI or Anthropic key to read screenshots."}, status_code=503)
 
     image_bytes = await image.read(_MAX_IMAGE_BYTES + 1)
     if len(image_bytes) > _MAX_IMAGE_BYTES:
@@ -1879,24 +1957,11 @@ async def api_parse_superstar(
         media_type = "image/png"
 
     image_b64 = base64.standard_b64encode(image_bytes).decode()
+    read = _read_screenshot_openai if provider == "openai" else _read_screenshot_anthropic
     try:
-        import anthropic as _anthropic
-        client = _anthropic.Anthropic(api_key=api_key)
-        msg = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1500,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
-                    {"type": "text", "text": _SUPERSTAR_PROMPT},
-                ],
-            }],
-        )
-        raw = msg.content[0].text.strip()
-        parsed = json.loads(raw)
+        parsed = await asyncio.get_event_loop().run_in_executor(None, read, api_key, media_type, image_b64)
     except Exception as exc:
-        logger.error("SuperStar Claude parse error: {}", exc)
+        logger.error("SuperStar {} parse error: {}", provider, exc)
         return JSONResponse({"error": f"Parse failed: {exc}"}, status_code=500)
 
     # Annotate each gear slot with its numeric slot_id for frontend lookup

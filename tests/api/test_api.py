@@ -540,3 +540,41 @@ def test_large_payloads_are_gzipped_when_accepted(isolated_server):
     assert zipped.headers["cache-control"] == "no-store" and zipped.headers["vary"] == "Accept-Encoding"
     assert "content-encoding" not in plain.headers and plain.body == body
     assert "content-encoding" not in small.headers
+
+
+def _with_fernet(server, monkeypatch):
+    """Session API keys are encrypted with the config's db_secret; give the isolated server one (nothing written)."""
+    from cryptography.fernet import Fernet
+    monkeypatch.setitem(server._config, "db_secret", Fernet.generate_key().decode())
+    server._init_db_fernet()
+
+
+@pytest.mark.api
+def test_superstar_reads_with_the_saved_provider(client, isolated_server, monkeypatch):
+    _with_fernet(isolated_server, monkeypatch)
+    calls = []
+    monkeypatch.setattr(isolated_server, "_read_screenshot_openai", lambda k, m, b: calls.append(("openai", k)) or {"gear": [{"slot": "Head"}]})
+    monkeypatch.setattr(isolated_server, "_read_screenshot_anthropic", lambda k, m, b: calls.append(("anthropic", k)) or {"gear": []})
+    monkeypatch.setattr(isolated_server, "_server_vision_key", lambda: ("", ""))
+    png = {"image": ("s.png", b"\x89PNG\r\n\x1a\nfake", "image/png")}
+
+    none = client.post(f"/api/parse_superstar?session={TEST_SESSION}", files=png)
+    bad = client.post(f"/api/session/apikey?session={TEST_SESSION}", data={"api_key": "x", "provider": "nope"})
+    client.post(f"/api/session/apikey?session={TEST_SESSION}", data={"api_key": "sk-openai"})  # provider defaults to OpenAI
+    status = client.get(f"/api/status?session={TEST_SESSION}").json()
+    read = client.post(f"/api/parse_superstar?session={TEST_SESSION}", files=png)
+    client.post(f"/api/session/apikey?session={TEST_SESSION}", data={"api_key": "sk-ant-x", "provider": "anthropic"})
+    client.post(f"/api/parse_superstar?session={TEST_SESSION}", files=png)
+
+    assert none.status_code == 503 and bad.status_code == 400
+    assert status["has_session_api_key"] is True and status["session_api_provider"] == "openai"
+    assert read.status_code == 200 and read.json()["gear"][0]["slot_id"] is not None
+    assert calls == [("openai", "sk-openai"), ("anthropic", "sk-ant-x")]
+
+
+@pytest.mark.api
+def test_keys_saved_before_providers_are_anthropic(isolated_server, monkeypatch):
+    _with_fernet(isolated_server, monkeypatch)
+    isolated_server._db_save_session_api_key(TEST_SESSION, isolated_server._encrypt_api_key("sk-ant-legacy"))
+    assert isolated_server._session_vision_key(TEST_SESSION) == ("anthropic", "sk-ant-legacy")
+    assert isolated_server._json_reply('```json\n{"a": 1}\n```') == {"a": 1}

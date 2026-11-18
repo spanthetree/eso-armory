@@ -101,7 +101,7 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `POST /api/auth/login?session=` | Body `{account_name, password}` → binds this browser to the account as primary; rate-limited per IP |
 | `POST /api/auth/logout?session=` | Deletes this browser's `workspace_sessions` row and imported compare builds, and drops share-registry entries pointing at it. Account data stays |
 | `POST /api/upload?session=` | Multipart: `iasync`, `ww`, `ttc_lookup`, `ttc_price` files; iasync/WW parsed in memory → all payloads stored to SQLite by ESO accountName (no raw bytes retained); `ttc_lookup`/`ttc_price` admin-only → written to global `uploads/ttc/` |
-| `POST /api/parse_superstar` | Multipart `image` upload → Claude Vision parses SuperStar addon screenshot → `{character, mundus, gear[{slot, slot_id, item_name, set_name, trait, enchantment}]}` - requires `ANTHROPIC_API_KEY` env var or `anthropic_api_key` in `config.json` |
+| `POST /api/parse_superstar` | Multipart `image` upload → OpenAI (Chat Completions, `gpt-4o` or `openai_model`, JSON mode) or Anthropic vision reads the SuperStar screenshot → `{character, mundus, gear[{slot, slot_id, item_name, set_name, trait, enchantment}]}`. Key: the session's (`POST /api/session/apikey` with `api_key` and `provider` `openai`/`anthropic`, stored Fernet-encrypted as `{provider, key}`; older plain keys are Anthropic), else `OPENAI_API_KEY`/`openai_api_key`, else `ANTHROPIC_API_KEY`/`anthropic_api_key`. `/api/status` adds `session_api_provider` |
 | `GET /events?session=&share=` | SSE stream; sends `"reload"` on data change (iasync only - not WW) |
 
 ## Server Architecture
