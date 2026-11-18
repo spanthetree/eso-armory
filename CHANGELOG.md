@@ -37,6 +37,7 @@
 - **Changing a password needs the current one**, so a browser left logged in can't lock the owner out
 
 ### Fixed
+- **Refresh with a watched folder** reconnects the folder when the browser wants access re-granted, then uploads its files again even if unchanged
 - **Watched folder**: it checks every 10 s (and as soon as you return to the tab) instead of every minute. After a page reload, when the browser wants folder access re-granted, the top bar shows **Resume watching** instead of silently stopping
 - An item held by several characters took its icon from the first copy found, which could be one scanned before iasync recorded icons; any copy's icon is used now, including copies with a different trait, enchant or level
 - On phones a divider line hung mid-screen on every page: the top bar's divider was positioned against the viewport instead of the bar

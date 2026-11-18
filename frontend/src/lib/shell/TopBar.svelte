@@ -14,8 +14,10 @@
   let refreshing = $state(false);
   async function onRefresh() {
     refreshing = true;
-    // With a watched folder, refresh means "re-read the folder"; otherwise ask the server.
-    if (watch.handle) toast((await checkFolder()) ? 'Data updated' : 'No updates');
+    // With a watched folder, refresh reconnects it if the browser wants access re-granted (this click allows that)
+    // and uploads its files again, changed or not; otherwise it asks the server.
+    if (watch.pending && !watch.handle) (await resumeWatching({ force: true })) || (await refresh());
+    else if (watch.handle) toast((await checkFolder({ force: true })) ? 'Data updated' : 'Folder files not found');
     else await refresh();
     refreshing = false;
   }

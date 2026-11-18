@@ -74,8 +74,11 @@ async function getFile(parts, name) {
 }
 
 let busy = false;
-/** Upload any watched file that changed since the last sync. Returns true if something was uploaded. */
-export async function checkFolder() {
+/**
+ * Upload any watched file that changed since the last sync (every file with `force`). Returns true if something was uploaded.
+ * @param {{ force?: boolean }} [o]
+ */
+export async function checkFolder({ force = false } = {}) {
   if (!watch.handle || busy) return false;
   busy = true;
   try {
@@ -84,7 +87,7 @@ export async function checkFolder() {
     for (const src of sources()) {
       if (src.adminOnly && !app.status.isAdmin) continue;
       const file = await getFile(src.parts, src.name);
-      if (file && file.lastModified > watch.lastMod[src.key]) changed.push({ src, file });
+      if (file && (force || file.lastModified > watch.lastMod[src.key])) changed.push({ src, file });
     }
     if (!changed.length) return false;
     const d = await uploadFiles(Object.fromEntries(changed.map(({ src, file }) => [src.field, file])));
@@ -167,8 +170,8 @@ export async function restoreFolder() {
   }
 }
 
-/** Re-grant access to the remembered folder (call from a click) and resume watching. */
-export async function resumeWatching() {
+/** Re-grant access to the remembered folder (call from a click) and resume watching. @param {{ force?: boolean }} [o] */
+export async function resumeWatching({ force = false } = {}) {
   const handle = watch.pending;
   if (!handle) return false;
   try {
@@ -178,7 +181,7 @@ export async function resumeWatching() {
   }
   watch.pending = null;
   watch.handle = handle;
-  await checkFolder();
+  await checkFolder({ force });
   startTimer();
   toast('Watching live folder');
   return true;
