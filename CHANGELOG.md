@@ -14,6 +14,7 @@
 - **Log out** - forgets this browser and returns to the Welcome screen. The account's data stays on the server; it warns first if the account has no password, since that data can't be opened again without a new upload
 
 ### Changed
+- **Logo** - the in-game Armory icon (the favicon) sits between "ESO" and "ARMORY" in the top bar
 - **Icons on hosts UESP blocks now come through a public image proxy.** After a 403 the server fetches through WordPress.com's Photon CDN (`i0.wp.com`) and saves the icons in `assets/`; on an AWS Lightsail server all 1,268 manifest icons downloaded this way in 78 s. A manifest icon missing from `assets/` is fetched and saved on first request. Only if UESP and the proxy both fail is the browser sent to UESP
 - `scripts/sync_icons.py` and `uploads/missing_assets.txt` (0.2.0-beta.6) are gone: the proxy replaces them
 - **Character views (Sheet, Wardrobe, Bags, Compare, SuperStar) switch from an icon row under the main tabs**, like the Collections books; the book and view bars show icons only

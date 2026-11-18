@@ -30,7 +30,7 @@
 
 <header class="bar">
   <div class="brand">
-    <span class="word">ESO ARMORY</span>
+    <span class="word">ESO<img class="logo" src="/assets/favicon.png" alt="" />ARMORY</span>
     {#if data}
       <span class="meta">
         {data.meta.account} · {data.meta.server} · <span class="num">{data.meta.item_count.toLocaleString('en-US')}</span> items
@@ -106,7 +106,9 @@
     border-bottom: 1px solid var(--line);
   }
   .brand { display: grid; line-height: 1.2; }
-  .word { font: 700 17px var(--f-display); letter-spacing: 0.16em; color: var(--fg); }
+  .word { display: flex; align-items: center; gap: 6px; font: 700 17px var(--f-display); letter-spacing: 0.16em; color: var(--fg); }
+  /* The favicon (the in-game Armory icon, 64px source) between the words. */
+  .logo { width: 40px; height: 40px; margin: -12px -5px; } /* tall icon with side padding: bigger, without growing the bar */
   .meta { font-size: 13px; color: var(--muted); }
   .badge { margin-left: 4px; padding: 0 5px; font-size: 11px; font-weight: 600; color: var(--fg); text-shadow: 0 0 2px #000, 0 1px 1px #000; background: var(--accent); }
   .slots { display: flex; gap: 4px; }
