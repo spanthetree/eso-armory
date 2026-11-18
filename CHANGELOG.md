@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.2.0-beta.9] - 2026-11-18
+
+### Added
+- Use ability icon paths exported by iasync 1.15.0 for equipped and Wizards Wardrobe skills, with support for shared build exports and Compare.
+
+### Fixed
+- Preserve successful fallback ability-name lookups on disk across server restarts and allow unresolved names to retry on later views.
+- Cache backgrounds and game icons in browsers for one year with immutable responses, while retaining the persistent server asset cache.
+- Refresh build metadata during live data reloads.
+
 ## [0.2.0-beta.8] - 2026-11-18
 
 ### Fixed

@@ -20,6 +20,7 @@ ESO has no way to see your account outside the game. Gear is spread across chara
 
 ## Features
 
+- **Skill icons.** iasync 1.15.0 exports ability names and exact icon paths for equipped bars and saved Wizards Wardrobe builds. Armory uses those paths through its cached UESP image route. Older exports retain name-based icon lookup, with successful fallback names saved across server restarts. Backgrounds and game icons use one-year immutable browser caching.
 - **Characters.** Each character's equipped gear on an in-game style "Equipped" panel with each item's own icon, plus level, title, skill bars, Champion Points, attributes, max Health/Magicka/Stamina, Mundus Stone, Alliance War rank, riding and guilds, with tooltips for sets, the mundus and champion stars. Switch a character between Sheet, Crafting (trait research, motifs, recipes), Scribing, Wardrobe (saved WizardsWardrobe setups), Bags, Compare and SuperStar views.
 - **Inventory.** Every item across characters, bank, ESO Plus bank, craft bag, house chests and guild banks. Search and filter by quality, type, trait, location and character, or group by set. Tamriel Trade Centre values per item with totals by type and location, a duplicate-gear finder, and filter chips you can save.
 - **Build compare.** Export a build as a short code, import someone else's, and compare gear side by side. Missing pieces are listed with their source (dungeon, trial, arena) and an estimated Tamriel Trade Centre cost.
@@ -93,7 +94,7 @@ uv run server.py --port 8080  # or another port
 
 Open the server's address in a browser. The setup screen walks through the upload:
 
-1. Log in to each character in ESO so iasync captures it (use the latest iasync: item icons, crafting, scribing and champion star names need 1.11.0 to 1.14.0). Open your bank once to capture bank contents.
+1. Log in to each character in ESO so iasync captures it (use the latest iasync: item icons, crafting, scribing and champion star names need 1.11.0 to 1.14.0). Open your bank once to capture bank contents. With iasync 1.15.0, scan each character to collect saved-build skill names and icons. After updating the addon, reload the UI, wait for the scan, then reload again to write the new metadata.
 2. Upload `iasync.lua` and `WizardsWardrobe.lua` from `Documents\Elder Scrolls Online\live\SavedVariables\`.
 
 ## Configuration
