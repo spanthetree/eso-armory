@@ -432,37 +432,39 @@ def test_game_icon_downloads_once_and_validates(client, isolated_server, monkeyp
 
 
 @pytest.mark.api
-def test_icons_this_host_cannot_download_go_to_uesp_and_are_recorded(client, isolated_server, monkeypatch, tmp_path):
+def test_missing_icons_are_fetched_and_saved_or_sent_to_uesp(client, isolated_server, monkeypatch, tmp_path):
     import urllib.error
 
-    calls = []
+    png = b"\x89PNG\r\n\x1a\nfake"
+    asked = []
 
-    def refused(name, folder="icons"):
-        calls.append(name)
-        raise urllib.error.HTTPError("https://esoicons.uesp.net/x", 403, "Forbidden", {}, None)
+    def fetch(url, timeout=30):
+        asked.append(url)
+        if "broken" in url:
+            raise urllib.error.HTTPError(url, 502, "Bad Gateway", {}, None)
+        return None if "gone" in url else png
 
-    monkeypatch.setattr(isolated_server, "_fetch_game_icon", refused)
-    monkeypatch.setattr(isolated_server, "_GAME_ICON_DIR", tmp_path / "assets" / "esoicons")
-    monkeypatch.setattr(isolated_server, "_asset_manifest", {"esoui/x/missing.png": "https://esoicons.uesp.net/esoui/art/x/missing.png"})
-    monkeypatch.setattr(isolated_server, "_missing_assets", None)
-    monkeypatch.setattr(isolated_server, "_uesp_blocked_until", 0.0)
+    monkeypatch.setattr(isolated_server.uesp, "fetch_png", fetch)
+    monkeypatch.setattr(isolated_server, "_GAME_ICON_DIR", tmp_path / "esoicons")
+    monkeypatch.setattr(isolated_server, "_asset_manifest", {
+        "esoui/x/new.png": "https://esoicons.uesp.net/esoui/art/x/new.png",
+        "esoui/x/broken.png": "https://esoicons.uesp.net/esoui/art/x/broken.png",
+    })
     isolated_server._game_icon_missing.clear()
+    assets = next(r.app for r in isolated_server.app.routes if getattr(r, "path", "") == "/assets")
+    monkeypatch.setattr(assets, "all_directories", [str(tmp_path / "assets")])
+    (tmp_path / "assets").mkdir()
 
-    first = client.get("/esoicons/achievement_y.png", follow_redirects=False)
-    second = client.get("/esoicons/treeicons/tree_y.png", follow_redirects=False)
-    asset = client.get("/assets/esoui/x/missing.png", follow_redirects=False)
+    icon = client.get("/esoicons/broken_icon.png", follow_redirects=False)
+    asset = client.get("/assets/esoui/x/new.png")
+    again = client.get("/assets/esoui/x/new.png")
+    down = client.get("/assets/esoui/x/broken.png", follow_redirects=False)
     unknown = client.get("/assets/not/in/manifest.png", follow_redirects=False)
-    client.get("/esoicons/achievement_y.png", follow_redirects=False)
 
-    assert first.status_code == 307 and first.headers["location"] == "https://esoicons.uesp.net/esoui/art/icons/achievement_y.png"
-    assert first.headers["cache-control"] == "no-store"
-    assert second.status_code == 307 and second.headers["location"].endswith("/treeicons/tree_y.png")
-    assert calls == ["achievement_y"]  # after a 403, UESP is left alone for a while
-    assert asset.status_code == 307 and asset.headers["location"] == "https://esoicons.uesp.net/esoui/art/x/missing.png"
+    assert icon.status_code == 307 and icon.headers["location"] == "https://esoicons.uesp.net/esoui/art/icons/broken_icon.png"
+    assert icon.headers["cache-control"] == "no-store"
+    assert asset.status_code == 200 and asset.content == png  # fetched, saved, served
+    assert again.status_code == 200 and asked.count("https://esoicons.uesp.net/esoui/art/x/new.png") == 1
+    assert (tmp_path / "assets" / "esoui" / "x" / "new.png").read_bytes() == png
+    assert down.status_code == 307 and down.headers["location"] == "https://esoicons.uesp.net/esoui/art/x/broken.png"
     assert unknown.status_code == 404
-    log = (isolated_server.UPLOADS_DIR / "missing_assets.txt").read_text().splitlines()
-    assert log == [  # one line per icon, for scripts/sync_icons.py
-        "esoicons/achievement_y.png https://esoicons.uesp.net/esoui/art/icons/achievement_y.png",
-        "esoicons/treeicons/tree_y.png https://esoicons.uesp.net/esoui/art/treeicons/tree_y.png",
-        "esoui/x/missing.png https://esoicons.uesp.net/esoui/art/x/missing.png",
-    ]

@@ -29,6 +29,7 @@ from starlette.exceptions import HTTPException
 from loguru import logger
 
 from lua_parser import LuaParser, parse_iasync_core_text, parse_lua_text_variable
+import uesp
 from data_processor import process_iasync, process_iasync_builds, process_iasync_achievements, process_iasync_stickerbook, process_ww_builds
 from db import (
     AccountPayload,
@@ -1330,16 +1331,12 @@ Path("static/dist").mkdir(parents=True, exist_ok=True)  # built frontend; absent
 app.mount("/static", StaticFiles(directory="static"), name="static")
 Path("assets").mkdir(exist_ok=True)  # icons are downloaded, not committed
 
-# ── Icons this host is missing ────────────────────────────────────────────────
-# UESP sits behind Cloudflare, which refuses many cloud hosts (HTTP 403), so a server may lack icons it cannot
-# download. The browser is sent to UESP instead (visitors are not blocked), and the miss is recorded in
-# uploads/missing_assets.txt as "<path under assets/> <url>" for scripts/sync_icons.py, which fetches them from
-# a machine UESP serves and copies them up.
+# ── Manifest icons missing from assets/ ───────────────────────────────────────
+# A manifest icon that isn't on disk yet (a new release, or a host that couldn't download at startup) is fetched
+# from UESP (through a proxy if UESP refuses this host, see uesp.py) and saved, so it is served locally from then on.
+# If that fails too, the browser is sent to UESP for it.
 _ASSET_MANIFEST_PATH = _HERE / "scripts" / "assets_manifest.json"
 _asset_manifest: dict | None = None
-_missing_assets: set[str] | None = None
-_UESP_BLOCK_BACKOFF = 600  # seconds to stop asking UESP after it refuses this host
-_uesp_blocked_until = 0.0
 
 
 def _asset_source(path: str) -> str | None:
@@ -1353,40 +1350,36 @@ def _asset_source(path: str) -> str | None:
     return _asset_manifest.get(path)
 
 
-def _note_missing_asset(path: str, url: str) -> None:
-    global _missing_assets
-    log = UPLOADS_DIR / "missing_assets.txt"
-    if _missing_assets is None:
-        try:
-            _missing_assets = {line.split(" ", 1)[0] for line in log.read_text().splitlines() if line}
-        except OSError:
-            _missing_assets = set()
-    if path in _missing_assets:
-        return
-    _missing_assets.add(path)
-    try:
-        with log.open("a") as fh:
-            fh.write(f"{path} {url}\n")
-    except OSError as exc:
-        logger.warning("Could not record missing icon {}: {}", path, exc)
+def _save_icon(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_bytes(data)
+    tmp.replace(path)
 
 
-def _to_uesp(path: str, url: str) -> Response:
-    _note_missing_asset(path, url)
+def _to_uesp(url: str) -> Response:
     return RedirectResponse(url, status_code=307, headers={"Cache-Control": "no-store"})
 
 
 class _AssetFiles(StaticFiles):
-    """assets/ as static files; a missing manifest icon redirects to UESP and is recorded (see above)."""
+    """assets/ as static files; a missing manifest icon is fetched and saved first (see above)."""
 
     async def get_response(self, path: str, scope):
         try:
             return await super().get_response(path, scope)
         except HTTPException as exc:
-            url = _asset_source(path) if exc.status_code == 404 else None
+            url = _asset_source(path) if exc.status_code == 404 else None  # manifest paths only: trusted
             if url is None:
                 raise
-            return _to_uesp(path, url)
+        try:
+            data = await asyncio.get_event_loop().run_in_executor(None, uesp.fetch_png, url)
+        except Exception as fetch_exc:
+            logger.warning("Icon fetch failed: {}: {}", path, fetch_exc)
+            return _to_uesp(url)
+        if data is None:
+            raise HTTPException(status_code=404)
+        _save_icon(Path(self.all_directories[0]) / path, data)
+        return await super().get_response(path, scope)
 
 
 app.mount("/assets", _AssetFiles(directory="assets"), name="assets")
@@ -2296,16 +2289,7 @@ _game_icon_missing: collections.OrderedDict = collections.OrderedDict()  # names
 
 
 def _fetch_game_icon(name: str, folder: str = "icons") -> bytes | None:
-    url = f"https://esoicons.uesp.net/esoui/art/{folder}/{name}.png"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 ESO-Armory/1.0"})
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = resp.read(512 * 1024)
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            return None
-        raise
-    return data if data.startswith(b"\x89PNG") else None
+    return uesp.fetch_png(f"https://esoicons.uesp.net/esoui/art/{folder}/{name}.png", timeout=10)
 
 
 @app.get("/esoicons/{name}.png")
@@ -2331,25 +2315,15 @@ async def _serve_game_icon(folder: str, name: str):
     if not path.exists():
         if _lru_get(_game_icon_missing, key):
             return Response(status_code=404)
-        global _uesp_blocked_until
-        url = f"https://esoicons.uesp.net/esoui/art/{folder}/{name}.png"
-        rel = str(path.relative_to(_GAME_ICON_DIR.parent))
-        if time.monotonic() < _uesp_blocked_until:
-            return _to_uesp(rel, url)
         try:
             data = await asyncio.get_event_loop().run_in_executor(None, _fetch_game_icon, name, folder)
         except Exception as exc:
             logger.warning("Game icon fetch failed: {}: {}", key, exc)
-            if isinstance(exc, urllib.error.HTTPError) and exc.code == 403:
-                _uesp_blocked_until = time.monotonic() + _UESP_BLOCK_BACKOFF
-            return _to_uesp(rel, url)
+            return _to_uesp(f"https://esoicons.uesp.net/esoui/art/{folder}/{name}.png")
         if data is None:
             _lru_put(_game_icon_missing, key, True, _EXTERNAL_CACHE_MAX * 4)
             return Response(status_code=404)
-        base.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
-        tmp.write_bytes(data)
-        tmp.replace(path)
+        _save_icon(path, data)
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
 
 

@@ -75,14 +75,7 @@ Data lives in two folders next to `compose.yaml`, the same ones a source install
 
 #### Hosting on a cloud server
 
-UESP's Cloudflare refuses many cloud hosts (AWS, Lightsail and others) with HTTP 403, so a server there can't download icons. The site still works: browsers are sent to UESP for any icon the server lacks, and the server lists those icons in `uploads/missing_assets.txt`. To copy them onto the server, run this now and then from your own computer (needs `ssh` with `sudo` on the server, and `rsync`):
-
-```bash
-uv run scripts/sync_icons.py user@your-server --dry-run   # list what the server is missing
-uv run scripts/sync_icons.py user@your-server             # download here, copy into /srv/eso-armory/assets
-```
-
-`--dir` sets the server folder holding `compose.yaml` (default `/srv/eso-armory`). Each icon is downloaded once, so UESP sees fewer requests over time.
+UESP's Cloudflare refuses many cloud hosts (AWS, Lightsail and others) with HTTP 403. The server then fetches icons through WordPress.com's public image proxy (`i0.wp.com`) instead, and saves them in `assets/` like any other icon. The proxy re-encodes some PNGs with a 256-colour palette, which is barely visible. UESP is always tried first.
 
 ### Run from source
 
@@ -156,7 +149,7 @@ Test fixtures in `tests/fixtures/` are sanitized. Do not commit live account dat
 | `item_link_decoder.py` | ESO item link decoder |
 | `frontend/` | Svelte 5 frontend: `src/App.svelte` shell, `src/lib/` tabs, components and logic (unit-tested `*.test.js`) |
 | `scripts/assets_manifest.json` | Game icon sources; `make assets` downloads them into `assets/` |
-| `scripts/sync_icons.py` | Copies icons a server can't download (UESP blocks it) from your computer to the server |
+| `uesp.py` | Fetches UESP images, through a public image proxy when UESP refuses the host |
 
 ## Contributing
 
