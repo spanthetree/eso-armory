@@ -42,6 +42,9 @@ iasync_data
   .stickerbook.sets[setId]  -- name, category, subcategory, numCollected, numTotal,
                              --   pieces[i].{filterType, collected, name, icon}
   .stickerbook.categoryIcons[name]  -- top-level category tree icon (iasync 1.6.0)
+  .collectibles.categories[topIdx]  -- name, icon, specialization (0 Collectibles, 1 Stories, 2 Housing, 3 Outfit Styles,
+                                       4 Tribute Patrons), numUnlocked, numTotal, hidesLocked, subcats[subIdx] (iasync 1.9.0)
+  .collectibles.items[collectibleId] -- name, icon, unlocked, categoryType, cat, sub (0 = directly under the category)
   .lastUpdate
 ```
 
@@ -72,7 +75,7 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `GET /api/builds` | `{builds, abilityNames, cpNames}` |
 | `uiColors` | Present on `/api/data`, `/api/achievements` and `/api/stickerbook`: the client's interface colours from iasync 1.7.0 (`{textNormal, textSelected, …, xpStart, xpEnd}` as `rrggbb`, only well-formed values), used by the Classic UI |
 | `GET /api/achievements` | `{totalPts, earnedPts, categories, account_items, items_by_char, chars, recent, uiColors}`; `categories[].icon` is the tree icon (iasync 1.6.0); `recent` is the 50 newest completions, one per achievement; items carry `rewards` (`[{type: title\|dye\|collectible\|item, name, id?, icon?}]`) and `lineBaseId`/`linePreviousId`/`lineNextId` (tiered lines) |
-| `GET /api/stickerbook` | `{sets: [{setId, name, category, subcategory, numCollected, numTotal, complete, pieces: [{filterType, filterName, collected, name, icon, quality}], reconCost, reconCurrency}], categoryIcons, lastUpdate, uiColors}`; `filterType` is `EQUIPMENT_FILTER_TYPE_*` (1 Light … 11 Bow); `icon`/`categoryIcons` need iasync 1.6.0; `quality`, `reconCost` (transmute cost) and `uiColors` need iasync 1.7.0 |
+| `GET /api/stickerbook` | `{sets: [{setId, name, category, subcategory, numCollected, numTotal, complete, pieces: [{filterType, filterName, collected, name, icon, quality}], reconCost, reconCurrency}], categoryIcons, lastUpdate, uiColors}`; `filterType` is `EQUIPMENT_FILTER_TYPE_*` (1 Light … 11 Bow); `icon`/`categoryIcons` need iasync 1.6.0; `quality`, `reconCost` (transmute cost) and `uiColors` need iasync 1.7.0. Also `collectibles: {categories: [{idx, name, icon, specialization, unlocked, total, hidesLocked, subcats: [{idx, name, icon, unlocked, total}]}], items: [{id, name, icon, unlocked, cat, sub}], lastUpdate}` (iasync 1.9.0; empty lists before). `/api/data`, `/api/builds`, `/api/achievements`, `/api/stickerbook` and `/api/ww_builds` are gzipped when the client accepts it and the body is over 1 KB |
 | `GET /api/ww_builds` | `{builds: {charId: [build, ...]}}` |
 | `GET /api/set_bonus?set_id=&set_name=` | Set bonuses from eso-sets.com (memory cached) |
 | `GET /api/skill_info?name=` | Skill details from eso-skillbook.com (memory cached) |

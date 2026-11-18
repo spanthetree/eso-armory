@@ -16,7 +16,7 @@
 
 </div>
 
-ESO has no way to see your account outside the game. Gear is spread across characters, banks, the craft bag and house chests, and builds live in addon menus. ESO Armory reads the data the [iasync](https://github.com/spanthetree/iasync) and [WizardsWardrobe](https://www.esoui.com/downloads/info3432-WizardsWardrobe.html) addons save, and shows every character's gear, builds, inventory, achievements and set collections in one browser page.
+ESO has no way to see your account outside the game. Gear is spread across characters, banks, the craft bag and house chests, and builds live in addon menus. ESO Armory reads the data the [iasync](https://github.com/spanthetree/iasync) and [WizardsWardrobe](https://www.esoui.com/downloads/info3432-WizardsWardrobe.html) addons save, and shows every character's gear, builds, inventory, achievements and collections in one browser page.
 
 ## Features
 
@@ -26,7 +26,7 @@ ESO has no way to see your account outside the game. Gear is spread across chara
 - **SuperStar import.** Upload a screenshot from the SuperStar addon and compare that build against your gear, slot by slot. Needs an Anthropic API key.
 - **Two looks.** *Classic* (the default) redraws the app in the game's own keyboard UI art: the main menu icon bar, window backdrops, buttons, dropdowns, list rows and progress bars, over a darkened loading screen. *Simple* is the plain web look. Switch with the **UI** dropdown in the top bar; the choice is remembered in your browser.
 - **Achievements.** Laid out like the in-game journal: a category tree, progress bars, recent unlocks and a timeline, criteria progress per character, and search across every category.
-- **Collections.** Laid out like the in-game Sets collection: every set as a grid of its pieces, filtered by apparel and weapon type, completion and locked pieces, with where each piece drops and its Tamriel Trade Centre price.
+- **Collections.** The in-game Collections book with its tabs: Collectibles, Stories, Housing, Outfit Styles, Set Items and Tales of Tribute. Each has the game's category tree, a keyword filter and a locked/unlocked filter, with unlocked counts per category (collectibles need iasync 1.9.0). Set Items shows every set as a grid of its pieces, filtered by apparel and weapon type, completion and locked pieces, with where each piece drops and its Tamriel Trade Centre price.
 - **Workspaces.** Each ESO account's data is stored once and reopens without re-uploading. Share a workspace with a pairing code, or load a second account beside your own.
 - **Auto-sync.** In Chrome and Edge, point the app at your ESO folder once and it uploads changed files as you play.
 - **Looks like the game.** Dark panels with gold rules, the game's own icons, animated loading and transitions, and a layout that fits one screen.

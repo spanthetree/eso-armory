@@ -315,3 +315,15 @@ def test_ui_style_switch_is_remembered(page: Page, app_url: str, fixtures_dir):
     open_tab(page, "Achievements")
     expect(page.get_by_role("heading", name="SUMMARY")).to_be_visible(timeout=15000)
     expect(page.locator("html")).to_have_attribute("data-ui", "simple")
+
+
+def test_collections_book_switcher(page: Page, app_url: str, fixtures_dir):
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    open_tab(page, "Collections")
+    expect(page).to_have_url(re.compile(r"#/collections$"))  # no collectibles in the fixture: Set Items
+    expect(page.get_by_label("Mock Cuirass (not collected)").or_(page.get_by_text("Set Items Collected"))).to_be_visible()
+
+    page.get_by_role("group", name="Collections book").get_by_role("button", name="Collectibles").click()
+    expect(page).to_have_url(re.compile(r"#/collections/collectibles$"))
+    expect(page.get_by_text("Collectibles need iasync 1.9.0")).to_be_visible()

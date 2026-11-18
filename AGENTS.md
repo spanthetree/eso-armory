@@ -18,7 +18,7 @@ Before making code or file changes, ask for explicit approval unless the user ha
 |------|---------|
 | `server.py` | FastAPI app, file watcher, caches, SSE push, ability icon map, set bonus + skill info scrapers |
 | `lua_parser.py` | `parse_lua_variable(path, varname)` |
-| `data_processor.py` | `process_iasync()`, `process_iasync_builds()`, `process_iasync_achievements()`, `process_iasync_stickerbook()`, `process_ww_builds()` |
+| `data_processor.py` | `process_iasync()`, `process_iasync_builds()`, `process_iasync_achievements()`, `process_iasync_stickerbook()` (includes `process_iasync_collectibles()`), `process_ww_builds()` |
 | `item_link_decoder.py` | Decodes ESO `\|H1:item:...\|h` links → trait/style/enchant fields |
 | `config.json` | TTC addon paths, port, server region (`NA`/`EU`), database URL |
 | `frontend/src/App.svelte` | App shell: top bar, hero, tabs, character sub-views, dialogs |
@@ -111,4 +111,5 @@ Agents may run git and `gh` commands (branch, commit, push, open PRs).
 - **`/esoicons/<name>.png`**: achievement and other `/esoui/art/icons` textures are fetched from UESP on first use into `assets/esoicons/` (gitignored). `/esoicons/<folder>/<name>.png` does the same for `treeicons`, `collections` and `achievements` (category tree icons). Use `gameIcon(path)` (`achievements.js`) to turn a `.dds` path into either URL.
 - **Set collection `filterType`** is `EQUIPMENT_FILTER_TYPE_*` (1 Light, 2 Medium, 3 Heavy, 4 Necklace, 5 Ring, 6 One-Handed, 7 Shield, 8 Two-Handed, 9 Destruction, 10 Restoration, 11 Bow), not the inventory `filter_type`.
 - **No `structuredClone` on state**: it throws on Svelte `$state` proxies; use `$state.snapshot` or a JSON copy.
+- **Collectibles ride in `/api/stickerbook`** (`collectibles`, about 4 MB for a full account, served gzipped by `_payload_response`). There is no gzip middleware on purpose: it would buffer the `/events` SSE stream. The Collections tab's book (`#/collections/<book>`, `BOOKS` in `collections.js`) picks Set Items or `CollectiblesBook` (one component, both looks).
 - **Inventory values** come from one `POST /api/ttc_prices` per item list (`loadAvgPrices`); don't call `/api/ttc_price` per row.
