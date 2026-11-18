@@ -10,6 +10,7 @@ export const BAG_OPTIONS = [{ v: '0', l: 'Equipped' }, { v: '1', l: 'Backpack' }
 
 export const LOCATION_OPTIONS = [
   { v: 'character', l: 'Characters' }, { v: 'bank', l: 'Bank' }, { v: 'craftbag', l: 'Craft Bag' }, { v: 'house_chest', l: 'House Chests' },
+  { v: 'guild_bank', l: 'Guild Banks' },
 ];
 
 export const TRAIT_GROUPS = [
