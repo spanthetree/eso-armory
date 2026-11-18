@@ -87,7 +87,7 @@
           <h1>{char.name}</h1>
         {:else}
           <div class="sub">{data.meta.server} · {data.meta.character_count} characters</div>
-          <h1>{data.meta.account}</h1>
+          <h1 class="acct">{data.meta.account}</h1>
           <Currencies />
           <div class="orn" aria-hidden="true">◆</div>
         {/if}
@@ -154,7 +154,12 @@
   :global(:root[data-ui='classic']) .hero h1::after { content: ''; position: absolute; left: 50%; bottom: 0; width: min(560px, 90%); height: 6px; transform: translateX(-50%);
     background: var(--eso-divider-l) left / 56px 6px no-repeat, var(--eso-divider-r) right / 56px 6px no-repeat, var(--eso-divider-m) center / calc(100% - 112px) 6px no-repeat; }
   :global(:root[data-ui='classic']) .sub { font: 700 16px var(--eso-font); letter-spacing: 0; color: var(--eso-normal); }
-  :global(:root[data-ui='classic']) .orn { display: none; }
+  /* Account view: the divider goes under the currencies (on .orn) instead of under the name. */
+  :global(:root[data-ui='classic']) .hero h1.acct { padding-bottom: 0; }
+  :global(:root[data-ui='classic']) .hero h1.acct::after { display: none; }
+  :global(:root[data-ui='classic']) .orn { display: block; justify-self: center; width: min(560px, 90%); height: 6px; margin-top: 4px; font-size: 0;
+    background: var(--eso-divider-l) left / 56px 6px no-repeat, var(--eso-divider-r) right / 56px 6px no-repeat, var(--eso-divider-m) center / calc(100% - 112px) 6px no-repeat; }
+  :global(:root[data-ui='classic']) .orn::before, :global(:root[data-ui='classic']) .orn::after { display: none; }
   :global(:root[data-ui='classic']) .back { font: 700 18px var(--eso-font); color: var(--eso-normal); text-shadow: var(--eso-shadow); }
   :global(:root[data-ui='classic']) .back:hover, :global(:root[data-ui='classic']) .back:focus-visible { color: var(--eso-highlight); }
   :global(:root[data-ui='classic']) .splash p { font: 700 20px var(--eso-font); letter-spacing: 0; text-transform: uppercase; }
