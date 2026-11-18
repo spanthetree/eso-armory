@@ -83,6 +83,7 @@ const PIECES = {
   '--eso-panel': () => crop('miscellaneous/centerscreen_left', 30, 0, 988, 897),
   '--eso-list-hl': () => crop('miscellaneous/listitem_selectedhighlight', 0, 0, 512, 80),
   // ZO_ContextualActionsTile highlight cell of the market slot sheet.
+  '--eso-slot-bg': () => crop('market/market_slotbgandhighlight', 0, 0, 295, 155),
   '--eso-slot-hl': () => crop('market/market_slotbgandhighlight', 295, 0, 295, 155),
   // ZO_DynamicHorizontalDivider: two caps and a stretched centre of a 128x8 file.
   '--eso-divider-l': () => crop('miscellaneous/horizontaldivider_dynamic', 2, 0, 54, 8),

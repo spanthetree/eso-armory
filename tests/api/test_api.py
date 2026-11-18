@@ -41,6 +41,7 @@ def test_upload_and_read_workspace(client, uploaded_workspace):
     assert ww.json()["builds"]["char-a"][0]["name"] == "Mock Raid Build"
     assert achievements.json()["earnedPts"] == 10
     assert stickerbook.json()["sets"][0]["name"] == "Mock Set"
+    assert stickerbook.json()["collectibles"] == {"categories": [], "items": [], "patrons": [], "lastUpdate": 0}  # no iasync 1.9.0 data
 
 
 @pytest.mark.api
@@ -78,6 +79,38 @@ def test_share_code_join_resolves_uploaded_workspace(client, uploaded_workspace)
     shared_data = client.get(f"/api/data?session={join_session}&share={code}")
     assert shared_data.status_code == 200
     assert shared_data.json()["meta"]["item_count"] == 6
+
+
+@pytest.mark.api
+def test_share_code_is_read_only(client, uploaded_workspace, fixtures_dir):
+    code = client.post(f"/api/share?session={TEST_SESSION}").json()["code"]
+    viewer = "00000000-0000-4000-8000-000000000002"
+    q = f"session={viewer}&share={code}"
+
+    assert client.get(f"/api/data?{q}").status_code == 200
+    assert client.get(f"/api/auth/status?{q}").json()["account_name"] is None
+    assert client.post(f"/api/auth/set_password?{q}", json={"password": "password123"}).status_code == 403
+    assert client.get(f"/api/auth/status?session={TEST_SESSION}").json()["has_password"] is False
+
+    files = {"iasync": ("iasync.lua", fixtures_dir.joinpath("iasync.lua").read_bytes(), "text/plain")}
+    client.post(f"/api/upload?{q}", files=files)
+    # The upload lands in the viewer's own workspace, never the sharer's.
+    assert client.get(f"/api/workspace?session={TEST_SESSION}").json()["shadow"]["account"] is None
+
+    build_code = client.post(f"/api/build_export?session={TEST_SESSION}&character_id=char-a").json()["code"]
+    client.post(f"/api/compare_builds/import?{q}&character_id=char-a&code={build_code}")
+    assert "char-a" not in client.get(f"/api/compare_builds?session={TEST_SESSION}").json()["imported"]
+
+
+@pytest.mark.api
+def test_iasync_upload_without_account_name_is_rejected(client, uploaded_workspace):
+    files = {"iasync": ("iasync.lua", b'iasync_data = { ["chars"] = {} }', "text/plain")}
+    result = client.post(f"/api/upload?session={TEST_SESSION}", files=files).json()["iasync"]
+    assert result["ok"] is False
+    assert "no ESO account name" in result["error"]
+    workspace = client.get(f"/api/workspace?session={TEST_SESSION}").json()
+    assert (workspace["primary"]["account"], workspace["shadow"]["account"]) == ("@test_account", None)
+    assert client.get(f"/api/data?session={TEST_SESSION}").json()["meta"]["item_count"] == 6
 
 
 @pytest.mark.api
@@ -351,6 +384,27 @@ def test_upload_for_password_protected_account_requires_login(client, uploaded_w
 
 
 @pytest.mark.api
+def test_changing_password_needs_current_password(client, uploaded_workspace):
+    url = f"/api/auth/set_password?session={TEST_SESSION}"
+    assert client.post(url, json={"password": "password123"}).status_code == 200
+    assert client.post(url, json={"password": "newpassword1"}).status_code == 403
+    assert client.post(url, json={"password": "newpassword1", "current_password": "wrong-one"}).status_code == 403
+    assert client.post(url, json={"password": "newpassword1", "current_password": "password123"}).status_code == 200
+
+
+@pytest.mark.api
+def test_logout_unbinds_browser_but_keeps_account(client, uploaded_workspace):
+    client.post(f"/api/auth/set_password?session={TEST_SESSION}", json={"password": "password123"})
+    assert client.post(f"/api/auth/logout?session={TEST_SESSION}").json() == {"ok": True}
+    assert client.get(f"/api/workspace?session={TEST_SESSION}").json()["primary"]["account"] is None
+    assert client.get(f"/api/auth/status?session={TEST_SESSION}").json()["account_name"] is None
+
+    login = client.post(f"/api/auth/login?session={OTHER_SESSION}", json={"account_name": "@test_account", "password": "password123"})
+    assert login.status_code == 200
+    assert client.get(f"/api/data?session={OTHER_SESSION}").status_code == 200
+
+
+@pytest.mark.api
 def test_admin_requires_config_entry_and_password(client, isolated_server, uploaded_workspace):
     status = lambda: client.get(f"/api/status?session={TEST_SESSION}").json()["is_admin"]
     assert status() is False
@@ -432,37 +486,118 @@ def test_game_icon_downloads_once_and_validates(client, isolated_server, monkeyp
 
 
 @pytest.mark.api
-def test_icons_this_host_cannot_download_go_to_uesp_and_are_recorded(client, isolated_server, monkeypatch, tmp_path):
+def test_missing_icons_are_fetched_and_saved_or_sent_to_uesp(client, isolated_server, monkeypatch, tmp_path):
     import urllib.error
 
-    calls = []
+    png = b"\x89PNG\r\n\x1a\nfake"
+    asked = []
 
-    def refused(name, folder="icons"):
-        calls.append(name)
-        raise urllib.error.HTTPError("https://esoicons.uesp.net/x", 403, "Forbidden", {}, None)
+    def fetch(url, timeout=30):
+        asked.append(url)
+        if "broken" in url:
+            raise urllib.error.HTTPError(url, 502, "Bad Gateway", {}, None)
+        return None if "gone" in url else png
 
-    monkeypatch.setattr(isolated_server, "_fetch_game_icon", refused)
-    monkeypatch.setattr(isolated_server, "_GAME_ICON_DIR", tmp_path / "assets" / "esoicons")
-    monkeypatch.setattr(isolated_server, "_asset_manifest", {"esoui/x/missing.png": "https://esoicons.uesp.net/esoui/art/x/missing.png"})
-    monkeypatch.setattr(isolated_server, "_missing_assets", None)
-    monkeypatch.setattr(isolated_server, "_uesp_blocked_until", 0.0)
+    monkeypatch.setattr(isolated_server.uesp, "fetch_png", fetch)
+    monkeypatch.setattr(isolated_server, "_GAME_ICON_DIR", tmp_path / "esoicons")
+    monkeypatch.setattr(isolated_server, "_asset_manifest", {
+        "esoui/x/new.png": "https://esoicons.uesp.net/esoui/art/x/new.png",
+        "esoui/x/broken.png": "https://esoicons.uesp.net/esoui/art/x/broken.png",
+    })
     isolated_server._game_icon_missing.clear()
+    assets = next(r.app for r in isolated_server.app.routes if getattr(r, "path", "") == "/assets")
+    monkeypatch.setattr(assets, "all_directories", [str(tmp_path / "assets")])
+    (tmp_path / "assets").mkdir()
 
-    first = client.get("/esoicons/achievement_y.png", follow_redirects=False)
-    second = client.get("/esoicons/treeicons/tree_y.png", follow_redirects=False)
-    asset = client.get("/assets/esoui/x/missing.png", follow_redirects=False)
+    icon = client.get("/esoicons/broken_icon.png", follow_redirects=False)
+    asset = client.get("/assets/esoui/x/new.png")
+    again = client.get("/assets/esoui/x/new.png")
+    down = client.get("/assets/esoui/x/broken.png", follow_redirects=False)
     unknown = client.get("/assets/not/in/manifest.png", follow_redirects=False)
-    client.get("/esoicons/achievement_y.png", follow_redirects=False)
 
-    assert first.status_code == 307 and first.headers["location"] == "https://esoicons.uesp.net/esoui/art/icons/achievement_y.png"
-    assert first.headers["cache-control"] == "no-store"
-    assert second.status_code == 307 and second.headers["location"].endswith("/treeicons/tree_y.png")
-    assert calls == ["achievement_y"]  # after a 403, UESP is left alone for a while
-    assert asset.status_code == 307 and asset.headers["location"] == "https://esoicons.uesp.net/esoui/art/x/missing.png"
+    assert icon.status_code == 307 and icon.headers["location"] == "https://esoicons.uesp.net/esoui/art/icons/broken_icon.png"
+    assert icon.headers["cache-control"] == "no-store"
+    assert asset.status_code == 200 and asset.content == png  # fetched, saved, served
+    assert again.status_code == 200 and asked.count("https://esoicons.uesp.net/esoui/art/x/new.png") == 1
+    assert (tmp_path / "assets" / "esoui" / "x" / "new.png").read_bytes() == png
+    assert down.status_code == 307 and down.headers["location"] == "https://esoicons.uesp.net/esoui/art/x/broken.png"
     assert unknown.status_code == 404
-    log = (isolated_server.UPLOADS_DIR / "missing_assets.txt").read_text().splitlines()
-    assert log == [  # one line per icon, for scripts/sync_icons.py
-        "esoicons/achievement_y.png https://esoicons.uesp.net/esoui/art/icons/achievement_y.png",
-        "esoicons/treeicons/tree_y.png https://esoicons.uesp.net/esoui/art/treeicons/tree_y.png",
-        "esoui/x/missing.png https://esoicons.uesp.net/esoui/art/x/missing.png",
-    ]
+
+
+@pytest.mark.api
+def test_large_payloads_are_gzipped_when_accepted(isolated_server):
+    import gzip as gz
+    from starlette.requests import Request
+
+    def req(enc):
+        return Request({"type": "http", "headers": [(b"accept-encoding", enc.encode())]})
+
+    body = json.dumps({"items": ["x" * 50] * 100}).encode()
+    zipped = isolated_server._payload_response(req("gzip, deflate"), body, {"Cache-Control": "no-store"})
+    plain = isolated_server._payload_response(req("identity"), body, {})
+    small = isolated_server._payload_response(req("gzip"), b"{}", {})
+    assert zipped.headers["content-encoding"] == "gzip" and gz.decompress(zipped.body) == body
+    assert zipped.headers["cache-control"] == "no-store" and zipped.headers["vary"] == "Accept-Encoding"
+    assert "content-encoding" not in plain.headers and plain.body == body
+    assert "content-encoding" not in small.headers
+
+
+def _with_fernet(server, monkeypatch):
+    """Session API keys are encrypted with the config's db_secret; give the isolated server one (nothing written)."""
+    from cryptography.fernet import Fernet
+    monkeypatch.setitem(server._config, "db_secret", Fernet.generate_key().decode())
+    server._init_db_fernet()
+
+
+@pytest.mark.api
+def test_superstar_reads_with_the_saved_provider(client, isolated_server, monkeypatch):
+    _with_fernet(isolated_server, monkeypatch)
+    calls = []
+    monkeypatch.setattr(isolated_server, "_read_screenshot_openai", lambda k, m, b: calls.append(("openai", k)) or {"gear": [{"slot": "Head"}]})
+    monkeypatch.setattr(isolated_server, "_read_screenshot_anthropic", lambda k, m, b: calls.append(("anthropic", k)) or {"gear": []})
+    monkeypatch.setattr(isolated_server, "_server_vision_key", lambda: ("", ""))
+    png = {"image": ("s.png", b"\x89PNG\r\n\x1a\nfake", "image/png")}
+
+    none = client.post(f"/api/parse_superstar?session={TEST_SESSION}", files=png)
+    bad = client.post(f"/api/session/apikey?session={TEST_SESSION}", data={"api_key": "x", "provider": "nope"})
+    client.post(f"/api/session/apikey?session={TEST_SESSION}", data={"api_key": "sk-openai"})  # provider defaults to OpenAI
+    status = client.get(f"/api/status?session={TEST_SESSION}").json()
+    read = client.post(f"/api/parse_superstar?session={TEST_SESSION}", files=png)
+    client.post(f"/api/session/apikey?session={TEST_SESSION}", data={"api_key": "sk-ant-x", "provider": "anthropic"})
+    client.post(f"/api/parse_superstar?session={TEST_SESSION}", files=png)
+
+    assert none.status_code == 503 and bad.status_code == 400
+    assert status["has_session_api_key"] is True and status["session_api_provider"] == "openai"
+    assert read.status_code == 200 and read.json()["gear"][0]["slot_id"] is not None
+    assert calls == [("openai", "sk-openai"), ("anthropic", "sk-ant-x")]
+
+
+@pytest.mark.api
+def test_keys_saved_before_providers_are_anthropic(isolated_server, monkeypatch):
+    _with_fernet(isolated_server, monkeypatch)
+    isolated_server._db_save_session_api_key(TEST_SESSION, isolated_server._encrypt_api_key("sk-ant-legacy"))
+    assert isolated_server._session_vision_key(TEST_SESSION) == ("anthropic", "sk-ant-legacy")
+    assert isolated_server._json_reply('```json\n{"a": 1}\n```') == {"a": 1}
+
+
+@pytest.mark.api
+def test_demo_account_is_a_read_only_share(client, isolated_server, monkeypatch):
+    _with_fernet(isolated_server, monkeypatch)
+    monkeypatch.setattr(isolated_server, "_demo_ready", False)
+    isolated_server._ensure_demo_account()  # the real demo/demo.json.gz
+    isolated_server._ensure_demo_account()  # unchanged file: no reload, same binding
+
+    status = client.get(f"/api/status?session={TEST_SESSION}").json()
+    joined = client.post(f"/api/share/join?session={TEST_SESSION}&code={isolated_server.DEMO_CODE}")
+    data = client.get(f"/api/data?session={TEST_SESSION}&share={isolated_server.DEMO_CODE}").json()
+    sticker = client.get(f"/api/stickerbook?session={TEST_SESSION}&share={isolated_server.DEMO_CODE}").json()
+    claim = client.post(f"/api/upload?session={TEST_SESSION}", files={"iasync": (
+        "iasync.lua", b'iasync_data = { ["accountName"] = "@armory-demo", ["chars"] = {} }', "text/plain")}).json()
+
+    assert status["demo_code"] == isolated_server.DEMO_CODE
+    assert joined.status_code == 200
+    assert data["meta"]["account"] == "@armory-demo" and data["characters"] and data["items"]
+    assert all(c["name"] and not c["id"].isdigit() for c in data["characters"].values())  # generated, not real ids
+    assert sticker["sets"] and sticker["collectibles"]["items"]
+    assert claim["iasync"]["ok"] is False and "reserved" in claim["iasync"]["error"]
+    assert isolated_server._demo_session_id() != TEST_SESSION and len(isolated_server._demo_session_id()) == 36

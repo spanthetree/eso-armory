@@ -97,16 +97,16 @@
 {/snippet}
 
 {#if app.stickerbook.loading && !app.stickerbook.value}
-  <Frame title="COLLECTIONS"><p class="hint center">Loading collections…</p></Frame>
+  <Frame title="SET ITEMS"><p class="hint center">Loading collections…</p></Frame>
 {:else if app.stickerbook.error}
-  <Frame title="COLLECTIONS">
+  <Frame title="SET ITEMS">
     <div class="err-box" role="alert"><b>User data not loaded</b><span>{app.stickerbook.error}</span></div>
   </Frame>
 {:else if app.stickerbook.value}
   <div class="layout">
     <nav class="nav" aria-label="Collection categories">
       <button class="cat" aria-current={catName === null && !searching} onclick={() => pick(null)}>
-        {@render treeIcon(null, false)}<span class="cn">SUMMARY</span>
+        {@render treeIcon('/assets/esoui/collections/collections_tabicon_itemsets_up.png', catName === null && !searching)}<span class="cn">SUMMARY</span>
       </button>
       {#each cats as c (c.name)}
         {@const on = catName === c.name && !searching}
@@ -170,7 +170,7 @@
 
 <style>
   /* Both columns scroll inside the page so the tab fits one screen. */
-  .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 14px; height: max(420px, calc(100dvh - 260px)); }
+  .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 14px; height: max(420px, calc(100dvh - 320px)); } /* tabs + book switcher row above */
   @media (max-width: 760px) { .layout { grid-template-columns: minmax(0, 1fr); height: auto; } .nav { max-height: 260px; } }
   .nav, .pane { min-height: 0; background: var(--panel); border: 1px solid var(--line); }
   .nav { overflow-y: auto; padding: 4px 0; scrollbar-width: thin; }

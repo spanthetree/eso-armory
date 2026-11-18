@@ -16,6 +16,8 @@ import secrets
 import urllib.parse
 import urllib.request
 import gc
+import gzip
+import hashlib
 from contextlib import asynccontextmanager
 from html.parser import HTMLParser
 from pathlib import Path
@@ -29,11 +31,13 @@ from starlette.exceptions import HTTPException
 from loguru import logger
 
 from lua_parser import LuaParser, parse_iasync_core_text, parse_lua_text_variable
+import uesp
 from data_processor import process_iasync, process_iasync_builds, process_iasync_achievements, process_iasync_stickerbook, process_ww_builds
 from db import (
     AccountPayload,
     bind_session as _db_bind_session,
     delete_imported_build as _db_delete_imported_build,
+    delete_session as _db_delete_session,
     delete_shadow_slot as _db_delete_shadow_slot,
     find_share_code_for_account as _db_find_share_code_for_account,
     find_session_for_account as _db_find_session_for_account,
@@ -257,6 +261,46 @@ def _save_share_registry() -> None:
     tmp.replace(SHARE_REGISTRY_PATH)
 
 
+# ── Demo account ────────────────────────────────────────────────────────────────
+# demo/demo.json.gz (scripts/make_demo.py: real game data, anonymised) is loaded into the account @armory-demo and
+# shown through a fixed share code, so it is read-only like any share. The session that owns the account is derived
+# from the server's db_secret: unguessable, so nobody can act as its owner (upload into it, set its password).
+DEMO_PATH = _HERE / "demo" / "demo.json.gz"
+DEMO_ACCOUNT = "@armory-demo"
+DEMO_CODE = "DEMA-RMRY"
+_demo_ready = False
+
+
+def _demo_session_id() -> str:
+    h = hashlib.sha256(f"{_config.get('db_secret', '')}:armory-demo".encode()).hexdigest()
+    return f"{h[:8]}-{h[8:12]}-4{h[13:16]}-8{h[17:20]}-{h[20:32]}"
+
+
+def _ensure_demo_account() -> None:
+    """Load (or refresh, when the file changed) the demo account, bind its owner session and its share code."""
+    global _demo_ready
+    if not DEMO_PATH.exists():
+        return
+    blob = DEMO_PATH.read_bytes()
+    marker = "demo:" + hashlib.sha256(blob).hexdigest()[:16]
+    state = _db_get_account_state(DEMO_ACCOUNT)
+    if state is None or state.source_path != marker:
+        demo = json.loads(gzip.decompress(blob))
+        meta = demo["data"]["meta"]
+        now = time.time()
+        _db_upsert_account_payload(AccountPayload(
+            account_name=DEMO_ACCOUNT, server=meta.get("server", "NA"),
+            data_bytes=_json_bytes(demo["data"]), builds_bytes=_json_bytes(demo["builds"]),
+            achievements_bytes=_json_bytes(demo["achievements"]), stickerbook_bytes=_json_bytes(demo["stickerbook"]),
+            ww_builds_bytes=_json_bytes(demo["ww"]), data_mtime=now, ww_mtime=now,
+            item_count=meta.get("item_count"), character_count=meta.get("character_count"), source_path=marker,
+        ))
+        logger.info("Demo account loaded: {} items, {} characters", meta.get("item_count"), meta.get("character_count"))
+    _db_bind_session(_demo_session_id(), DEMO_ACCOUNT)
+    _db_get_or_create_share_code(DEMO_CODE, DEMO_ACCOUNT)
+    _demo_ready = True
+
+
 def _normalize_share_code(code: str | None) -> str | None:
     raw = re.sub(r"[^A-Za-z0-9]", "", code or "").upper()
     if len(raw) != _SHARE_CODE_LEN:
@@ -375,7 +419,7 @@ def _select_upload_slot(session_id: str, account_name: str) -> tuple[str | None,
         return "primary", None
     if not workspace["shadow_account"]:
         return "shadow", None
-    return None, f"Workspace already has primary {workspace['primary_account']} and shadow {workspace['shadow_account']}. Delete shadow or switch uploads."
+    return None, f"Workspace already has primary {workspace['primary_account']} and alt {workspace['shadow_account']}. Remove the alt account first."
 
 
 def _active_account_label(workspace: dict) -> str:
@@ -1319,6 +1363,10 @@ async def lifespan(app: FastAPI):
     _init_db_fernet()
     _db_init(_config["database_url"])
     _load_share_registry()
+    try:
+        _ensure_demo_account()
+    except Exception as exc:  # the app works without the demo
+        logger.warning("Demo account not loaded: {}", exc)
     _ability_icon_map.update(_build_ability_icon_map())
     logger.info("Ability icons: {} loaded", len(_ability_icon_map))
     asyncio.create_task(_session_cleanup())
@@ -1330,16 +1378,12 @@ Path("static/dist").mkdir(parents=True, exist_ok=True)  # built frontend; absent
 app.mount("/static", StaticFiles(directory="static"), name="static")
 Path("assets").mkdir(exist_ok=True)  # icons are downloaded, not committed
 
-# ── Icons this host is missing ────────────────────────────────────────────────
-# UESP sits behind Cloudflare, which refuses many cloud hosts (HTTP 403), so a server may lack icons it cannot
-# download. The browser is sent to UESP instead (visitors are not blocked), and the miss is recorded in
-# uploads/missing_assets.txt as "<path under assets/> <url>" for scripts/sync_icons.py, which fetches them from
-# a machine UESP serves and copies them up.
+# ── Manifest icons missing from assets/ ───────────────────────────────────────
+# A manifest icon that isn't on disk yet (a new release, or a host that couldn't download at startup) is fetched
+# from UESP (through a proxy if UESP refuses this host, see uesp.py) and saved, so it is served locally from then on.
+# If that fails too, the browser is sent to UESP for it.
 _ASSET_MANIFEST_PATH = _HERE / "scripts" / "assets_manifest.json"
 _asset_manifest: dict | None = None
-_missing_assets: set[str] | None = None
-_UESP_BLOCK_BACKOFF = 600  # seconds to stop asking UESP after it refuses this host
-_uesp_blocked_until = 0.0
 
 
 def _asset_source(path: str) -> str | None:
@@ -1353,40 +1397,36 @@ def _asset_source(path: str) -> str | None:
     return _asset_manifest.get(path)
 
 
-def _note_missing_asset(path: str, url: str) -> None:
-    global _missing_assets
-    log = UPLOADS_DIR / "missing_assets.txt"
-    if _missing_assets is None:
-        try:
-            _missing_assets = {line.split(" ", 1)[0] for line in log.read_text().splitlines() if line}
-        except OSError:
-            _missing_assets = set()
-    if path in _missing_assets:
-        return
-    _missing_assets.add(path)
-    try:
-        with log.open("a") as fh:
-            fh.write(f"{path} {url}\n")
-    except OSError as exc:
-        logger.warning("Could not record missing icon {}: {}", path, exc)
+def _save_icon(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_bytes(data)
+    tmp.replace(path)
 
 
-def _to_uesp(path: str, url: str) -> Response:
-    _note_missing_asset(path, url)
+def _to_uesp(url: str) -> Response:
     return RedirectResponse(url, status_code=307, headers={"Cache-Control": "no-store"})
 
 
 class _AssetFiles(StaticFiles):
-    """assets/ as static files; a missing manifest icon redirects to UESP and is recorded (see above)."""
+    """assets/ as static files; a missing manifest icon is fetched and saved first (see above)."""
 
     async def get_response(self, path: str, scope):
         try:
             return await super().get_response(path, scope)
         except HTTPException as exc:
-            url = _asset_source(path) if exc.status_code == 404 else None
+            url = _asset_source(path) if exc.status_code == 404 else None  # manifest paths only: trusted
             if url is None:
                 raise
-            return _to_uesp(path, url)
+        try:
+            data = await asyncio.get_event_loop().run_in_executor(None, uesp.fetch_png, url)
+        except Exception as fetch_exc:
+            logger.warning("Icon fetch failed: {}: {}", path, fetch_exc)
+            return _to_uesp(url)
+        if data is None:
+            raise HTTPException(status_code=404)
+        _save_icon(Path(self.all_directories[0]) / path, data)
+        return await super().get_response(path, scope)
 
 
 app.mount("/assets", _AssetFiles(directory="assets"), name="assets")
@@ -1440,32 +1480,34 @@ async def root_head():
     )
 
 
+def _payload_response(request: Request, body: bytes, headers: dict) -> Response:
+    """A JSON payload, gzipped when the client accepts it (these run to megabytes; the app adds no
+    compression middleware because it would buffer the /events stream)."""
+    headers = {**headers, "Vary": "Accept-Encoding"}
+    if len(body) > 1024 and "gzip" in request.headers.get("accept-encoding", ""):
+        body = gzip.compress(body, compresslevel=5)
+        headers["Content-Encoding"] = "gzip"
+    return Response(content=body, media_type="application/json", headers=headers)
+
+
 @app.get("/api/data")
-async def api_data(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_data(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
     cache = _resolve_cache(session, share)
     if cache["data_bytes"] is None:
         return JSONResponse({"error": cache.get("error", "User data not loaded")}, status_code=503)
-    return Response(
-        content=cache["data_bytes"],
-        media_type="application/json",
-        headers={"ETag": str(cache["mtime"]), "Cache-Control": "no-store"},
-    )
+    return _payload_response(request, cache["data_bytes"], {"ETag": str(cache["mtime"]), "Cache-Control": "no-store"})
 
 
 @app.get("/api/builds")
-async def api_builds(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_builds(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
     cache = _resolve_cache(session, share)
     if cache["builds_bytes"] is None:
         return JSONResponse({"error": cache.get("error", "User data not loaded")}, status_code=503)
-    return Response(
-        content=cache["builds_bytes"],
-        media_type="application/json",
-        headers={"Cache-Control": "no-store"},
-    )
+    return _payload_response(request, cache["builds_bytes"], {"Cache-Control": "no-store"})
 
 
 @app.get("/api/achievements")
-async def api_achievements(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_achievements(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
     cache, account_name = _resolve_cache_and_account(session, share)
     if cache["data_bytes"] is None:
         recovered, reason = await asyncio.get_event_loop().run_in_executor(
@@ -1497,15 +1539,11 @@ async def api_achievements(session: str | None = Query(None), share: str | None 
             {"error": "User data not loaded", "detail": "aux payload was not generated"},
             status_code=503,
         )
-    return Response(
-        content=cache["achievements_bytes"],
-        media_type="application/json",
-        headers={"Cache-Control": "no-store"},
-    )
+    return _payload_response(request, cache["achievements_bytes"], {"Cache-Control": "no-store"})
 
 
 @app.get("/api/stickerbook")
-async def api_stickerbook(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_stickerbook(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
     cache, account_name = _resolve_cache_and_account(session, share)
     if cache["data_bytes"] is None:
         recovered, reason = await asyncio.get_event_loop().run_in_executor(
@@ -1537,36 +1575,32 @@ async def api_stickerbook(session: str | None = Query(None), share: str | None =
             {"error": "User data not loaded", "detail": "aux payload was not generated"},
             status_code=503,
         )
-    return Response(
-        content=cache["stickerbook_bytes"],
-        media_type="application/json",
-        headers={"Cache-Control": "no-store"},
-    )
+    return _payload_response(request, cache["stickerbook_bytes"], {"Cache-Control": "no-store"})
 
 
 @app.get("/api/ww_builds")
-async def api_ww_builds(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_ww_builds(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
     ww = _resolve_ww_cache(session, share)
     if ww["ww_builds_bytes"] is None:
         return JSONResponse({"error": ww.get("error", "User data not loaded")}, status_code=503)
-    return Response(
-        content=ww["ww_builds_bytes"],
-        media_type="application/json",
-        headers={"Cache-Control": "no-store"},
-    )
+    return _payload_response(request, ww["ww_builds_bytes"], {"Cache-Control": "no-store"})
 
 
 @app.get("/api/status")
 async def api_status(session: str | None = Query(None), share: str | None = Query(None)):
     cache, account_name = _resolve_cache_and_account(session, share)
     sid = _valid_session(session) if session else None
-    has_server_key = bool(os.environ.get("ANTHROPIC_API_KEY") or _config.get("anthropic_api_key", ""))
-    has_session_key = bool(_db_get_session_api_key(sid)) if sid else False
+    has_server_key = bool(_server_vision_key()[1])
+    session_key = _session_vision_key(sid) if sid else ("", "")
+    has_session_key = bool(session_key[1])
     is_admin = _is_admin(account_name)
     if cache["data_bytes"] is None:
         return {"ok": False, "item_count": 0, "character_count": 0,
                 "last_modified": None, "error": cache.get("error"),
                 "has_server_api_key": has_server_key, "has_session_api_key": has_session_key,
+                "session_api_provider": session_key[0] if has_session_key else None,
+        "demo_code": DEMO_CODE if _demo_ready else None,
+                "demo_code": DEMO_CODE if _demo_ready else None,
                 "is_admin": is_admin}
     meta = cache.get("meta") or {}
     return {
@@ -1577,6 +1611,7 @@ async def api_status(session: str | None = Query(None), share: str | None = Quer
         "error":              None,
         "has_server_api_key": has_server_key,
         "has_session_api_key": has_session_key,
+        "session_api_provider": session_key[0] if has_session_key else None,
         "is_admin":           is_admin,
     }
 
@@ -1623,7 +1658,7 @@ async def api_workspace_delete_shadow(session: str | None = Query(None)):
         return JSONResponse({"error": "valid session required"}, status_code=400)
     account_name, deleted = _db_delete_shadow_slot(sid)
     if not account_name:
-        return JSONResponse({"error": "shadow slot is empty"}, status_code=400)
+        return JSONResponse({"error": "alt slot is empty"}, status_code=400)
     if deleted:
         shutil.rmtree(_account_upload_dir(account_name), ignore_errors=True)
         _prune_share_registry_for_account(account_name)
@@ -1733,13 +1768,10 @@ async def api_compare_builds(session: str | None = Query(None), share: str | Non
 @app.post("/api/compare_builds/import")
 async def api_compare_builds_import(
     session: str | None = Query(None),
-    share: str | None = Query(None),
     character_id: str | None = Query(None),
     code: str | None = Query(None),
 ):
-    sid, err = _resolve_session_context(session, share)
-    if err:
-        return JSONResponse({"error": err}, status_code=400)
+    sid = _valid_session(session)
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
     if not character_id:
@@ -1748,13 +1780,13 @@ async def api_compare_builds_import(
     if not normalized_code:
         return JSONResponse({"error": "valid build code required"}, status_code=400)
 
-    account_name, account_err = _resolve_account_name(sid, share)
+    account_name, account_err = _resolve_account_name(sid, None)
     if account_err:
         return JSONResponse({"error": account_err}, status_code=400)
     if not account_name:
         return JSONResponse({"error": "upload armory data before importing a compare build"}, status_code=400)
 
-    cache = _resolve_cache(sid, share)
+    cache = _resolve_cache(sid)
     valid_chars = _character_ids_for_cache(cache)
     if str(character_id) not in valid_chars:
         return JSONResponse({"error": "character_id is not in the active workspace"}, status_code=400)
@@ -1783,17 +1815,14 @@ async def api_compare_builds_import(
 @app.delete("/api/compare_builds")
 async def api_compare_builds_delete(
     session: str | None = Query(None),
-    share: str | None = Query(None),
     character_id: str | None = Query(None),
 ):
-    sid, err = _resolve_session_context(session, share)
-    if err:
-        return JSONResponse({"error": err}, status_code=400)
+    sid = _valid_session(session)
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
     if not character_id:
         return JSONResponse({"error": "character_id is required"}, status_code=400)
-    account_name, account_err = _resolve_account_name(sid, share)
+    account_name, account_err = _resolve_account_name(sid, None)
     if account_err:
         return JSONResponse({"error": account_err}, status_code=400)
     if not account_name:
@@ -1847,18 +1876,97 @@ Rules:
 """.strip()
 
 
+# ── Vision provider for SuperStar screenshots: OpenAI (default) or Anthropic ────
+_VISION_PROVIDERS = ("openai", "anthropic")
+
+
+def _server_vision_key() -> tuple[str, str]:
+    """(provider, key) configured on the server: OpenAI first, then Anthropic; ('', '') if neither."""
+    key = os.environ.get("OPENAI_API_KEY") or _config.get("openai_api_key", "")
+    if key:
+        return "openai", key
+    key = os.environ.get("ANTHROPIC_API_KEY") or _config.get("anthropic_api_key", "")
+    return ("anthropic", key) if key else ("", "")
+
+
+def _session_vision_key(sid: str) -> tuple[str, str]:
+    """(provider, key) saved for a browser session. Keys saved before providers existed are Anthropic keys."""
+    blob = _db_get_session_api_key(sid)
+    raw = (_decrypt_api_key(blob) or "") if blob else ""
+    if raw.startswith("{"):
+        try:
+            obj = json.loads(raw)
+            return str(obj.get("provider") or "openai"), str(obj.get("key") or "")
+        except ValueError:
+            return "", ""
+    return ("anthropic", raw) if raw else ("", "")
+
+
+def _json_reply(text: str) -> dict:
+    """The model's JSON answer, tolerating a ```json fence around it."""
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else ""
+        text = text.rsplit("```", 1)[0]
+    return json.loads(text)
+
+
+def _read_screenshot_openai(api_key: str, media_type: str, image_b64: str) -> dict:
+    model = os.environ.get("OPENAI_MODEL") or _config.get("openai_model") or "gpt-4o"
+    body = json.dumps({
+        "model": model,
+        "response_format": {"type": "json_object"},
+        "messages": [{"role": "user", "content": [
+            {"type": "text", "text": _SUPERSTAR_PROMPT},
+            {"type": "image_url", "image_url": {"url": f"data:{media_type};base64,{image_b64}"}},
+        ]}],
+    }).encode()
+    req = urllib.request.Request("https://api.openai.com/v1/chat/completions", data=body, method="POST",
+                                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = json.loads(exc.read()).get("error", {}).get("message", "")
+        except Exception:
+            detail = ""
+        raise RuntimeError(f"OpenAI returned {exc.code}{': ' + detail if detail else ''}") from None
+    return _json_reply(data["choices"][0]["message"]["content"] or "")
+
+
+def _read_screenshot_anthropic(api_key: str, media_type: str, image_b64: str) -> dict:
+    import anthropic as _anthropic
+    client = _anthropic.Anthropic(api_key=api_key)
+    msg = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1500,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
+                {"type": "text", "text": _SUPERSTAR_PROMPT},
+            ],
+        }],
+    )
+    return _json_reply(next((b.text for b in msg.content if b.type == "text"), ""))
+
+
 @app.post("/api/session/apikey")
 async def api_save_session_apikey(
     api_key: str = Form(...),
+    provider: str = Form("openai"),
     session: str | None = Query(None),
 ):
-    """Encrypt and persist an Anthropic API key for this browser session."""
+    """Encrypt and persist an OpenAI or Anthropic API key (for reading SuperStar screenshots) for this browser session."""
     sid = _valid_session(session)
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
     if not api_key.strip():
         return JSONResponse({"error": "api_key must not be empty"}, status_code=400)
-    encrypted = _encrypt_api_key(api_key.strip())
+    if provider not in _VISION_PROVIDERS:
+        return JSONResponse({"error": f"provider must be one of {', '.join(_VISION_PROVIDERS)}"}, status_code=400)
+    encrypted = _encrypt_api_key(json.dumps({"provider": provider, "key": api_key.strip()}))
     _db_save_session_api_key(sid, encrypted)
     return {"ok": True}
 
@@ -1879,18 +1987,14 @@ async def api_parse_superstar(
     session: str | None = Query(None),
     share: str | None = Query(None),
 ):
-    """Accept a SuperStar screenshot and return extracted build JSON via Claude Vision."""
-    api_key = ""
+    """Accept a SuperStar screenshot and return extracted build JSON, read by OpenAI or Anthropic vision."""
     sid = _valid_session(session) if session else None
-    if sid:
-        blob = _db_get_session_api_key(sid)
-        if blob:
-            api_key = _decrypt_api_key(blob) or ""
+    provider, api_key = _session_vision_key(sid) if sid else ("", "")
     if not api_key:
-        api_key = os.environ.get("ANTHROPIC_API_KEY") or _config.get("anthropic_api_key", "")
+        provider, api_key = _server_vision_key()
 
     if not api_key:
-        return JSONResponse({"error": "No Anthropic API key configured. Enter your key via the key icon."}, status_code=503)
+        return JSONResponse({"error": "No API key configured. Add an OpenAI or Anthropic key to read screenshots."}, status_code=503)
 
     image_bytes = await image.read(_MAX_IMAGE_BYTES + 1)
     if len(image_bytes) > _MAX_IMAGE_BYTES:
@@ -1900,24 +2004,11 @@ async def api_parse_superstar(
         media_type = "image/png"
 
     image_b64 = base64.standard_b64encode(image_bytes).decode()
+    read = _read_screenshot_openai if provider == "openai" else _read_screenshot_anthropic
     try:
-        import anthropic as _anthropic
-        client = _anthropic.Anthropic(api_key=api_key)
-        msg = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1500,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": image_b64}},
-                    {"type": "text", "text": _SUPERSTAR_PROMPT},
-                ],
-            }],
-        )
-        raw = msg.content[0].text.strip()
-        parsed = json.loads(raw)
+        parsed = await asyncio.get_event_loop().run_in_executor(None, read, api_key, media_type, image_b64)
     except Exception as exc:
-        logger.error("SuperStar Claude parse error: {}", exc)
+        logger.error("SuperStar {} parse error: {}", provider, exc)
         return JSONResponse({"error": f"Parse failed: {exc}"}, status_code=500)
 
     # Annotate each gear slot with its numeric slot_id for frontend lookup
@@ -1971,9 +2062,13 @@ async def _handle_iasync_upload(upload: UploadFile, sid: str, sess: dict, active
         result = {"ok": False, "error": s_cache["error"]}
     else:
         meta = s_cache.get("meta") or {}
-        account_name = meta.get("account") or active_account
-        if not account_name:
-            result = {"ok": False, "error": "account name missing from upload"}
+        # No fallback: a file without an account name (e.g. a fresh, empty iasync.lua) must not
+        # overwrite the active account or create a placeholder account other uploads would share.
+        account_name = meta.get("account")
+        if account_name == DEMO_ACCOUNT:
+            result = {"ok": False, "error": f"{DEMO_ACCOUNT} is reserved for the demo."}
+        elif not account_name:
+            result = {"ok": False, "error": "This iasync.lua has no ESO account name. Log in to a character with iasync enabled, type /reloadui, then upload again."}
         else:
             slot, conflict = _select_upload_slot(sid, account_name)
             if not slot:
@@ -2074,12 +2169,9 @@ async def api_upload(
     ttc_lookup: UploadFile | None = File(None),
     ttc_price: UploadFile | None = File(None),
     session: str | None = Query(None),
-    share: str | None = Query(None),
 ):
     """Accept uploaded live-folder files for iasync, WW, and TTC tables."""
-    sid, err = _resolve_session_context(session, share)
-    if err:
-        return JSONResponse({"error": err}, status_code=400)
+    sid = _valid_session(session)
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
 
@@ -2187,9 +2279,9 @@ async def api_share_join(session: str | None = Query(None), code: str | None = Q
 
 
 @app.get("/api/auth/status")
-async def api_auth_status(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_auth_status(session: str | None = Query(None)):
     sid = _valid_session(session)
-    account_name, _ = _resolve_account_name(sid, share)
+    account_name, _ = _resolve_account_name(sid, None)
     if not account_name:
         return JSONResponse({"has_password": False, "account_name": None})
     state = _db_get_account_state(account_name)
@@ -2198,9 +2290,9 @@ async def api_auth_status(session: str | None = Query(None), share: str | None =
 
 
 @app.post("/api/auth/set_password")
-async def api_auth_set_password(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
+async def api_auth_set_password(request: Request, session: str | None = Query(None)):
     sid = _valid_session(session)
-    account_name, _ = _resolve_account_name(sid, share)
+    account_name, _ = _resolve_account_name(sid, None)
     if not account_name:
         return JSONResponse({"error": "no account bound to this session"}, status_code=403)
     try:
@@ -2210,10 +2302,33 @@ async def api_auth_set_password(request: Request, session: str | None = Query(No
     password = body.get("password", "")
     if len(password) < 8:
         return JSONResponse({"error": "password must be at least 8 characters"}, status_code=400)
+    # Changing a password needs the current one, so a forgotten logged-in browser can't lock the owner out.
+    current_hash = _db_get_account_password_hash(account_name)
+    if current_hash:
+        current = str(body.get("current_password", ""))
+        loop = asyncio.get_event_loop()
+        if not await loop.run_in_executor(None, lambda: bcrypt.checkpw(current.encode(), current_hash.encode())):
+            return JSONResponse({"error": "current password is incorrect"}, status_code=403)
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
     ok = _db_set_account_password(account_name, hashed)
     if not ok:
         return JSONResponse({"error": "account not found"}, status_code=404)
+    return JSONResponse({"ok": True})
+
+
+@app.post("/api/auth/logout")
+async def api_auth_logout(session: str | None = Query(None)):
+    sid = _valid_session(session)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    _db_delete_session(sid)
+    _sessions.pop(sid, None)
+    # Share codes that pointed at this browser fall back to another browser bound to the account.
+    stale = [code for code, entry in _share_registry["codes"].items() if entry.get("session_id") == sid]
+    for code in stale:
+        _share_registry["codes"].pop(code, None)
+    if stale:
+        _save_share_registry()
     return JSONResponse({"ok": True})
 
 
@@ -2288,24 +2403,17 @@ async def api_skill_info(name: str):
     return JSONResponse(result)
 
 
-_GAME_ICON_RE = re.compile(r"^[a-z0-9_]{1,120}$")
+_GAME_ICON_RE = re.compile(r"^[a-z0-9_][a-z0-9_-]{0,119}$")  # hyphens: patron coins (saint-pelin_coin)
 # esoui/art folders the proxy may fetch from besides icons/ (category tree icons)
-_GAME_ICON_DIRS = {"treeicons", "collections", "achievements"}
+# charactercreate: alliance set categories; tribute(/patrons): Tales of Tribute tree icons and patron coins;
+# currency: currency icons; icons/mapkey: map icons inlined in activity names
+_GAME_ICON_DIRS = {"treeicons", "collections", "achievements", "charactercreate", "tribute", "tribute/patrons", "currency", "icons/mapkey"}
 _GAME_ICON_DIR = Path("assets") / "esoicons"
 _game_icon_missing: collections.OrderedDict = collections.OrderedDict()  # names UESP doesn't have
 
 
 def _fetch_game_icon(name: str, folder: str = "icons") -> bytes | None:
-    url = f"https://esoicons.uesp.net/esoui/art/{folder}/{name}.png"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 ESO-Armory/1.0"})
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = resp.read(512 * 1024)
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            return None
-        raise
-    return data if data.startswith(b"\x89PNG") else None
+    return uesp.fetch_png(f"https://esoicons.uesp.net/esoui/art/{folder}/{name}.png", timeout=10)
 
 
 @app.get("/esoicons/{name}.png")
@@ -2321,6 +2429,12 @@ async def game_icon_in(folder: str, name: str):
     return await _serve_game_icon(folder.lower(), name)
 
 
+@app.get("/esoicons/{folder}/{sub}/{name}.png")
+async def game_icon_in_sub(folder: str, sub: str, name: str):
+    """Icons one folder deeper (tribute/patrons); only folders listed in _GAME_ICON_DIRS."""
+    return await _serve_game_icon(f"{folder}/{sub}".lower(), name)
+
+
 async def _serve_game_icon(folder: str, name: str):
     name = name.lower()
     if folder not in _GAME_ICON_DIRS | {"icons"} or not _GAME_ICON_RE.match(name):
@@ -2331,25 +2445,15 @@ async def _serve_game_icon(folder: str, name: str):
     if not path.exists():
         if _lru_get(_game_icon_missing, key):
             return Response(status_code=404)
-        global _uesp_blocked_until
-        url = f"https://esoicons.uesp.net/esoui/art/{folder}/{name}.png"
-        rel = str(path.relative_to(_GAME_ICON_DIR.parent))
-        if time.monotonic() < _uesp_blocked_until:
-            return _to_uesp(rel, url)
         try:
             data = await asyncio.get_event_loop().run_in_executor(None, _fetch_game_icon, name, folder)
         except Exception as exc:
             logger.warning("Game icon fetch failed: {}: {}", key, exc)
-            if isinstance(exc, urllib.error.HTTPError) and exc.code == 403:
-                _uesp_blocked_until = time.monotonic() + _UESP_BLOCK_BACKOFF
-            return _to_uesp(rel, url)
+            return _to_uesp(f"https://esoicons.uesp.net/esoui/art/{folder}/{name}.png")
         if data is None:
             _lru_put(_game_icon_missing, key, True, _EXTERNAL_CACHE_MAX * 4)
             return Response(status_code=404)
-        base.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
-        tmp.write_bytes(data)
-        tmp.replace(path)
+        _save_icon(path, data)
     return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
 
 

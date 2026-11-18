@@ -89,6 +89,12 @@ export function setShareCode(code) {
   storage(SHARE_KEY, code || null);
 }
 
+/** Drop this browser's session id and share code; the next page load starts a fresh session. */
+export function forgetSession() {
+  storage(SESSION_KEY, null);
+  storage(SHARE_KEY, null);
+}
+
 /**
  * @param {string} path
  * @param {Record<string, any>} [params]

@@ -315,3 +315,45 @@ def test_ui_style_switch_is_remembered(page: Page, app_url: str, fixtures_dir):
     open_tab(page, "Achievements")
     expect(page.get_by_role("heading", name="SUMMARY")).to_be_visible(timeout=15000)
     expect(page.locator("html")).to_have_attribute("data-ui", "simple")
+
+
+def test_collections_book_switcher(page: Page, app_url: str, fixtures_dir):
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    open_tab(page, "Collections")
+    expect(page).to_have_url(re.compile(r"#/collections$"))  # no collectibles in the fixture: Set Items
+    expect(page.get_by_label("Mock Cuirass (not collected)").or_(page.get_by_text("Set Items Collected"))).to_be_visible()
+
+    page.get_by_role("group", name="Collections book").get_by_role("button", name="Collectibles").click()
+    expect(page).to_have_url(re.compile(r"#/collections/collectibles$"))
+    expect(page.get_by_text("Collectibles need iasync 1.9.0")).to_be_visible()
+
+
+@pytest.mark.ui
+def test_password_nudge_until_password_set(page: Page, app_url: str, fixtures_dir):
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    nudge = page.get_by_role("status").filter(has_text="to open your armory on another device")
+    expect(nudge).to_contain_text("@test_account")
+    nudge.get_by_role("button", name=re.compile("Set a password")).click()
+    expect(page.get_by_label("ESO account name")).to_have_value("@test_account")
+    page.get_by_label("New password").fill("hunter2hunter2")
+    page.get_by_label("Confirm password").fill("hunter2hunter2")
+    page.get_by_role("button", name="Save password").click()
+    expect(page.get_by_text("Password saved.")).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(page.get_by_role("button", name="🔐 Password")).to_be_visible()
+    expect(nudge).to_have_count(0)
+
+
+@pytest.mark.ui
+def test_logout_returns_to_welcome(page: Page, app_url: str, fixtures_dir):
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    old_session = page.evaluate("localStorage.getItem('eso-session-id')")
+    messages = []
+    page.once("dialog", lambda d: (messages.append(d.message), d.accept()))
+    page.get_by_role("button", name="Log out").click()
+    expect(page.get_by_text("Load Your ESO Data", exact=False)).to_be_visible(timeout=15000)
+    assert page.evaluate("localStorage.getItem('eso-session-id')") != old_session
+    assert messages[0].startswith("@test_account has no password")

@@ -6,6 +6,9 @@
   import ChampionPoints from './ChampionPoints.svelte';
   import { app } from '../store.svelte.js';
   import { equipped, mundusIcon, setCounts } from '../gear.js';
+  import { tooltip } from '../ui/tooltip.svelte.js';
+  import TextTip from '../tips/TextTip.svelte';
+  import WornSetTip from '../tips/WornSetTip.svelte';
 
   /** @type {{ char: any }} */
   let { char } = $props();
@@ -34,6 +37,10 @@
 
   <div class="col">
     <Frame title="CHARACTER" delay={0.15}>
+      {#if char.level}
+        <!-- iasync 1.11.0: level, title, location and Alliance War rank -->
+        <div class="who">{[`Level ${char.level}`, char.title, char.zone].filter(Boolean).join(' · ')}</div>
+      {/if}
       <div class="money">
         {#each [['gold', 'Gold'], ['ap', 'Alliance Points'], ['tv', 'Tel Var'], ['wv', 'Writs']] as [k, label] (k)}
           {#if k === 'gold' || char[k] > 0}
@@ -48,13 +55,14 @@
       {#if build?.mundus?.length || build?.cp_earned}
         <div class="facts">
           {#if build?.mundus?.length}
-            <span class="fact"><img src={mundusIcon(build.mundus[0])} alt="" />{build.mundus.join(', ')}</span>
+            <span class="fact" tabindex="0" use:tooltip={{ component: TextTip, props: { head: 'Mundus Stone', name: build.mundus.join(', '), desc: build.mundus.map((/** @type {string} */ m) => build.mundusDescriptions?.[m]).filter(Boolean).join('\n\n') } }}><img src={mundusIcon(build.mundus[0])} alt="" />{build.mundus.join(', ')}</span>
           {/if}
-          {#if build?.cp_earned}
-            <span class="fact"><img src="/assets/interface/champion_system.png" alt="" /><b class="num">{build.cp_earned.toLocaleString('en-US')}</b> CP</span>
+          {#if char.cp || build?.cp_earned}
+            <span class="fact"><img src="/assets/interface/champion_system.png" alt="" /><b class="num">{(char.cp || build.cp_earned).toLocaleString('en-US')}</b> CP</span>
           {/if}
         </div>
       {/if}
+
     </Frame>
 
     {#if attrTotal}
@@ -73,7 +81,8 @@
       <Frame title="SETS" delay={0.35}>
         <div class="sets">
           {#each sets as [name, n] (name)}
-            <div class="set"><span>{name}</span><span class="num">{n}</span></div>
+            {@const item = Object.values(gear).find((/** @type {any} */ g) => g?.set_name === name) ?? { set_name: name }}
+            <div class="set" tabindex="0" use:tooltip={{ component: WornSetTip, props: { item, count: n } }}><span>{name}</span><span class="num">{n}</span></div>
           {/each}
         </div>
       </Frame>
@@ -82,7 +91,22 @@
 
   <div class="col">
     <SkillBars skills={build?.skills} {names} />
-    <ChampionPoints cp={build?.cp} names={cpNames} />
+    <ChampionPoints cp={build?.cp} names={cpNames} descriptions={{ ...app.builds.value?.cpDescriptions, ...build?.cpDescriptions }} />
+    {#if char.riding || char.guilds?.length || char.ava_rank_name}
+      <!-- iasync 1.11.0: Alliance War rank, riding skills, guilds -->
+      <Frame title="PROFILE" delay={0.3}>
+        <div class="prof">
+          {#if char.ava_rank_name}<span>Alliance War</span><span>{char.ava_rank_name}</span>{/if}
+          {#if char.riding}
+            <span>Riding</span>
+            <span class="num">{`Speed ${char.riding.speed}/${char.riding.speedMax} · Stamina ${char.riding.stamina}/${char.riding.staminaMax} · Capacity ${char.riding.inventory}/${char.riding.inventoryMax}`}</span>
+          {/if}
+          {#each char.guilds ?? [] as g, i (i)}
+            <span>{i === 0 ? 'Guilds' : ''}</span><span>{g.name}{#if g.rank}{' '}<span class="dim">({g.rank})</span>{/if}</span>
+          {/each}
+        </div>
+      </Frame>
+    {/if}
 
     {#if !build}
       <Frame title="BUILD" delay={0.25}>
@@ -109,6 +133,12 @@
   .facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; margin-top: 8px; font-size: 15px; }
   .fact img { width: 24px; height: 24px; }
 
+  .who { margin-bottom: 6px; font-size: 15px; text-align: center; }
+  .dim { color: var(--muted); }
+  .prof { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 14px; font-size: 14px; }
+  .prof > span:nth-child(odd) { color: var(--muted); }
+  :global(:root[data-ui='classic']) .prof { font: 500 16px var(--eso-font-medium); color: var(--eso-selected); }
+  :global(:root[data-ui='classic']) .prof > span:nth-child(odd), :global(:root[data-ui='classic']) .dim { color: var(--eso-normal); }
   .bars { display: grid; gap: 8px; }
 
   .sets { display: grid; gap: 3px; }

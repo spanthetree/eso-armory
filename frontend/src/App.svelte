@@ -20,6 +20,12 @@
   import CollectionsTab from './lib/collections/CollectionsTab.svelte';
   import AchievementsSimple from './lib/achievements/AchievementsSimple.svelte';
   import CollectionsSimple from './lib/collections/CollectionsSimple.svelte';
+  import CollectiblesBook from './lib/collections/CollectiblesBook.svelte';
+  import { BOOKS } from './lib/collections.js';
+  import Crafting from './lib/character/Crafting.svelte';
+  import Scribing from './lib/character/Scribing.svelte';
+  import Antiquities from './lib/journal/Antiquities.svelte';
+  import TomeTab from './lib/tome/TomeTab.svelte';
   import { ui } from './lib/uimode.svelte.js';
   import { applyUiColors } from './lib/eso/tex.js';
   import Segmented from './lib/ui/Segmented.svelte';
@@ -35,6 +41,8 @@
 
   const CHAR_VIEW_ITEMS = [
     { id: 'sheet', label: 'Sheet', icon: 'inventory/inventory_tabicon_armor' },
+    { id: 'crafting', label: 'Crafting', icon: 'inventory/inventory_tabicon_crafting' },
+    { id: 'scribing', label: 'Scribing', icon: 'treeicons/tutorial_indexicon_scribing' },
     { id: 'wardrobe', label: 'Wardrobe', icon: 'inventory/inventory_tabicon_appearance' },
     { id: 'bags', label: 'Bags', icon: 'inventory/inventory_tabicon_items' },
     { id: 'compare', label: 'Compare', icon: 'inventory/inventory_tabicon_quickslot' },
@@ -46,7 +54,28 @@
     { id: 'inventory', label: 'Inventory', icon: 'inventory' },
     { id: 'achievements', label: 'Achievements', icon: 'journal' },
     { id: 'collections', label: 'Collections', icon: 'collections' },
+    { id: 'tome', label: 'Tamriel Tome', icon: 'tamrieltomes' },
   ];
+
+  // Books of the other tabs with a scene group in game (Collections' are in collections.js).
+  const JOURNAL_BOOKS = [
+    { id: 'achievements', label: 'Achievements', icon: 'journal/journal_tabicon_achievements' },
+    { id: 'antiquities', label: 'Antiquities', icon: 'journal/journal_tabicon_antiquities' },
+  ];
+  const TOME_BOOKS = [
+    { id: 'tome', label: 'Tamriel Tome', icon: 'mainmenu/menubar_tamrieltomes' },
+    { id: 'endeavors', label: 'Endeavors', icon: 'treeicons/tutorial_idexicon_timedactivities' },
+    { id: 'pursuits', label: 'Golden Pursuits', icon: 'lfg/lfg_indexicon_promotionalevents' },
+  ];
+  /** @type {Record<string, { id: string, label: string, icon: string }[]>} */
+  const TAB_BOOKS = { achievements: JOURNAL_BOOKS, collections: BOOKS, tome: TOME_BOOKS };
+
+  // Collections book tab: as linked, else Collectibles once iasync 1.9.0 data is there, else Set Items.
+  const book = $derived(
+    nav.book ??
+      (nav.tab === 'collections' ? (app.stickerbook.value?.collectibles?.categories?.length ? 'collectibles' : 'sets') : TAB_BOOKS[nav.tab]?.[0]?.id ?? null),
+  );
+  const bookInfo = $derived(BOOKS.find((b) => b.id === book) ?? BOOKS[0]);
 
   // Slide tab content in from the side you moved towards.
   let dir = $state('');
@@ -81,7 +110,6 @@
           <HeroEmblems cls={char.class} alliance={char.alliance} />
           <div class="herobar">
             <button class="back" onclick={() => go('characters')}>‹ All characters</button>
-            <Segmented label="Character view" options={CHAR_VIEW_ITEMS} value={nav.charView} onchange={(v) => go('characters', char.id, /** @type {any} */ (v))} />
           </div>
           <div class="sub">{[char.race, char.class, char.alliance].filter(Boolean).join(' · ')}</div>
           <h1>{char.name}</h1>
@@ -93,12 +121,23 @@
         {/if}
       </header>
 
-      <Tabs items={TAB_ITEMS} active={nav.tab} onchange={(id) => go(/** @type {any} */ (id))} />
+      <div class="tabrow">
+        <Tabs items={TAB_ITEMS} active={nav.tab} onchange={(id) => go(/** @type {any} */ (id))} />
+        {#if nav.tab === 'characters' && char}
+          <div class="subbar"><Segmented label="Character view" options={CHAR_VIEW_ITEMS} value={nav.charView} showLabel={false} onchange={(v) => go('characters', char.id, /** @type {any} */ (v))} /></div>
+        {:else if TAB_BOOKS[nav.tab]}
+          <div class="subbar"><Segmented label="{TAB_ITEMS.find((t) => t.id === nav.tab)?.label} book" options={TAB_BOOKS[nav.tab]} value={book ?? ''} showLabel={false} onchange={(v) => go(nav.tab, null, 'sheet', v)} /></div>
+        {/if}
+      </div>
 
-      {#key `${nav.tab}/${nav.charId ?? ''}/${nav.charView}`}
+      {#key `${nav.tab}/${nav.charId ?? ''}/${nav.charView}/${book ?? ''}`}
         <section class="pane {dir}">
           {#if nav.tab === 'characters' && !char}
             <Roster />
+          {:else if nav.tab === 'characters' && nav.charView === 'crafting'}
+            <Crafting {char} />
+          {:else if nav.tab === 'characters' && nav.charView === 'scribing'}
+            <Scribing {char} />
           {:else if nav.tab === 'characters' && nav.charView === 'wardrobe'}
             <Wardrobe {char} />
           {:else if nav.tab === 'characters' && nav.charView === 'bags'}
@@ -111,10 +150,14 @@
             <CharacterSheet {char} />
           {:else if nav.tab === 'inventory'}
             <InventoryTab />
+          {:else if nav.tab === 'achievements' && book === 'antiquities'}
+            <Antiquities />
           {:else if nav.tab === 'achievements'}
             {#if ui.mode === 'classic'}<AchievementsTab />{:else}<AchievementsSimple />{/if}
+          {:else if nav.tab === 'tome'}
+            <TomeTab book={book ?? 'tome'} />
           {:else if nav.tab === 'collections'}
-            {#if ui.mode === 'classic'}<CollectionsTab />{:else}<CollectionsSimple />{/if}
+            {#if book !== 'sets'}<CollectiblesBook book={bookInfo} />{:else if ui.mode === 'classic'}<CollectionsTab />{:else}<CollectionsSimple />{/if}
           {/if}
         </section>
       {/key}
@@ -128,6 +171,8 @@
 
 <style>
   .stage { position: relative; isolation: isolate; }
+  /* Character views and Collections books: their own row under the main tabs. */
+  .subbar { display: flex; justify-content: center; margin-top: 0; }
   .legal { max-width: 1240px; margin: 0 auto; padding: 0 16px 8px; text-align: center; font-size: 11px; line-height: 1.3; color: var(--muted); opacity: 0.7; }
   main { max-width: 1240px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .hero { position: relative; isolation: isolate; text-align: center; display: grid; gap: 2px; padding-top: 4px; }
@@ -136,8 +181,8 @@
   .orn { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--accent); font-size: 12px; }
   .orn::before, .orn::after { content: ''; width: 90px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent)); }
   .orn::after { transform: scaleX(-1); }
-  /* Back link and view switcher share a row above the name, so long names never collide with them. */
-  .herobar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 2px; min-width: 0; }
+  /* The back link sits in the hero's corner; the view switcher has its own row under the tabs. */
+  .herobar { position: absolute; left: 0; top: 4px; z-index: 1; }
   .back { all: unset; cursor: pointer; font-size: 14px; color: var(--muted); }
   .back:hover, .back:focus-visible { color: var(--fg); }
   .pane { animation: pane 0.45s var(--ease-out) both; }

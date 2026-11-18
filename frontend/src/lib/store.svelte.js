@@ -18,7 +18,7 @@ export const app = $state({
   ready: false,
   /** Server unreachable or answering 503 during startup (e.g. a cold start). */
   waking: false,
-  status: { isAdmin: false, hasServerKey: false, hasSessionKey: false },
+  status: { isAdmin: false, hasServerKey: false, hasSessionKey: false, sessionProvider: /** @type {string | null} */ (null), demoCode: /** @type {string | null} */ (null) },
   shareCode: api.session.share,
   workspace: { primary: { account: null }, shadow: { account: null }, activeSlot: 'primary', activeAccount: null },
   /** Last data mtime seen (ETag of /api/data); used by manual refresh. */
@@ -127,7 +127,7 @@ export async function loadAll() {
 
 /** Everything that belongs to the active workspace slot. */
 async function reloadWorkspaceData() {
-  await Promise.all([loadData(true), loadBuilds(), loadWWBuilds(), loadCompare(), loadAchievements(), loadStickerbook()]);
+  await Promise.all([loadData(true), loadBuilds(), loadWWBuilds(), loadCompare(), loadAchievements(), loadStickerbook(), loadAuth()]);
 }
 
 /** @param {any} d */
@@ -154,9 +154,9 @@ export async function switchSlot(slot) {
 
 export async function deleteShadow() {
   try {
-    setWorkspace(await api.del('/api/workspace/shadow', { label: 'Delete shadow', share: false }));
+    setWorkspace(await api.del('/api/workspace/shadow', { label: 'Remove alt', share: false }));
     await reloadWorkspaceData();
-    toast('Shadow workspace deleted');
+    toast('Alt account removed');
   } catch (e) {
     toast(/** @type {Error} */ (e).message || 'Delete failed');
   }
@@ -173,9 +173,24 @@ export async function login(/** @type {string} */ name, /** @type {string} */ pa
   toast('Logged in');
 }
 
+/** Forget this browser and reload to the Welcome screen. */
+export async function logout() {
+  const warn = app.auth.account_name && !app.auth.has_password
+    ? `${app.auth.account_name} has no password. After logging out you can't open it again until you upload it again. Log out?`
+    : 'Log out of this browser?';
+  if (!confirm(warn)) return;
+  try {
+    await api.post('/api/auth/logout', { label: 'Logout', share: false });
+  } catch (e) {
+    return toast(/** @type {Error} */ (e).message);
+  }
+  api.forgetSession();
+  location.replace(location.pathname);
+}
+
 /** Set or change the account password. Throws with the server's message. */
-export async function setPassword(/** @type {string} */ password) {
-  await api.post('/api/auth/set_password', { label: 'Password', init: jsonInit({ password }) });
+export async function setPassword(/** @type {string} */ password, current_password = '') {
+  await api.post('/api/auth/set_password', { label: 'Password', init: jsonInit({ password, current_password }) });
   await loadAuth();
   toast('Password saved');
 }
@@ -195,6 +210,8 @@ async function waitForServer() {
           isAdmin: !!st.is_admin,
           hasServerKey: !!st.has_server_api_key,
           hasSessionKey: !!st.has_session_api_key,
+          sessionProvider: st.session_api_provider ?? null,
+          demoCode: st.demo_code ?? null,
         };
         app.waking = false;
         return;
@@ -345,10 +362,11 @@ export async function deleteCompare(charId) {
   await loadCompare();
 }
 
-/** Save an Anthropic API key for this browser session (used to read SuperStar screenshots). @param {string} key */
-export async function saveApiKey(key) {
-  await api.post('/api/session/apikey', { label: 'API key', init: { body: new URLSearchParams({ api_key: key }) } });
+/** Save an OpenAI or Anthropic API key for this browser session (used to read SuperStar screenshots). @param {string} key @param {'openai' | 'anthropic'} provider */
+export async function saveApiKey(key, provider = 'openai') {
+  await api.post('/api/session/apikey', { label: 'API key', init: { body: new URLSearchParams({ api_key: key, provider }) } });
   app.status.hasSessionKey = true;
+  app.status.sessionProvider = provider;
 }
 
 export async function deleteApiKey() {

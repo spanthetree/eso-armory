@@ -120,3 +120,100 @@ def test_process_ww_builds_skips_empty_and_non_integer_gear(raw_ww):
     assert char_builds[0]["name"] == "Mock Raid Build"
     assert [g["slot"] for g in char_builds[0]["gear"]] == [4]
     assert char_builds[0]["food"]["link_name"] == "Mock Food"
+
+
+def test_collectibles_sorted_by_index_with_subcategories():
+    from data_processor import process_iasync_collectibles
+
+    raw = {"collectibles": {
+        "lastUpdate": 5,
+        "categories": {  # Lua arrays arrive as dicts with int or str keys, in any order
+            15: {"name": "Armor Styles", "icon": "/esoui/art/treeicons/a_up.dds", "specialization": 3, "numUnlocked": 1, "numTotal": 2,
+                 "subcats": {"2": {"name": "Chest", "numUnlocked": 0, "numTotal": 1}, "1": {"name": "Head", "numUnlocked": 1, "numTotal": 1}}},
+            "1": {"name": "Stories", "specialization": 1, "numUnlocked": 1, "numTotal": 1, "hidesLocked": True},
+        },
+        "items": {"7": {"name": "b helm", "icon": "/esoui/art/icons/x.dds", "unlocked": True, "cat": 15, "sub": 1},
+                  3: {"name": "A Chest", "unlocked": False, "cat": 15, "sub": 2}, "bad": "skip"},
+    }}
+    col = process_iasync_collectibles(raw)
+    assert [c["name"] for c in col["categories"]] == ["Stories", "Armor Styles"]
+    assert col["categories"][0]["hidesLocked"] is True and col["categories"][0]["subcats"] == []
+    assert [s["name"] for s in col["categories"][1]["subcats"]] == ["Head", "Chest"]
+    assert col["categories"][1]["specialization"] == 3
+    assert [(i["id"], i["name"], i["unlocked"], i["sub"]) for i in col["items"]] == [(3, "A Chest", False, 2), (7, "b helm", True, 1)]
+    assert col["lastUpdate"] == 5
+    assert process_iasync_collectibles({}) == {"categories": [], "items": [], "patrons": [], "lastUpdate": 0}
+
+
+def test_tribute_patrons_in_tree_order_with_unlock_state():
+    from data_processor import process_iasync_collectibles
+
+    raw = {"collectibles": {
+        "items": {"500": {"name": "Saint Pelin", "unlocked": True, "cat": 2, "sub": 0}},
+        "patrons": {
+            "2": {"name": "Treasury", "category": "Neutral", "categoryOrder": 2, "collectibleId": 0, "icon": "/esoui/art/tribute/patrons/patron_coin_neutral.dds"},
+            "9": {"name": "Zed", "category": "Patrons", "categoryOrder": 1, "collectibleId": 501},
+            "1": {"name": "Saint Pelin", "category": "Patrons", "categoryOrder": 1, "collectibleId": 500},
+            "40": {"name": "Not In Tree", "categoryOrder": 0},
+        },
+    }}
+    patrons = process_iasync_collectibles(raw)["patrons"]
+    assert [(p["name"], p["category"], p["unlocked"]) for p in patrons] == [
+        ("Saint Pelin", "Patrons", True), ("Zed", "Patrons", False), ("Treasury", "Neutral", True)]
+
+
+def test_iasync_1_11_details_currencies_activities_antiquities():
+    from data_processor import process_iasync, process_iasync_builds
+    from lua_parser import parse_iasync_core_text
+
+    lua = """iasync_data = {
+      ["accountName"] = "@acct",
+      ["chars"] = { ["c1"] = { ["name"] = "Hero", ["level"] = 50, ["championPoints"] = 1452, ["title"] = "Tactician",
+        ["riding"] = { ["speed"] = 60, ["speedMax"] = 60 }, ["guilds"] = { [1] = { ["name"] = "G", ["rankName"] = "Officer" } },
+        ["research"] = { ["blacksmithing"] = { [2] = { ["name"] = "Mace", ["numTraits"] = 9, ["known"] = { [1] = 3, [2] = 1 } },
+                                             [1] = { ["name"] = "Axe", ["numTraits"] = 9, ["researching"] = { [1] = { ["traitType"] = 7, ["endTime"] = 99 } } } } },
+        ["recipes"] = { [1] = { ["name"] = "Meat", ["total"] = 42, ["known"] = { [1] = "Chicken Breast" } } },
+        ["mundusDescriptions"] = { ["The Lady"] = "Increases |cffffff2744|r Resistance" } } },
+      ["currencies"] = { ["SEALS"] = { ["name"] = "Seals", ["account"] = 5 }, ["MONEY"] = { ["name"] = "Gold", ["bank"] = 9 } },
+      ["activities"] = { ["timed"] = { [1] = { ["name"] = "Complete 1 Arena |t32:32:EsoUI/Art/Icons/mapKey/mapKey_soloTrial.dds|t", ["type"] = "weekly",
+                                              ["progress"] = 0, ["maxProgress"] = 1, ["currencyQty"] = 250 } },
+                         ["limits"] = { ["weekly"] = { ["resetTime"] = 7 } } },
+      ["antiquities"] = { ["items"] = { [3] = { ["name"] = "Totem", ["setId"] = 1, ["zoneId"] = 2, ["hasLead"] = true } },
+                          ["sets"] = { [1] = "Set A" }, ["zones"] = { [2] = "Zone B" } },
+    }"""
+    raw = parse_iasync_core_text(lua)  # the /api/data parser keeps the 1.11.0 account sections
+    data = process_iasync(raw)
+    c = data["characters"]["c1"]
+    assert (c["level"], c["cp"], c["title"], c["riding"]["speed"]) == (50, 1452, "Tactician", 60)
+    assert c["guilds"] == [{"name": "G", "rank": "Officer"}]
+    assert [l["name"] for l in c["research"]["blacksmithing"]] == ["Axe", "Mace"]
+    assert c["research"]["blacksmithing"][1]["known"] == [1, 3]
+    assert c["research"]["blacksmithing"][0]["researching"] == [{"trait": 7, "endTime": 99}]
+    assert c["recipes"] == [{"name": "Meat", "total": 42, "known": ["Chicken Breast"]}]
+    assert [(x["name"], x["account"], x["bank"]) for x in data["currencies"]] == [("Gold", None, 9), ("Seals", 5, None)]
+    t = data["activities"]["timed"][0]
+    assert (t["name"], t["icon"], t["reward"]) == ("Complete 1 Arena", "/esoui/art/icons/mapkey/mapkey_solotrial.dds", 250)
+    assert data["activities"]["resets"] == {"weekly": 7}
+    assert data["antiquities"][0] | {} == {**data["antiquities"][0], "name": "Totem", "set": "Set A", "zone": "Zone B", "lead": True}
+    assert process_iasync_builds(raw)["builds"][0]["mundusDescriptions"] == {"The Lady": "Increases 2744 Resistance"}
+
+
+def test_merged_item_takes_its_icon_from_any_copy():
+    from data_processor import _add_slot
+
+    link = "|H1:item:5001:0:1:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"
+    item_map: dict = {}
+    _add_slot(item_map, {"link": link, "name": "Mask"}, 1, "character", "c1", "Old Scan", 0, "Equipped")
+    _add_slot(item_map, {"link": link, "name": "Mask", "icon": "/esoui/art/icons/gear_mask.dds"}, 1, "character", "c2", "New Scan", 0, "Equipped")
+    assert item_map[link]["icon"] == "/esoui/art/icons/gear_mask.dds"
+
+
+def test_items_lend_their_icon_across_links_of_the_same_item():
+    from data_processor import process_iasync
+
+    old = "|H1:item:5001:363:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"
+    new = "|H1:item:5001:364:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"
+    raw = {"accountName": "@a", "chars": {"c1": {"name": "Old", "bags": {"1": {"0": {"link": old, "name": "Coil"}}}},
+                                          "c2": {"name": "New", "bags": {"1": {"0": {"link": new, "name": "Coil", "icon": "/esoui/art/icons/coil.dds"}}}}}}
+    items = process_iasync(raw)["items"]
+    assert {i["icon"] for i in items} == {"/esoui/art/icons/coil.dds"}

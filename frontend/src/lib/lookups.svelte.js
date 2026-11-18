@@ -27,6 +27,26 @@ export async function loadSetBonus(item) {
   }
 }
 
+// Destruction Staff skills take the equipped staff's element in their in-game name (Blockade of Fire), but
+// eso-skillbook.com has one page per base skill (Elemental Blockade).
+const STAFF_BASE = {
+  'Wall of Elements': ['Wall of Fire', 'Wall of Frost', 'Wall of Storms'],
+  'Unstable Wall of Elements': ['Unstable Wall of Fire', 'Unstable Wall of Frost', 'Unstable Wall of Storms'],
+  'Elemental Blockade': ['Blockade of Fire', 'Blockade of Frost', 'Blockade of Storms'],
+  'Destructive Touch': ['Fire Touch', 'Frost Touch', 'Shock Touch'],
+  'Destructive Clench': ['Flame Clench', 'Frost Clench', 'Shock Clench'],
+  'Destructive Reach': ['Flame Reach', 'Frost Reach', 'Shock Reach'],
+  Impulse: ['Fire Impulse', 'Frost Impulse', 'Shock Impulse'],
+  'Elemental Ring': ['Fire Ring', 'Frost Ring', 'Shock Ring'],
+  Pulsar: ['Flame Pulsar', 'Frost Pulsar', 'Storm Pulsar'],
+  'Elemental Storm': ['Fire Storm', 'Ice Storm', 'Thunderstorm'],
+  'Elemental Rage': ['Fiery Rage', 'Icy Rage', 'Thunderous Rage'],
+  'Eye of the Storm': ['Eye of Flame', 'Eye of Frost', 'Eye of Lightning'],
+};
+const SKILL_PAGE = new Map(Object.entries(STAFF_BASE).flatMap(([base, variants]) => variants.map((v) => [v, base])));
+/** The eso-skillbook.com skill a game ability name belongs to. @param {string} name */
+export const skillPage = (name) => SKILL_PAGE.get(name.trim()) ?? name;
+
 /** @param {string} name ability name */
 export async function loadSkillInfo(name) {
   if (!name || name.startsWith('#')) return;
@@ -34,30 +54,34 @@ export async function loadSkillInfo(name) {
   if (skillInfo[key]) return;
   skillInfo[key] = { loading: true };
   try {
-    skillInfo[key] = await api.get('/api/skill_info', { label: 'Skill info', params: { name }, share: false });
+    skillInfo[key] = await api.get('/api/skill_info', { label: 'Skill info', params: { name: skillPage(name) }, share: false });
   } catch (e) {
     skillInfo[key] = { error: /** @type {Error} */ (e).message || 'Skill lookup failed' };
   }
 }
 
 /** @param {string} name */
-export const skillbookUrl = (name) => `https://eso-skillbook.com/skill/${slugify(name)}`;
+export const skillbookUrl = (name) => `https://eso-skillbook.com/skill/${slugify(skillPage(name))}`;
 
 /** Names for ability ids iasync couldn't resolve, filled from UESP via the server. */
 export const extraAbilityNames = $state(/** @type {Record<string, string>} */ ({}));
 const askedAbilityIds = new Set();
+/** Ability ids whose name is being fetched right now (their skill slots show a spinner). */
+export const pendingAbilityIds = $state(/** @type {Record<string, boolean>} */ ({}));
 
 /** Look up names for ability ids not yet known or asked for. @param {(number | string)[]} ids */
 export async function loadAbilityNames(ids) {
   const todo = [...new Set(ids.map(String))].filter((id) => id && id !== '0' && !askedAbilityIds.has(id));
   for (let i = 0; i < todo.length; i += 40) {
     const batch = todo.slice(i, i + 40);
-    batch.forEach((id) => askedAbilityIds.add(id));
+    batch.forEach((id) => (askedAbilityIds.add(id), (pendingAbilityIds[id] = true)));
     try {
       const d = await api.get('/api/ability_names', { label: 'Ability names', params: { ids: batch.join(',') }, share: false });
       Object.assign(extraAbilityNames, d.names ?? {});
     } catch {
       batch.forEach((id) => askedAbilityIds.delete(id)); // retry on a later view
+    } finally {
+      batch.forEach((id) => delete pendingAbilityIds[id]);
     }
   }
 }

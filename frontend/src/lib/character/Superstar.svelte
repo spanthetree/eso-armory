@@ -5,7 +5,7 @@
   import { superstarRows } from '../compare.js';
 
   /**
-   * Compare a SuperStar build screenshot (read by Claude vision on the server) with this character's
+   * Compare a SuperStar build screenshot (read on the server by OpenAI or Anthropic vision) with this character's
    * gear and everything the account owns.
    * @type {{ char: any }}
    */
@@ -15,6 +15,12 @@
   let result = $state(/** @type {any} */ (null));
   let needKey = $state(false);
   let key = $state('');
+  let provider = $state(/** @type {'openai' | 'anthropic'} */ ('openai'));
+  // Where to create a key, and what one looks like, per provider.
+  const PROVIDERS = {
+    openai: { label: 'OpenAI', create: 'https://platform.openai.com/api-keys', placeholder: 'sk-...' },
+    anthropic: { label: 'Anthropic', create: 'https://console.anthropic.com/settings/keys', placeholder: 'sk-ant-...' },
+  };
   let busy = $state(false);
   let status = $state('');
   let dragging = $state(false);
@@ -49,7 +55,7 @@
     if (!key.trim() || busy) return;
     busy = true;
     try {
-      await saveApiKey(key.trim());
+      await saveApiKey(key.trim(), provider);
     } catch (e) {
       status = /** @type {Error} */ (e).message;
       busy = false;
@@ -73,15 +79,22 @@
   <div class="top">
     <p class="hint">Compare a build screenshot from SuperStar with {char.name}'s gear and everything on the account.</p>
     {#if app.status.hasSessionKey}
-      <span class="hint">API key saved · <button class="link" onclick={deleteApiKey}>Remove</button></span>
+      <span class="hint">{PROVIDERS[/** @type {'openai' | 'anthropic'} */ (app.status.sessionProvider)]?.label ?? 'API'} key saved · <button class="link" onclick={deleteApiKey}>Remove</button></span>
     {/if}
   </div>
 
   {#if !result}
     {#if needKey}
       <form class="key" onsubmit={(e) => { e.preventDefault(); saveAndParse(); }}>
-        <p class="hint">Reading the screenshot needs an <b>Anthropic API key</b> (Claude vision). It's stored encrypted for this browser session only.</p>
-        <input class="field" type="password" bind:value={key} placeholder="sk-ant-..." autocomplete="off" disabled={busy} aria-label="Anthropic API key" />
+        <p class="hint">Reading the screenshot needs an API key for an AI service that can read images. It's stored encrypted for this browser session only, and each read is billed to your account with that service.</p>
+        <div class="row">
+          <select class="field prov" bind:value={provider} disabled={busy} aria-label="Service">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+          </select>
+          <a class="link" href={PROVIDERS[provider].create} target="_blank" rel="noopener noreferrer">Create an API key at {PROVIDERS[provider].label} ↗</a>
+        </div>
+        <input class="field" type="password" bind:value={key} placeholder={PROVIDERS[provider].placeholder} autocomplete="off" disabled={busy} aria-label="{PROVIDERS[provider].label} API key" />
         <div class="row">
           <button class="btn primary" disabled={!key.trim() || busy}>{busy ? 'Working…' : 'Read screenshot'}</button>
           <button type="button" class="btn" onclick={() => { needKey = false; file = null; status = ''; }}>Back</button>
@@ -159,7 +172,9 @@
   kbd { padding: 0 5px; border: 1px solid var(--line); font: 12px ui-monospace, monospace; color: var(--muted); }
   .key { display: grid; gap: 10px; max-width: 460px; margin: 0 auto; }
   .key .btn.primary { width: auto; }
-  .row { display: flex; gap: 8px; align-items: center; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .prov { width: auto; }
+  a.link { text-decoration: underline; text-underline-offset: 2px; }
   .head { justify-content: space-between; margin-bottom: 10px; font-size: 15px; }
   .scroll { overflow: auto; max-height: max(300px, calc(100dvh - 420px)); }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }

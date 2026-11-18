@@ -13,9 +13,9 @@ export const nav = $state({
   dialog: /** @type {'' | 'upload' | 'share' | 'password'} */ (''),
 });
 
-/** @param {Tab} tab @param {string | null} [charId] @param {CharView} [charView] */
-export function go(tab, charId = null, charView = 'sheet') {
-  const hash = toHash(tab, charId, charView);
+/** @param {Tab} tab @param {string | null} [charId] @param {CharView} [charView] @param {import('./route.js').Book | null} [book] */
+export function go(tab, charId = null, charView = 'sheet', book = null) {
+  const hash = toHash(tab, charId, charView, book);
   if (location.hash !== hash) location.hash = hash;
   Object.assign(nav, parseHash(hash));
 }

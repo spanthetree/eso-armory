@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlalchemy import Float, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, create_engine, inspect, select, text
+from sqlalchemy import Float, delete, ForeignKey, Integer, LargeBinary, String, Text, UniqueConstraint, create_engine, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
 
 
@@ -324,6 +324,15 @@ def delete_shadow_slot(session_id: str) -> tuple[str | None, bool]:
             return account_name, False
         db.delete(account)
         return account_name, True
+
+
+def delete_session(session_id: str) -> None:
+    """Forget a browser: its slot bindings and imported compare builds. Account data stays."""
+    with session_scope() as db:
+        row = db.get(WorkspaceSession, session_id)
+        if row is not None:
+            db.delete(row)
+        db.execute(delete(ImportedBuild).where(ImportedBuild.workspace_session_id == session_id))
 
 
 def find_session_for_account(account_name: str) -> str | None:

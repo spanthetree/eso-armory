@@ -2,6 +2,54 @@
 
 ## [Unreleased]
 
+## [0.2.0-beta.7] - 2026-11-18
+
+### Added
+- **Items show their own icons** (monster helms, mythics, unique jewelry) wherever they appear, when iasync records them (iasync 1.13.0); generic slot icons otherwise
+- **Demo account** - "Open the demo account" on the landing page loads `@armory-demo`, a full read-only armory built from real game data with generated character and guild names (`scripts/make_demo.py`). Every section has data: characters with gear, builds, crafting and scribing, inventory, achievements, collections, the Tome and antiquities
+- **SuperStar import with OpenAI or Anthropic** - pick the service when adding your key (OpenAI by default), with a link to create a key there. Servers can set `OPENAI_API_KEY` as well as `ANTHROPIC_API_KEY`
+- **Character details** (iasync 1.11.0) - level, title and zone on the Character panel; a Profile panel with Alliance War rank, riding skills and guilds
+- **Crafting view** - trait research per craft (known traits, research in progress with time left), motifs with their chapters, and provisioning recipes
+- **Scribing view** - grimoires (unlocked, scribed) and each grimoire's focus, signature and affix scripts
+- **Tamriel Tome tab** - the season's reward track (free and premium per level, claimed and current level), weekly and seasonal Endeavors with progress, rewards and reset timers, and Golden Pursuits with milestones and activities
+- **Antiquities** in the Journal (the Achievements tab gets Achievements and Antiquities books) - leads with time left, then every zone, with recovered counts and Codex progress
+- **All currencies** - hover the account's currencies for every account-wide one (Seals, Transmute, Tome Points, Crowns…), with icons from iasync 1.12.0
+- **Tooltips on the character page** - set bonuses (active ones highlighted), and the mundus stone and slotted champion stars with their in-game descriptions (iasync 1.12.0; with iasync 1.14.0 every star has a name and description, including stars only used in Wizards Wardrobe setups)
+- **The in-game Collections book** - the Collections tab gets the game's tab bar: Collectibles, Housing, Outfit Styles, Set Items and Tales of Tribute, each with its UESP tab icon. Every book has the in-game category tree with tree icons and completion, a Filter By search, a Show All / Locked / Unlocked filter and the game's 175x125 collectible tiles, in both Classic and Simple. Categories the game hides locked collectibles in hide them here too. The game's Stories tab (a list of DLC quests) is left out. Needs iasync 1.9.0; each book has its own link (`#/collections/housing`)
+- The server passes iasync's `collectibles` through in `/api/stickerbook`
+- **Tales of Tribute patrons** (iasync 1.10.0) - the book shows the in-game tree's Patrons and Neutral groups with their icons, and each patron's coin, unlocked or locked
+- **Spinner on icons still loading** - game icons and ability icons fetched on demand spin until they arrive (also when an icon is swapped for another); one that can't be loaded shows the game's question-mark icon instead of the browser's broken-image glyph
+- Set Items tree: the game's Summary icon, and the alliance category icons (the `/esoicons/charactercreate/` folder is now allowed)
+- **Password reminder** - until the account has a password, a toast under Set password reminds you that one is needed to open the armory on another device, and rings every 30 seconds. The password dialog shows the ESO account name, so password managers save it with the password
+- **Log out** - forgets this browser and returns to the Welcome screen. The account's data stays on the server; it warns first if the account has no password, since that data can't be opened again without a new upload
+
+### Changed
+- **Logo** - the in-game Armory icon (the favicon) sits between "ESO" and "ARMORY" in the top bar
+- **Icons on hosts UESP blocks now come through a public image proxy.** After a 403 the server fetches through WordPress.com's Photon CDN (`i0.wp.com`) and saves the icons in `assets/`; on an AWS Lightsail server all 1,268 manifest icons downloaded this way in 78 s. A manifest icon missing from `assets/` is fetched and saved on first request. Only if UESP and the proxy both fail is the browser sent to UESP
+- `scripts/sync_icons.py` and `uploads/missing_assets.txt` (0.2.0-beta.6) are gone: the proxy replaces them
+- **Character views (Sheet, Wardrobe, Bags, Compare, SuperStar) switch from an icon row under the main tabs**, like the Collections books; the book and view bars show icons only
+- **"Collections" (the set collection) is now "Set Items"**, as in game. Without collectibles data the Collections tab opens on it, as before
+- **The shadow workspace is now called Alt** - a second ESO account in your browser, next to Primary
+- `/api/data`, `/api/achievements`, `/api/stickerbook` and the build payloads are gzipped (a full account's collectibles are about 4 MB, 400 KB compressed)
+
+### Security
+- **Share codes are read-only.** Anyone holding a share code could upload into the sharer's workspace, set or change the account password (locking the owner out), import or delete compare builds, and upload TTC price tables if the sharer was an admin. These now act only on the viewer's own browser
+- **Changing a password needs the current one**, so a browser left logged in can't lock the owner out
+
+### Fixed
+- Destruction Staff skills named after their element (Blockade of Fire, Flame Reach…) link to and describe their base skill on eso-skillbook.com instead of a 404
+- Skills whose name is still being looked up show a spinner instead of "?"
+- Tall Classic panels (Equipped) no longer stretch the panel texture's soft edges
+- **Refresh with a watched folder** reconnects the folder when the browser wants access re-granted, then uploads its files again even if unchanged
+- **Watched folder**: it checks every 10 s (and as soon as you return to the tab) instead of every minute. After a page reload, when the browser wants folder access re-granted, the top bar shows **Resume watching** instead of silently stopping
+- An item held by several characters took its icon from the first copy found, which could be one scanned before iasync recorded icons; any copy's icon is used now, including copies with a different trait, enchant or level
+- On phones a divider line hung mid-screen on every page: the top bar's divider was positioned against the viewport instead of the bar
+- The `/api/data` parser dropped iasync's top-level `uiColors`
+- Character pages: the class and faction emblems fit the header; roster cards show the faction once in Classic
+- Filtering the inventory by location (e.g. Bank) no longer shows an item's other stacks: each row's locations, quantity and value cover only the filtered locations
+- After an upload or a primary/shadow switch, the password button and dialog showed the previous account's state
+- **An iasync.lua with no account name** (such as a fresh, empty file) was stored as an account called `@unknown`. It took the primary slot, so every later real upload landed in Alt, and other users' nameless uploads shared that same account. Such files are now rejected with a hint to log in and /reloadui first
+
 ## [0.2.0-beta.6] - 2026-11-18
 
 ### Added

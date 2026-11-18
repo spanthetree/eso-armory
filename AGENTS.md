@@ -18,7 +18,7 @@ Before making code or file changes, ask for explicit approval unless the user ha
 |------|---------|
 | `server.py` | FastAPI app, file watcher, caches, SSE push, ability icon map, set bonus + skill info scrapers |
 | `lua_parser.py` | `parse_lua_variable(path, varname)` |
-| `data_processor.py` | `process_iasync()`, `process_iasync_builds()`, `process_iasync_achievements()`, `process_iasync_stickerbook()`, `process_ww_builds()` |
+| `data_processor.py` | `process_iasync()`, `process_iasync_builds()`, `process_iasync_achievements()`, `process_iasync_stickerbook()` (includes `process_iasync_collectibles()`), `process_ww_builds()` |
 | `item_link_decoder.py` | Decodes ESO `\|H1:item:...\|h` links → trait/style/enchant fields |
 | `config.json` | TTC addon paths, port, server region (`NA`/`EU`), database URL |
 | `frontend/src/App.svelte` | App shell: top bar, hero, tabs, character sub-views, dialogs |
@@ -51,7 +51,7 @@ key = re.sub(r'[^a-z0-9]+', '_', icon.stem.lower()).strip('_')
 # JS (frontend/src/lib/eso.js iconKey):
 const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
 ```
-Icons are ZeniMax artwork and are **not committed**: `assets/` is gitignored and filled by `make assets` (`scripts/download_assets.py`) from the URLs in `scripts/assets_manifest.json` (UESP `images.uesp.net` / `esoicons.uesp.net`; needs a browser-like User-Agent). To add an icon, add a `"path": "url"` entry to the manifest and run `make assets`. Never commit image files under `assets/`. A host UESP refuses (Cloudflare 403, common on cloud IPs) redirects browsers to UESP for missing `/assets/...` (manifest) and `/esoicons/...` icons and records them in `uploads/missing_assets.txt`; `scripts/sync_icons.py user@host` (run from a desktop) downloads those and rsyncs them into the server's `assets/`.
+Icons are ZeniMax artwork and are **not committed**: `assets/` is gitignored and filled by `make assets` (`scripts/download_assets.py`) from the URLs in `scripts/assets_manifest.json` (UESP `images.uesp.net` / `esoicons.uesp.net`; needs a browser-like User-Agent). To add an icon, add a `"path": "url"` entry to the manifest and run `make assets`. Never commit image files under `assets/`. Icons come through `uesp.py`: UESP first, and after a 403 (Cloudflare refuses many cloud IPs) WordPress.com's Photon image proxy (`i0.wp.com/<host>/<path>`) for 10 minutes. A missing manifest icon under `/assets/` and every `/esoicons/` icon are fetched on first request and saved into `assets/`; only if both routes fail is the browser redirected (307) to UESP.
 
 ## Design System
 Two looks, switched by the top-bar **UI** dropdown (`lib/uimode.svelte.js`, mirrored on `<html data-ui>`):
@@ -111,4 +111,6 @@ Agents may run git and `gh` commands (branch, commit, push, open PRs).
 - **`/esoicons/<name>.png`**: achievement and other `/esoui/art/icons` textures are fetched from UESP on first use into `assets/esoicons/` (gitignored). `/esoicons/<folder>/<name>.png` does the same for `treeicons`, `collections` and `achievements` (category tree icons). Use `gameIcon(path)` (`achievements.js`) to turn a `.dds` path into either URL.
 - **Set collection `filterType`** is `EQUIPMENT_FILTER_TYPE_*` (1 Light, 2 Medium, 3 Heavy, 4 Necklace, 5 Ring, 6 One-Handed, 7 Shield, 8 Two-Handed, 9 Destruction, 10 Restoration, 11 Bow), not the inventory `filter_type`.
 - **No `structuredClone` on state**: it throws on Svelte `$state` proxies; use `$state.snapshot` or a JSON copy.
+- **Demo account**: `demo/demo.json.gz` (built by `scripts/make_demo.py`: real game data, account/character/guild/setup names replaced, and it refuses to write if any source name remains) loads on startup into `@armory-demo` when the file changed, owned by a session derived from `db_secret` and shown through the fixed share code `DEMA-RMRY` (read-only like any share). Uploads claiming `@armory-demo` are refused. Regenerate it after schema changes so every section has data.
+- **Collectibles ride in `/api/stickerbook`** (`collectibles`, about 4 MB for a full account, served gzipped by `_payload_response`). There is no gzip middleware on purpose: it would buffer the `/events` SSE stream. The Collections tab's book (`#/collections/<book>`, `BOOKS` in `collections.js`) picks Set Items or `CollectiblesBook` (one component, both looks).
 - **Inventory values** come from one `POST /api/ttc_prices` per item list (`loadAvgPrices`); don't call `/api/ttc_price` per row.

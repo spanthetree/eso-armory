@@ -2,7 +2,7 @@
   import { app } from '../store.svelte.js';
   import { iconKey } from '../eso.js';
   import { tooltip } from '../ui/tooltip.svelte.js';
-  import { skillbookUrl } from '../lookups.svelte.js';
+  import { skillbookUrl, pendingAbilityIds } from '../lookups.svelte.js';
   import SkillTip from '../tips/SkillTip.svelte';
 
   /**
@@ -28,7 +28,9 @@
     {#if icon}<img src={icon} alt="" loading="lazy" />{:else}<span>{name}</span>{/if}
   </a>
 {:else}
-  <span class="skill empty" class:ult={ultimate} style="--d: {delay}s" title={name ? `Unknown ability ${name}: no name from iasync or UESP` : 'Empty slot'}>{name ? '?' : ''}</span>
+  {@const looking = !!name && pendingAbilityIds[name.slice(1)]}
+  <span class="skill empty" class:ult={ultimate} class:icon-loading={looking} style="--d: {delay}s"
+    title={looking ? 'Looking up this ability…' : name ? `Unknown ability ${name}: no name from iasync or UESP` : 'Empty slot'}>{name && !looking ? '?' : ''}</span>
 {/if}
 
 <style>

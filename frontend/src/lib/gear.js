@@ -1,5 +1,7 @@
 // Equipment slots and gear icons. Ported from the Alpine UI's static lookups.
 
+import { gameIcon } from './achievements.js';
+
 const GEAR = '/assets/gear';
 const WEAPON = `${GEAR}/weapon`;
 const STAFF = `${WEAPON}/gear_breton_staff_d.png`;
@@ -90,6 +92,7 @@ function armorSrc(slot, armorType) {
  * @param {any} item
  */
 export function slotIcon(slot, item) {
+  if (ownIcon(item)) return ownIcon(item);
   if (slot in ARMOR_SLOT) return armorSrc(slot, item.armor_type);
   if (slot === 1) return NECK;
   if (slot === 11 || slot === 12) return RING;
@@ -99,8 +102,12 @@ export function slotIcon(slot, item) {
   return itemIcon(item);
 }
 
+/** The item's own texture when iasync recorded it (monster helms, mythics, unique jewelry); else null. @param {any} item */
+const ownIcon = (item) => gameIcon(item?.icon);
+
 /** Icon for an item anywhere (inventory, lists). @param {any} item */
 export function itemIcon(item) {
+  if (ownIcon(item)) return ownIcon(item);
   if (item.filter_type === 1) return weaponSrc(item.weapon_type, item.name);
   if (item.filter_type === 2) return item.weapon_type === 'Shield' ? WEAPON_ICONS.Shield : ARMOR_ICONS[item.armor_type] ?? FALLBACK_ICONS[2];
   if (item.filter_type === 25) return NECK;
@@ -156,6 +163,7 @@ export function setCounts(gear) {
 export function savedGearItem(g, base) {
   return {
     name: base?.name ?? (g.link_name || `Item #${g.item_id}`),
+    icon: base?.icon ?? "",
     quality: base?.quality ?? 4,
     quality_name: base?.quality_name ?? 'Epic',
     quality_color: base?.quality_color ?? '#a02ee4',

@@ -77,3 +77,14 @@ test('presets apply over empty filters and are recognised', () => {
   assert.equal(isPreset(applied, p), false);
   assert.deepEqual(p.types, ['1', '2', '25']); // preset not mutated
 });
+
+test('a location filter narrows each row to its matching locations', () => {
+  const item = { key: 'k', name: 'Soul Gem', filter_type: 4, quality: 1, trait_id: 0, unit: 10, value: 1000, total_quantity: 100,
+    locations: [{ location_type: 'bank', location_key: 'Bank', bag_id: 2, quantity: 30 }, { location_type: 'guild_bank', location_key: 'G', bag_id: 3, quantity: 70 }] };
+  const f = { ...emptyFilters(), locTypes: ['bank'] };
+  const [row] = filterItems([item], f);
+  assert.deepEqual(row.locations.map((l) => l.location_type), ['bank']);
+  assert.equal(row.total_quantity, 30);
+  assert.equal(row.value, 300);
+  assert.equal(filterItems([item], emptyFilters())[0], item); // no location filter: untouched
+});

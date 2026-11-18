@@ -1,7 +1,11 @@
 <script>
   import { app } from '../store.svelte.js';
+  import CurrencyTip from '../tips/CurrencyTip.svelte';
+  import { tooltip } from '../ui/tooltip.svelte.js';
 
   const data = $derived(app.data.value);
+  /** Account-held currencies (Seals, Transmute, Tome Points…) for the hover list; character-held ones are shown inline. */
+  const accountWide = $derived((data?.currencies ?? []).filter((/** @type {any} */ c) => c.account != null));
 
   /** Character currency plus bank, like the classic header. @param {string} key */
   function total(key) {
@@ -19,7 +23,7 @@
 </script>
 
 {#if data}
-  <div class="money">
+  <div class="money" use:tooltip={accountWide.length ? { component: CurrencyTip, props: { list: accountWide } } : null}>
     {#each CURRENCIES as [key, label] (key)}
       {@const n = total(key)}
       {#if key === 'gold' || n > 0}
@@ -30,7 +34,7 @@
 {/if}
 
 <style>
-  .money { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; font-size: 14px; color: var(--muted); }
+  .money { display: flex; justify-content: center; flex-wrap: wrap; gap: 14px; width: fit-content; margin: 0 auto; font-size: 14px; color: var(--muted); } /* fit: the hover tooltip anchors to it */
   .money span { display: inline-flex; align-items: center; gap: 4px; }
   .money img { width: 18px; height: 18px; }
   :global(:root[data-ui='classic']) .money { font: 500 16px var(--eso-font-medium); color: var(--eso-normal); }

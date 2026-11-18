@@ -120,13 +120,13 @@
 {/snippet}
 
 {#if app.stickerbook.loading && !sb}
-  <Frame title="COLLECTIONS"><p class="hint center">Loading collections…</p></Frame>
+  <Frame title="SET ITEMS"><p class="hint center">Loading collections…</p></Frame>
 {:else if app.stickerbook.error}
-  <Frame title="COLLECTIONS">
+  <Frame title="SET ITEMS">
     <div class="err-box" role="alert"><b>User data not loaded</b><span>{app.stickerbook.error}</span></div>
   </Frame>
 {:else if sb}
-  <EsoWindow title="Collections">
+  <EsoWindow title="Set Items">
     <div class="eso-combo eso-abs" style="left: 768px; top: 24px; width: 222px">
       <select aria-label="Completion" bind:value={f.completion}>
         {#each COMPLETION as c (c.v)}<option value={c.v}>{c.l}</option>{/each}
@@ -144,7 +144,7 @@
 
     <!-- Categories (353 wide at -28,77) -->
     <nav class="eso-abs eso-scroll eso-tree tree" aria-label="Collection categories">
-      {@render treeHead('/esoicons/treeicons/achievements_indexicon_summary_up.png', 'Summary', catName === null && !searching, undefined, () => pick(null))}
+      {@render treeHead('/assets/esoui/collections/collections_tabicon_itemsets_up.png', 'Summary', catName === null && !searching, undefined, () => pick(null))}
       {#each cats as c (c.name)}
         {@const isOpen = catName === c.name && !searching}
         {@render treeHead(gameIcon(icons[c.name]), c.name, false, isOpen, () => pick(c.name), `${fmt(c.collected)} / ${fmt(c.total)} pieces (${pct(c.collected, c.total)}%)`, pct(c.collected, c.total))}

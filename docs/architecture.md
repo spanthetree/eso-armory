@@ -42,6 +42,9 @@ iasync_data
   .stickerbook.sets[setId]  -- name, category, subcategory, numCollected, numTotal,
                              --   pieces[i].{filterType, collected, name, icon}
   .stickerbook.categoryIcons[name]  -- top-level category tree icon (iasync 1.6.0)
+  .collectibles.categories[topIdx]  -- name, icon, specialization (0 Collectibles, 1 Stories, 2 Housing, 3 Outfit Styles,
+                                       4 Tribute Patrons), numUnlocked, numTotal, hidesLocked, subcats[subIdx] (iasync 1.9.0)
+  .collectibles.items[collectibleId] -- name, icon, unlocked, categoryType, cat, sub (0 = directly under the category)
   .lastUpdate
 ```
 
@@ -72,12 +75,14 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `GET /api/builds` | `{builds, abilityNames, cpNames}` |
 | `uiColors` | Present on `/api/data`, `/api/achievements` and `/api/stickerbook`: the client's interface colours from iasync 1.7.0 (`{textNormal, textSelected, …, xpStart, xpEnd}` as `rrggbb`, only well-formed values), used by the Classic UI |
 | `GET /api/achievements` | `{totalPts, earnedPts, categories, account_items, items_by_char, chars, recent, uiColors}`; `categories[].icon` is the tree icon (iasync 1.6.0); `recent` is the 50 newest completions, one per achievement; items carry `rewards` (`[{type: title\|dye\|collectible\|item, name, id?, icon?}]`) and `lineBaseId`/`linePreviousId`/`lineNextId` (tiered lines) |
-| `GET /api/stickerbook` | `{sets: [{setId, name, category, subcategory, numCollected, numTotal, complete, pieces: [{filterType, filterName, collected, name, icon, quality}], reconCost, reconCurrency}], categoryIcons, lastUpdate, uiColors}`; `filterType` is `EQUIPMENT_FILTER_TYPE_*` (1 Light … 11 Bow); `icon`/`categoryIcons` need iasync 1.6.0; `quality`, `reconCost` (transmute cost) and `uiColors` need iasync 1.7.0 |
+| Demo account | On startup `demo/demo.json.gz` (`{data, builds, achievements, stickerbook, ww}` payloads, `scripts/make_demo.py`) is stored as `@armory-demo` when its hash changed, bound to a session derived from `db_secret`, and given the share code `DEMA-RMRY`; `/api/status` reports `demo_code`. Uploads for `@armory-demo` are rejected |
+| `GET /api/data` (iasync 1.11.0+) | Also `currencies: [{key, name, icon, account, bank}]`, `activities: {timed: [{id, name, icon, description, type, progress, max, endTime, currencyType, reward, claimed, claimable}], campaigns: [{…, completed, capstone, milestones, activities}], tome: {name, tier, progressToNext, endTime, premium, tiers: [{tier, total, free, premium}]}, resets}`, `antiquities: [{id, name, icon, quality, set, zone, repeatable, recovered, lore, loreTotal, lead, leadExpires}]`; characters add `level, cp, title, zone, ava_rank(_name), riding, guilds, currencies, research, motifs, recipes, scribing`. Builds add `mundusDescriptions` and `cpDescriptions` (iasync 1.12.0) |
+| `GET /api/stickerbook` | `{sets: [{setId, name, category, subcategory, numCollected, numTotal, complete, pieces: [{filterType, filterName, collected, name, icon, quality}], reconCost, reconCurrency}], categoryIcons, lastUpdate, uiColors}`; `filterType` is `EQUIPMENT_FILTER_TYPE_*` (1 Light … 11 Bow); `icon`/`categoryIcons` need iasync 1.6.0; `quality`, `reconCost` (transmute cost) and `uiColors` need iasync 1.7.0. Also `collectibles: {categories: [{idx, name, icon, specialization, unlocked, total, hidesLocked, subcats: [{idx, name, icon, unlocked, total}]}], items: [{id, name, icon, unlocked, cat, sub}], patrons: [{id, name, icon, category, categoryOrder, categoryIcon, collectibleId, unlocked}], lastUpdate}` (iasync 1.9.0, patrons 1.10.0 and only those in the in-game tree; empty lists before). `/api/data`, `/api/builds`, `/api/achievements`, `/api/stickerbook` and `/api/ww_builds` are gzipped when the client accepts it and the body is over 1 KB |
 | `GET /api/ww_builds` | `{builds: {charId: [build, ...]}}` |
 | `GET /api/set_bonus?set_id=&set_name=` | Set bonuses from eso-sets.com (memory cached) |
 | `GET /api/skill_info?name=` | Skill details from eso-skillbook.com (memory cached) |
 | `GET /api/ability_names?ids=` | Names for up to 40 ability ids iasync could not resolve (e.g. skills only in Wizards Wardrobe setups), from UESP's mined skill data (memory cached) |
-| `GET /esoicons/<name>.png` | Game icon from `/esoui/art/icons/` (e.g. achievement icons). Downloaded from esoicons.uesp.net on first request into `assets/esoicons/` (never committed), then served locally; names must match `[a-z0-9_]+`. When UESP refuses the server (403, then 10 minutes without asking) or errors, `307` to the UESP URL and the icon is recorded in `uploads/missing_assets.txt` |
+| `GET /esoicons/<name>.png` | Game icon from `/esoui/art/icons/` (e.g. achievement icons). Downloaded from esoicons.uesp.net on first request into `assets/esoicons/` (never committed), then served locally; names must match `[a-z0-9_]+`. Fetched through `uesp.py`: UESP, or WordPress.com's Photon proxy (`i0.wp.com`) for 10 minutes after UESP answers 403. If both fail, `307` to the UESP URL (`Cache-Control: no-store`). Missing manifest icons under `/assets/` are fetched and saved the same way |
 | `GET /esoicons/<folder>/<name>.png` | Same, from `/esoui/art/<folder>/` for `treeicons`, `collections`, `achievements` (category tree icons) |
 | `GET /api/ttc_price?name=&session=&share=` | TTC price from uploaded or local price tables |
 | `POST /api/ttc_prices?session=&share=` | Body `{names: [...]}` (≤ 10,000) → `{prices: {lowercased name: avg}, priceTableTime}`; names without a price are left out. Without TTC tables: `{prices: {}, error}` |
@@ -88,12 +93,16 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `DELETE /api/workspace/shadow?session=` | Remove shadow slot |
 | `POST /api/build_export?session=&share=&character_id=` | Export current build to short code (one row per account+character; re-export overwrites) |
 | `GET /api/compare_builds?session=&share=` | Imported compare builds keyed by destination `character_id` |
-| `POST /api/compare_builds/import?session=&share=&character_id=&code=` | Store imported compare build |
-| `DELETE /api/compare_builds?session=&share=&character_id=` | Delete imported compare build |
+| `POST /api/compare_builds/import?session=&character_id=&code=` | Store imported compare build |
+| `DELETE /api/compare_builds?session=&character_id=` | Delete imported compare build |
 | `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/..."}` - static, built at startup |
 | `GET /api/status?session=&share=` | `{ok, item_count, character_count, last_modified, error, is_admin}` |
-| `POST /api/upload?session=&share=` | Multipart: `iasync`, `ww`, `ttc_lookup`, `ttc_price` files; iasync/WW parsed in memory → all payloads stored to SQLite by ESO accountName (no raw bytes retained); `ttc_lookup`/`ttc_price` admin-only → written to global `uploads/ttc/` |
-| `POST /api/parse_superstar` | Multipart `image` upload → Claude Vision parses SuperStar addon screenshot → `{character, mundus, gear[{slot, slot_id, item_name, set_name, trait, enchantment}]}` - requires `ANTHROPIC_API_KEY` env var or `anthropic_api_key` in `config.json` |
+| `GET /api/auth/status?session=` | `{account_name, has_password}` for this browser's own active account (a share code is ignored) |
+| `POST /api/auth/set_password?session=` | Body `{password, current_password}` (≥ 8 chars) → bcrypt hash on this browser's active account; `current_password` is required once one is set |
+| `POST /api/auth/login?session=` | Body `{account_name, password}` → binds this browser to the account as primary; rate-limited per IP |
+| `POST /api/auth/logout?session=` | Deletes this browser's `workspace_sessions` row and imported compare builds, and drops share-registry entries pointing at it. Account data stays |
+| `POST /api/upload?session=` | Multipart: `iasync`, `ww`, `ttc_lookup`, `ttc_price` files; iasync/WW parsed in memory → all payloads stored to SQLite by ESO accountName (no raw bytes retained); `ttc_lookup`/`ttc_price` admin-only → written to global `uploads/ttc/` |
+| `POST /api/parse_superstar` | Multipart `image` upload → OpenAI (Chat Completions, `gpt-4o` or `openai_model`, JSON mode) or Anthropic vision reads the SuperStar screenshot → `{character, mundus, gear[{slot, slot_id, item_name, set_name, trait, enchantment}]}`. Key: the session's (`POST /api/session/apikey` with `api_key` and `provider` `openai`/`anthropic`, stored Fernet-encrypted as `{provider, key}`; older plain keys are Anthropic), else `OPENAI_API_KEY`/`openai_api_key`, else `ANTHROPIC_API_KEY`/`anthropic_api_key`. `/api/status` adds `session_api_provider` |
 | `GET /events?session=&share=` | SSE stream; sends `"reload"` on data change (iasync only - not WW) |
 
 ## Server Architecture
@@ -162,6 +171,9 @@ _MAX_IMAGE_BYTES  =  20 * 1024 * 1024  # 20 MB - SuperStar image
 
 ### Account ownership
 The ESO account name in an upload is not proof of ownership. An account with no password can be claimed by any upload that names it; once a password is set, only sessions that logged in (or were already bound) can upload to, read, or re-password it. Users should set a password after their first upload.
+
+### Share codes are read-only
+A share code lets another browser read the sharer's workspace. Writes ignore `share` and act only on the caller's own session: upload (including admin TTC files), set_password, auth status and compare-build import/delete. `build_export` still accepts `share`; it only publishes a code for a build the viewer can already see.
 
 ### Login protection
 - **Rate limiting**: `_check_login_rate_limit(ip)` / `_record_login_failure(ip)` - 5 failures in 60 s → 5-min lockout; HTTP 429
