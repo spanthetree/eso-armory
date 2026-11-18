@@ -10,6 +10,7 @@
 - **Tales of Tribute patrons** (iasync 1.10.0) - the book shows the in-game tree's Patrons and Neutral groups with their icons, and each patron's coin, unlocked or locked
 - **Spinner on icons still loading** - game icons fetched on demand spin until they arrive
 - Set Items tree: the game's Summary icon, and the alliance category icons (the `/esoicons/charactercreate/` folder is now allowed)
+- **Password reminder** - until the account has a password, a toast under Set password reminds you that one is needed to open the armory on another device, and rings every 30 seconds. The password dialog shows the ESO account name, so password managers save it with the password
 
 ### Changed
 - **Icons on hosts UESP blocks now come through a public image proxy.** After a 403 the server fetches through WordPress.com's Photon CDN (`i0.wp.com`) and saves the icons in `assets/`; on an AWS Lightsail server all 1,268 manifest icons downloaded this way in 78 s. A manifest icon missing from `assets/` is fetched and saved on first request. Only if UESP and the proxy both fail is the browser sent to UESP
@@ -20,6 +21,7 @@
 
 ### Fixed
 - Filtering the inventory by location (e.g. Bank) no longer shows an item's other stacks: each row's locations, quantity and value cover only the filtered locations
+- After an upload or a primary/shadow switch, the password button and dialog showed the previous account's state
 
 ## [0.2.0-beta.6] - 2026-11-18
 
