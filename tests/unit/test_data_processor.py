@@ -217,3 +217,18 @@ def test_items_lend_their_icon_across_links_of_the_same_item():
                                           "c2": {"name": "New", "bags": {"1": {"0": {"link": new, "name": "Coil", "icon": "/esoui/art/icons/coil.dds"}}}}}}
     items = process_iasync(raw)["items"]
     assert {i["icon"] for i in items} == {"/esoui/art/icons/coil.dds"}
+
+
+@pytest.mark.unit
+def test_build_ability_metadata_merges_characters_and_legacy(raw_iasync):
+    raw_iasync["abilityIcons"] = {101: "/esoui/art/icons/legacy.dds"}
+    raw_iasync["chars"]["char-a"]["abilityIcons"] = {101: "/esoui/art/icons/current.dds"}
+    raw_iasync["chars"]["char-b"]["abilityIcons"] = {102: "/esoui/art/icons/saved.dds", 101: ""}
+    result = process_iasync_builds(raw_iasync)
+    assert result["abilityIcons"] == {
+        "101": "/esoui/art/icons/current.dds", "102": "/esoui/art/icons/saved.dds",
+    }
+    for char in raw_iasync["chars"].values():
+        char.pop("abilityIcons", None)
+    raw_iasync.pop("abilityIcons")
+    assert process_iasync_builds(raw_iasync)["abilityIcons"] == {}

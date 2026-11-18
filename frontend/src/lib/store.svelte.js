@@ -107,7 +107,7 @@ async function loadAbilityIcons() {
 
 /** Reload everything that changes when new SavedVariables arrive. */
 export async function reloadUserData() {
-  await Promise.all([loadData(true), loadAchievements(true), loadStickerbook(true)]);
+  await Promise.all([loadData(true), loadBuilds(), loadWWBuilds(), loadAchievements(true), loadStickerbook(true)]);
 }
 
 export async function loadAuth() {

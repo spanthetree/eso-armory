@@ -117,7 +117,7 @@
       {/if}
     </Frame>
     {#if build}
-      <SkillBars skills={build.skills} {names} delay={0.25} />
+      <SkillBars skills={build.skills} {names} icons={build.abilityIcons ?? {}} delay={0.25} />
       <ChampionPoints cp={build.cp} names={cpNames} delay={0.3} />
     {/if}
   </div>

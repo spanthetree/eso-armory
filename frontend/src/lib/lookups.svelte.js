@@ -78,6 +78,7 @@ export async function loadAbilityNames(ids) {
     try {
       const d = await api.get('/api/ability_names', { label: 'Ability names', params: { ids: batch.join(',') }, share: false });
       Object.assign(extraAbilityNames, d.names ?? {});
+      batch.filter((id) => !d.names?.[id]).forEach((id) => askedAbilityIds.delete(id));
     } catch {
       batch.forEach((id) => askedAbilityIds.delete(id)); // retry on a later view
     } finally {

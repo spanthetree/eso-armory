@@ -357,3 +357,26 @@ def test_logout_returns_to_welcome(page: Page, app_url: str, fixtures_dir):
     expect(page.get_by_text("Load Your ESO Data", exact=False)).to_be_visible(timeout=15000)
     assert page.evaluate("localStorage.getItem('eso-session-id')") != old_session
     assert messages[0].startswith("@test_account has no password")
+
+
+@pytest.mark.ui
+def test_exported_skill_icon_renders_without_name_lookup(page: Page, app_url: str, fixtures_dir):
+    def add_icon(route):
+        response = route.fetch()
+        data = response.json()
+        data["abilityIcons"] = {"101": "/esoui/art/icons/mock_exported.dds"}
+        route.fulfill(response=response, json=data)
+
+    page.route("**/api/builds?*", add_icon)
+    page.route("**/esoicons/mock_exported.png", lambda route: route.fulfill(
+        status=200, content_type="image/png", path=str(fixtures_dir / "pixel.png")))
+    page.route("**/api/ability_names?*", lambda route: route.fulfill(status=503, json={"error": "offline"}))
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    open_character(page)
+    icon = page.get_by_role("link", name="Mock Whip", exact=True).first.locator("img")
+    expect(icon).to_have_attribute("src", "/esoicons/mock_exported.png")
+    expect(icon).to_have_js_property("naturalWidth", 1)
+    open_view(page, "Wardrobe")
+    icon = page.get_by_role("link", name="Mock Whip", exact=True).first.locator("img")
+    expect(icon).to_have_attribute("src", "/esoicons/mock_exported.png")

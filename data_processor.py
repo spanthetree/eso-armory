@@ -803,18 +803,23 @@ def process_iasync_builds(raw: dict) -> dict:
     # plus legacy top-level dicts for backward compatibility.
     ability_names: dict[str, str] = {}
     cp_names: dict[str, str] = {}
+    ability_icons: dict[str, str] = {}
     for key in ("abilityNames", "$abilityNames"):
         ability_names.update({str(k): v for k, v in raw.get(key, {}).items()})
     for key in ("cpNames", "$cpNames"):
         cp_names.update({str(k): v for k, v in raw.get(key, {}).items()})
+    for key in ("abilityIcons", "$abilityIcons"):
+        ability_icons.update({str(k): v for k, v in raw.get(key, {}).items() if isinstance(v, str) and v})
     for c in chars_raw.values():
         if isinstance(c, dict):
-            ability_names.update({str(k): v for k, v in c.get("abilityNames", {}).items()})
+            ability_names.update({str(k): v for k, v in c.get("abilityNames", {}).items() if isinstance(v, str) and v})
+            ability_icons.update({str(k): v for k, v in c.get("abilityIcons", {}).items() if isinstance(v, str) and v})
             cp_names.update({str(k): v for k, v in c.get("cpNames", {}).items()})
 
     return {
         "builds":       builds,
         "abilityNames": ability_names,
+        "abilityIcons": ability_icons,
         "cpNames":      cp_names,
         # iasync 1.14.0: every star's description at max points (each build's own, at its points, comes first)
         "cpDescriptions": {str(k): _game_text(v) for k, v in (raw.get("cpDescriptions") or {}).items()},

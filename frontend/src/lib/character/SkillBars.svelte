@@ -1,13 +1,14 @@
 <script>
+  import { app } from '../store.svelte.js';
   import Frame from '../ui/Frame.svelte';
   import SkillSlot from './SkillSlot.svelte';
   import { extraAbilityNames, loadAbilityNames } from '../lookups.svelte.js';
 
   /**
    * Front/back/werewolf skill bars. `skills` is { primary: { 3..8: abilityId }, ... }.
-   * @type {{ skills: any, names: Record<string, string>, delay?: number }}
+   * @type {{ skills: any, names: Record<string, string>, icons?: Record<string, string>, delay?: number }}
    */
-  let { skills, names, delay = 0.25 } = $props();
+  let { skills, names, icons = {}, delay = 0.25 } = $props();
 
   const BARS = /** @type {const} */ ([
     ['primary', 'Front bar'],
@@ -15,9 +16,10 @@
     ['werewolf', 'Werewolf'],
   ]);
   const SLOTS = [3, 4, 5, 6, 7, 8];
+  const iconPaths = $derived({ ...(app.builds.value?.abilityIcons ?? {}), ...icons });
   const bars = $derived(BARS.filter(([bar]) => Object.keys(skills?.[bar] ?? {}).length));
 
-  // iasync only names abilities that were on a bar when it scanned; ask the server for the rest.
+  // Older uploads and unresolved abilities can still use the server lookup.
   $effect(() => {
     const missing = bars.flatMap(([bar]) => Object.values(skills[bar])).filter((id) => id && !names[String(id)]);
     if (missing.length) loadAbilityNames(missing);
@@ -35,7 +37,7 @@
           <div class="skillslots">
             {#each SLOTS as s, i (s)}
               {@const id = skills[bar][s]}
-              <SkillSlot name={id ? nameOf(id) : ''} ultimate={s === 8} delay={delay + 0.25 + i * 0.04} />
+              <SkillSlot name={id ? nameOf(id) : ''} iconPath={iconPaths[String(id)]} ultimate={s === 8} delay={delay + 0.25 + i * 0.04} />
             {/each}
           </div>
         </div>

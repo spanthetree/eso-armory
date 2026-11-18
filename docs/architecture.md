@@ -37,7 +37,9 @@ iasync_data
     .bags[bagId][slot]   -- bagId: 2=Bank, 5=CraftBag, 6=ESO+ Bank
   .houses[houseKey].name + .chests[bagId].slots[slot] + .capacity/.chestNum/.lastUpdate
   .guildBanks[guildName].slots[slot]
-  .abilityNames[abilityId]  -- GetAbilityName(); also keyed as $abilityNames - both are merged
+  .abilityNames[abilityId]  -- legacy names; also keyed as $abilityNames - both are merged
+  .chars[charId].abilityNames[abilityId]  -- retained names for equipped and saved Wizards Wardrobe skills
+  .chars[charId].abilityIcons[abilityId]  -- GetAbilityIcon() texture path, iasync 1.15.0
   .cpNames[starId]           -- GetChampionSkillName()
   .stickerbook.sets[setId]  -- name, category, subcategory, numCollected, numTotal,
                              --   pieces[i].{filterType, collected, name, icon}
@@ -72,7 +74,7 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | Endpoint | Returns |
 |----------|---------|
 | `GET /api/data` | `{meta, characters, bank, house_chests, items}` |
-| `GET /api/builds` | `{builds, abilityNames, cpNames}` |
+| `GET /api/builds` | `{builds, abilityNames, abilityIcons, cpNames}` |
 | `uiColors` | Present on `/api/data`, `/api/achievements` and `/api/stickerbook`: the client's interface colours from iasync 1.7.0 (`{textNormal, textSelected, …, xpStart, xpEnd}` as `rrggbb`, only well-formed values), used by the Classic UI |
 | `GET /api/achievements` | `{totalPts, earnedPts, categories, account_items, items_by_char, chars, recent, uiColors}`; `categories[].icon` is the tree icon (iasync 1.6.0); `recent` is the 50 newest completions, one per achievement; items carry `rewards` (`[{type: title\|dye\|collectible\|item, name, id?, icon?}]`) and `lineBaseId`/`linePreviousId`/`lineNextId` (tiered lines) |
 | Demo account | On startup `demo/demo.json.gz` (`{data, builds, achievements, stickerbook, ww}` payloads, `scripts/make_demo.py`) is stored as `@armory-demo` when its hash changed, bound to a session derived from `db_secret`, and given the share code `DEMA-RMRY`; `/api/status` reports `demo_code`. Uploads for `@armory-demo` are rejected |
@@ -115,10 +117,16 @@ _sessions        # per-browser UUID: {cache, ww_cache, sse_queues, last_active}
 _ability_icon_map  # built at startup; scans assets/abilities/**/*.{png,webp}; empty until `make assets` runs
 _set_bonus_cache   # (set_id or name_slug) → {bonuses, url}; mythic set_id=0 so slug is key
 _skill_info_cache  # slug → {details}
-_ability_name_cache  # ability id → name ('' when UESP has none); failed lookups are not cached
+_ability_name_cache  # ability id → name; successful lookups persist in uploads/ability_names/<id>.txt
 _ttc_tables        # global TTC state: {lookup_mtime, price_mtime, lookup_path, price_path, db_path, db_ready, price_time, price_cache, error}
 _TTC_BUILD_LOCK    # threading.Lock - serialises SQLite build; double-checked inside lock to avoid race on first load
 ```
+
+Game images under `/assets/` and `/esoicons/` have `Cache-Control: public, max-age=31536000, immutable`. Files remain on the persistent assets mount across container restarts. Browsers may retain them for a year without revalidation, subject to eviction. Replace an image at a new URL when its content changes. Errors and upstream fallback redirects do not receive immutable caching.
+
+Skill bars prefer the exported `abilityIcons` map keyed by ability ID, converting game texture paths through `gameIcon()` to locally cached `/esoicons/` URLs. Old uploads fall back to the name-based icon map. Build exports include their skills' icon paths in `build.abilityIcons`, which Compare preserves on import. Live reloads refresh build metadata along with inventory.
+
+Successful UESP ability-name lookups are written atomically to `uploads/ability_names/<id>.txt` and read before contacting UESP. Empty results and failures are not persisted. The frontend permits unresolved names to retry on a later view.
 
 ### DB-backed workspaces (`uploads/armory.db`)
 - `account_states`: one row per ESO `accountName`; stores processed API payload blobs (data, builds, achievements, stickerbook); raw Lua is never persisted
