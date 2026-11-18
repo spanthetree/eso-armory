@@ -66,6 +66,7 @@ def _process_characters(chars_raw: dict) -> dict:
             "race":       c.get("race", ""),
             "class":      c.get("class", ""),
             "alliance":   c.get("alliance", ""),
+            "gender":     c.get("gender", ""),  # iasync >= 1.4.0; "" for older SavedVariables
             "gold":       int(c.get("gold", 0)),
             "ap":         int(c.get("ap", 0)),
             "tv":         int(c.get("tv", 0)),
@@ -567,6 +568,7 @@ def process_iasync_builds(raw: dict) -> dict:
             "cp":         cp,
             "cp_earned":  build_cp.get("earned", 0),
             "attributes": c.get("build_attributes", {}),
+            "pools":      c.get("build_pools", {}),  # max health/magicka/stamina, iasync >= 1.5.0
             "mundus":     mundus,
         })
 

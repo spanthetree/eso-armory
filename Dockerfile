@@ -1,3 +1,12 @@
+# Frontend stage: builds the Svelte app into /static/dist; Node stays out of the final image.
+FROM node:22.22.0-bookworm-slim AS frontend
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+
 # Build stage: uv and its download cache stay here, out of the final image.
 FROM python:3.12.13-alpine3.22 AS build
 
@@ -29,6 +38,7 @@ RUN addgroup -S armory && adduser -S -D -u 10001 -G armory -h /app armory \
     && chown armory:armory assets uploads logs
 
 COPY . .
+COPY --from=frontend /static/dist ./static/dist
 
 USER armory
 EXPOSE 5000

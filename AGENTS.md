@@ -1,14 +1,14 @@
 # ESO Armory - Agent Notes
 
 ## Project Overview
-Local web app that reads ESO SavedVariables and presents inventory, equipment, and builds in a WoW-Armory-style browser. FastAPI backend, single-file Alpine.js + Tailwind CDN frontend (no build step). Designed for WSL2 on Windows where the ESO client runs natively.
+Local web app that reads ESO SavedVariables and presents inventory, equipment, and builds in a WoW-Armory-style browser. FastAPI backend, Svelte 5 + Vite frontend in `frontend/` built into `static/dist/`. Designed for WSL2 on Windows where the ESO client runs natively.
 
 ## Stack
 - **Backend**: Python / FastAPI + Uvicorn (`server.py`)
-- **Frontend**: `static/index.html` - vendored Alpine.js 3.x from `static/vendor/alpine.min.js`, Tailwind CDN
+- **Frontend**: Svelte 5 (runes, plain JS with JSDoc, no TypeScript) + Vite 6 in `frontend/`. `make ui-build` builds it into `static/dist/` (gitignored); the server serves `static/dist/index.html` at `/`. Vite is pinned to 6 so it builds on Node 18; Docker/CI use Node 22. Fonts are bundled via `@fontsource` (no CDN).
 - **Lua parser**: Custom recursive-descent in `lua_parser.py` (stdlib only, no lupa/lark)
-- **Start**: `uv run server.py` → http://localhost:5000 (or `python server.py` if virtualenv active via `uv sync --active`)
-- **Tests**: pytest unit/API, Playwright UI (Chromium + Firefox)
+- **Start**: `make ui-build` once (and after frontend changes), then `uv run server.py` → http://localhost:5000 (or `python server.py` if virtualenv active via `uv sync --active`)
+- **Tests**: pytest unit/API, `node --test` frontend units (`frontend/src/lib/*.test.js`), Playwright UI (Chromium + Firefox)
 
 ## Approval Preference
 Before making code or file changes, ask for explicit approval unless the user has already clearly requested implementation in the current turn. Read-only inspection and searches are fine without approval. Git actions are allowed - see Git Workflow.
@@ -21,17 +21,25 @@ Before making code or file changes, ask for explicit approval unless the user ha
 | `data_processor.py` | `process_iasync()`, `process_iasync_builds()`, `process_iasync_achievements()`, `process_iasync_stickerbook()`, `process_ww_builds()` |
 | `item_link_decoder.py` | Decodes ESO `\|H1:item:...\|h` links → trait/style/enchant fields |
 | `config.json` | TTC addon paths, port, server region (`NA`/`EU`), database URL |
-| `static/index.html` | Full SPA (Characters, Inventory, Achievements, Collections tabs) |
+| `frontend/src/App.svelte` | App shell: top bar, hero, tabs, character sub-views, dialogs |
+| `frontend/src/lib/store.svelte.js` | App state and API loaders (payloads are `$state.raw`), live updates (SSE), sharing, auth, compare/SuperStar calls |
+| `frontend/src/lib/api.js` | Session id + share code (same localStorage keys as before), URL building, `readJson` error handling |
+| `frontend/src/lib/{gear,items,achievements,collections,compare,route}.js` | Pure, unit-tested logic: icons/slots, item filters, achievement merge, collection grouping, build compare, URL hash routing |
+| `frontend/src/lib/ui/` | Building blocks: Frame, Slot, Tabs, Segmented, MultiSelect, Modal, Progress, ResourceBar, tooltip host |
+| `frontend/src/lib/{character,inventory,achievements,collections,shell,tips}/` | Views, tabs, dialogs and tooltip components |
+| `frontend/src/lib/styles/tokens.css` | Design tokens (colours, fonts, motion) |
 | `tests/fixtures/` | Sanitized deterministic Lua/TTC fixtures; do not commit live user data |
 
 ## Testing Commands
 ```bash
 make test-fast          # unit + API tests with coverage
 make test               # alias for test-fast
-make test-ui            # Playwright in Chromium + Firefox
-make test-all           # fast tests + browser tests
+make frontend-test      # JS unit tests (node --test)
+make test-ui            # builds the frontend, then Playwright in Chromium + Firefox
+make test-all           # build + JS tests + fast tests + browser tests
+make ui-dev             # Vite dev server on :5173 with hot reload (proxies /api, /events, /assets, /esoicons to :5000)
 ```
-Use `make test-all` before release-style validation. The UI suite includes a first-load regression that fails if the browser renders raw Lua or Alpine source text instead of the setup UI.
+Use `make test-all` before release-style validation. The UI suite includes a first-load regression that fails if the browser renders raw Lua or source text instead of the setup UI.
 
 ## Architecture reference
 Data formats, API endpoints, server caches, workspaces, TTC storage, admin accounts and the security model live in [docs/architecture.md](docs/architecture.md). Read it before changing the server or data processing, and keep it current in the same PR.
@@ -40,15 +48,19 @@ Data formats, API endpoints, server caches, workspaces, TTC storage, admin accou
 ```python
 # Python (server.py):
 key = re.sub(r'[^a-z0-9]+', '_', icon.stem.lower()).strip('_')
-# JS (index.html):
+# JS (frontend/src/lib/eso.js iconKey):
 const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
 ```
 Icons are ZeniMax artwork and are **not committed**: `assets/` is gitignored and filled by `make assets` (`scripts/download_assets.py`) from the URLs in `scripts/assets_manifest.json` (UESP `images.uesp.net` / `esoicons.uesp.net`; needs a browser-like User-Agent). To add an icon, add a `"path": "url"` entry to the manifest and run `make assets`. Never commit image files under `assets/`.
 
-## Theme System
-CSS custom properties (`--t-*`) on `:root`; `[data-theme="name"]` blocks override them. Pre-Alpine `<script>` sets `data-theme` from localStorage before Alpine boots (prevents FOUC). **Progress bars:** always `style="background:var(--t-progress);width:X%"` - never `bg-eso-gold` Tailwind class on a fill. **Adding a theme:** CSS var block + `themes` object entry with `label` + `bgR/cardR/borderR/goldR/textR/mutedR/hoverR` RGB triplets.
+## Design System
+"Obsidian" look: near-black translucent panels (`Frame`) with gold rules, Cinzel (display) + Barlow Condensed (UI), white text. Tokens live in `frontend/src/lib/styles/tokens.css`; gold (`--accent`, `--accent-hi`) is for rules, frames and ornaments only. There are no themes or alliance tinting (both were removed on purpose).
 
-**Quality/resource colors are NOT themed** - hardcoded game data (fine `#2dc50e`, superior `#5199ff`, epic `#a02ee4`).
+**Quality/resource colours are NOT tokens to restyle** - they are game data (`--q-*`, `--res-*`, and `item.quality_color` from the server).
+
+**Fit one screen:** character views and the Inventory/Achievements/Collections tabs are designed to fit a 1400x900 viewport without page scrolling; long lists scroll inside their panel. Check with a real account after layout changes.
+
+**Game icons are 64px:** keep gear/skill icons at or below 64 CSS px so they stay sharp. Class/faction emblems are luminance masks (white-on-black icons) and the hero emblems run through an SVG sharpening filter.
 
 ## Restarting the Server
 ```bash
@@ -78,15 +90,18 @@ Agents may run git and `gh` commands (branch, commit, push, open PRs).
 **20-field bug (deferred):** Some links have 20 fields; flags shift to `[13]`, `[16]` may be missing. Fix: check `len(raw)` and adjust offsets. Transmuted and reconstructed both set bit 11 - no bit-level distinction.
 
 ## Known Quirks / Gotchas
-- **`helpOpen` tooltip pattern**: upload modal help popovers are controlled by a single `helpOpen: ''` string (key of the open popover; `''` = none) and `toggleHelp(key)` method. Only one open at a time; escape and click-away close it. Separate from `#eso-tip` game-data tooltips.
-- **`fetchData` 503 behavior**: HTTP 503 from `/api/data` means no data has been uploaded yet - treat it silently (`this.data = null`, do NOT set `this.error`). The function uses if/else with no early `return` or `throw` so `finally { loading = false }` always fires. Do not add early returns or rethrows inside the `try` block.
+- **Tooltips**: one app-wide tooltip (`ui/tooltip.svelte.js` + `TooltipHost`). Elements opt in with `use:tooltip={{ component, props }}`; tooltip components live in `lib/tips/` and fetch their own data (set bonuses, skill info, TTC prices) on first view via `lookups.svelte.js`.
+- **`/api/data` 503 behavior**: HTTP 503 means no data has been uploaded yet - `loadData` keeps it silent (value `null`, no error). Achievements/collections DO surface errors (the UI tests expect "User data not loaded" + the server message).
 - **WW mythic key**: `gear` dict has `"mythic"` string key alongside integer slot keys - skip via `int(slot_raw)` in try/except.
 - **Mythic `set_id=0`**: Use `set_id || _slugify(set_name)` as cache key everywhere (Python + JS). Server `_fetch_set_bonuses` breaks on second bonus line when `first_pieces==1` to avoid multi-set bleed.
-- **`getBonusEntry(item)`**: Use this frontend helper (not `setBonusCache[item.set_id]`) to handle mythic `set_id=0`.
+- **`setKey(item)`** (`gear.js`): set-bonus cache key, `set_id` or the slug for mythics (`set_id=0`). Use it, not `set_id` directly.
 - **Bank currency**: `GetCurrencyAmount(..., CURRENCY_LOCATION_BANK)` returns `nil` outside bank context - guard with `or prevValue` in Lua.
 - **`weaponType` stale**: recorded per-slot at scan time; discard when it claims "Staff" but item name disagrees, then fall back to name-based detection.
 - **Shields**: `filter_type 2` (Armor) with `weaponType="Shield"` and `armorType=nil` - check `weapon_type === 'Shield'` before armor-weight lookup.
-- **Mundus icon key**: Strip "The " prefix: `name.toLowerCase().replace(/^the\s+/, '')`.
-- **`x-html` for icons**: Use `x-html` (not `x-text`) for location icons and skill chips to render `<img>` tags. **Any user-supplied text interpolated into `x-html` template literals must go through `escapeHtml(s)` first** - see Security Model section.
+- **Mundus icon key**: Strip "The " prefix (`mundusIcon` in `gear.js`).
+- **No `{@html}`**: Svelte escapes text by default; don't introduce `{@html}` with user-supplied strings (ability names and imported builds come from uploaded files and share codes).
 - **`GetEquipmentFilterTypeForItemSetCollectionSlot` is misnamed**: returns armor/weapon sub-type integers, not `ITEM_FILTER_TYPE_*`. Use piece names from `GetItemLinkName` instead.
-- **Achievements mixed-persistence**: `achievItemsByCatSubcat()` must merge `account_items` with character-specific `items_by_char` and dedupe by achievement id.
+- **Achievements mixed-persistence**: `achievementsIn()` (`achievements.js`) merges `account_items` with character-specific `items_by_char`, deduped by id (character copy wins). `extraSubcats()` surfaces achievements filed under a subcategory the category doesn't list (e.g. "Group Dungeons").
+- **Duplicate keys**: Svelte `{#each}` keys must be unique or the render aborts (`each_key_duplicate`); `recent` achievements can repeat an id, so key by position there.
+- **Unnamed abilities**: iasync only names abilities that were slotted when it scanned; `SkillBars` asks `/api/ability_names` (UESP) for the rest.
+- **`/esoicons/<name>.png`**: achievement and other `/esoui/art/icons` textures are fetched from UESP on first use into `assets/esoicons/` (gitignored).

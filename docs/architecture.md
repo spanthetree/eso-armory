@@ -5,7 +5,7 @@ ESO Armory is a FastAPI server and a single-page frontend. Players upload the `S
 ```text
 ESO addons ─▶ SavedVariables/*.lua ─▶ browser upload or folder watcher
    ─▶ POST /api/upload ─▶ lua_parser ─▶ data_processor ─▶ SQLite (per account)
-   ─▶ GET /api/* ─▶ static/index.html (Alpine.js)
+   ─▶ GET /api/* ─▶ Svelte app (frontend/ built into static/dist, served at /)
 ```
 
 ## Data Sources
@@ -22,12 +22,14 @@ Data reaches the server via browser upload or the folder watcher - the server do
 ```
 iasync_data
   .chars[charId]         -- keyed by tostring(GetCurrentCharacterId())
-    .name, .gold/ap/tv/wv, .spaceUsed/.spaceMax
+    .name, .race, .class, .alliance, .gold/ap/tv/wv, .spaceUsed/.spaceMax
+    .gender              -- "female"/"male" (iasync >= 1.4.0; missing in older files)
     .bags[bagId][slot]   -- item: link, name, qty, traitType/Name, enchantId/Name, setId/Name,
                          --   quality, filterType, weaponType (per-slot, may be stale), armorType
                          --   bagId: 0=Worn, 1=Backpack
     .build_bars.primary/backup[slot]  -- abilityId; slots 3-7=skills, 8=ultimate
     .build_attributes.health/magicka/stamina
+    .build_pools.health/magicka/stamina  -- max pools as on the character sheet (iasync >= 1.5.0)
     .build_mundus        -- list of stone names (stripped "Boon: " prefix)
     .build_cp.earned + .slots[1..12]  -- abilityId per HOTBAR_CATEGORY_CHAMPION slot
   .bank
@@ -72,6 +74,8 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `GET /api/ww_builds` | `{builds: {charId: [build, ...]}}` |
 | `GET /api/set_bonus?set_id=&set_name=` | Set bonuses from eso-sets.com (memory cached) |
 | `GET /api/skill_info?name=` | Skill details from eso-skillbook.com (memory cached) |
+| `GET /api/ability_names?ids=` | Names for up to 40 ability ids iasync could not resolve (e.g. skills only in Wizards Wardrobe setups), from UESP's mined skill data (memory cached) |
+| `GET /esoicons/<name>.png` | Game icon from `/esoui/art/icons/` (e.g. achievement icons). Downloaded from esoicons.uesp.net on first request into `assets/esoicons/` (never committed), then served locally; names must match `[a-z0-9_]+` |
 | `GET /api/ttc_price?name=&session=&share=` | TTC price from uploaded or local price tables |
 | `GET/POST /api/share?session=&share=` | Get/create pairing code for workspace sharing |
 | `POST /api/share/join?session=&code=` | Bind browser to shared workspace via pairing code |
@@ -98,6 +102,7 @@ _sessions        # per-browser UUID: {cache, ww_cache, sse_queues, last_active}
 _ability_icon_map  # built at startup; scans assets/abilities/**/*.{png,webp}; empty until `make assets` runs
 _set_bonus_cache   # (set_id or name_slug) → {bonuses, url}; mythic set_id=0 so slug is key
 _skill_info_cache  # slug → {details}
+_ability_name_cache  # ability id → name ('' when UESP has none); failed lookups are not cached
 _ttc_tables        # global TTC state: {lookup_mtime, price_mtime, lookup_path, price_path, db_path, db_ready, price_time, price_cache, error}
 _TTC_BUILD_LOCK    # threading.Lock - serialises SQLite build; double-checked inside lock to avoid race on first load
 ```
@@ -158,8 +163,8 @@ The ESO account name in an upload is not proof of ownership. An account with no 
 - **Rate limiting**: `_check_login_rate_limit(ip)` / `_record_login_failure(ip)` - 5 failures in 60 s → 5-min lockout; HTTP 429
 - **Timing oracle**: always runs `bcrypt.checkpw` (against a dummy hash when the account doesn't exist); bcrypt offloaded to thread executor to avoid blocking the event loop
 
-### XSS - `x-html` with user data
-Any function that uses `x-html` to render user-supplied text **must** call `escapeHtml(s)` before interpolating. Example: `abilitySlotHtml` (local and compare builds via `cmpId`) escapes ability names before placing them in `<span>` tags. Ability names come from uploaded Lua data and imported build payloads and are shared across users via share codes - escaping is required.
+### XSS - user-supplied text in the UI
+Ability names, CP names and build payloads come from uploaded Lua files and share codes. The Svelte frontend renders them as text (escaped by default) and never uses `{@html}`; keep it that way. Links built from names (eso-sets, eso-skillbook, TTC) go through `slugify` / `encodeURIComponent`.
 
 ### SSE connection cap
 Session-scoped SSE queue sets are capped at `_MAX_SSE_PER_SESSION = 10`; excess connections return HTTP 429.

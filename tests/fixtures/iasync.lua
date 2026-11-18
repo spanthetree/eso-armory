@@ -15,6 +15,7 @@ iasync_data = {
       ["race"] = "Breton",
       ["class"] = "Dragonknight",
       ["alliance"] = "Daggerfall Covenant",
+      ["gender"] = "female",
       ["gold"] = 1234,
       ["ap"] = 20,
       ["tv"] = 0,
@@ -69,6 +70,11 @@ iasync_data = {
         ["backup"] = {
           [3] = 102,
         },
+      },
+      ["build_pools"] = {
+        ["health"] = 21865,
+        ["magicka"] = 41210,
+        ["stamina"] = 12400,
       },
       ["build_attributes"] = {
         ["health"] = 10,

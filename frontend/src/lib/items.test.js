@@ -1,0 +1,48 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { forCharacter, filterItems, sortItems, displayRows, emptyFilters, hasFilters } from './items.js';
+
+const loc = (type, key, bag, quantity = 1) => ({ location_type: type, location_key: key, bag_id: bag, quantity });
+const ITEMS = [
+  { key: 'a', name: 'Sword of Ruin', quality: 4, filter_type: 1, trait_id: 3, set_name: 'Ruin', is_crafted: true, total_quantity: 3, locations: [loc('character', 'c1', 0), loc('bank', 'bank', 0, 2)] },
+  { key: 'b', name: 'Potion', quality: 1, filter_type: 3, trait_id: 0, set_name: '', total_quantity: 10, locations: [loc('character', 'c1', 1, 4), loc('character', 'c2', 1, 6)] },
+  { key: 'c', name: 'Robe of Ruin', quality: 5, filter_type: 2, trait_id: 18, set_name: 'Ruin', is_transmuted: true, total_quantity: 1, locations: [loc('character', 'c2', 0)] },
+];
+const f = (o) => ({ ...emptyFilters(), ...o });
+const names = (list) => list.map((i) => i.name);
+
+test('forCharacter narrows locations and quantity to that character', () => {
+  const c1 = forCharacter(ITEMS, 'c1');
+  assert.deepEqual(names(c1), ['Sword of Ruin', 'Potion']);
+  assert.equal(c1[1].total_quantity, 4);
+  assert.equal(c1[1].key, 'b::c1');
+});
+
+test('filters combine', () => {
+  assert.deepEqual(names(filterItems(ITEMS, f({ search: 'RUIN' }))), ['Sword of Ruin', 'Robe of Ruin']);
+  assert.deepEqual(names(filterItems(ITEMS, f({ quality: '5' }))), ['Robe of Ruin']);
+  assert.deepEqual(names(filterItems(ITEMS, f({ types: ['1', '3'] }))), ['Sword of Ruin', 'Potion']);
+  assert.deepEqual(names(filterItems(ITEMS, f({ traits: ['any'] }))), ['Sword of Ruin', 'Robe of Ruin']);
+  assert.deepEqual(names(filterItems(ITEMS, f({ traits: ['18'] }))), ['Robe of Ruin']);
+  assert.deepEqual(names(filterItems(ITEMS, f({ transmuted: true }))), ['Robe of Ruin']);
+  assert.deepEqual(names(filterItems(ITEMS, f({ crafted: true }))), ['Sword of Ruin']);
+  assert.deepEqual(names(filterItems(ITEMS, f({ locTypes: ['bank'] }))), ['Sword of Ruin']);
+  // bag and character must match on the same location
+  assert.deepEqual(names(filterItems(ITEMS, f({ chars: ['c2'], bags: ['0'] }))), ['Robe of Ruin']);
+});
+
+test('hasFilters ignores whitespace-only search', () => {
+  assert.equal(hasFilters(f({ search: '  ' })), false);
+  assert.equal(hasFilters(f({ bags: ['1'] })), true);
+});
+
+test('sort by string and number', () => {
+  assert.deepEqual(names(sortItems(ITEMS, 'name', 'asc')), ['Potion', 'Robe of Ruin', 'Sword of Ruin']);
+  assert.deepEqual(names(sortItems(ITEMS, 'total_quantity', 'desc')), ['Potion', 'Sword of Ruin', 'Robe of Ruin']);
+});
+
+test('group by set puts No Set last', () => {
+  const rows = displayRows(ITEMS, true);
+  assert.deepEqual(rows.map((r) => (r.t === 'h' ? `#${r.set}:${r.count}` : r.item.key)), ['#Ruin:2', 'a', 'c', '#No Set:1', 'b']);
+  assert.equal(displayRows(ITEMS, false).length, 3);
+});

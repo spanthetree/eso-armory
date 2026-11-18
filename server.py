@@ -23,7 +23,7 @@ from pathlib import Path
 import bcrypt
 import uvicorn
 from fastapi import FastAPI, File, Form, Query, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
@@ -137,6 +137,8 @@ _share_registry: dict = {"codes": {}}
 _ability_icon_map: dict = {}
 _set_bonus_cache: collections.OrderedDict = collections.OrderedDict()  # set_id -> payload
 _skill_info_cache: collections.OrderedDict = collections.OrderedDict()  # slug -> payload
+_ability_name_cache: collections.OrderedDict = collections.OrderedDict()  # ability id -> name ('' = unknown)
+_ABILITY_NAMES_MAX_PER_REQUEST = 40
 _ttc_tables: dict = {
     "lookup_mtime": None,
     "price_mtime": None,
@@ -659,6 +661,18 @@ def _fetch_set_bonuses(slug: str) -> list[dict]:
 _SKILL_STOP = re.compile(
     r'^(?:New effect|Name:|Other morph|Base ability|Found a mistake|Discord|Skills and icons)'
 )
+
+
+def _fetch_ability_name(ability_id: int) -> str:
+    """Name for an ESO ability id from UESP's mined skill data; '' when UESP has no record."""
+    url = f"https://esolog.uesp.net/exportJson.php?table=minedSkills&fields=id,name&id={ability_id}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 ESO-Armory/1.0"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        data = json.loads(resp.read().decode("utf-8", errors="replace"))
+    for rec in data.get("minedSkills") or []:
+        if str(rec.get("id")) == str(ability_id):
+            return str(rec.get("name") or "")
+    return ""
 
 
 def _fetch_skill_info(slug: str) -> dict:
@@ -1311,6 +1325,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="ESO Armory", lifespan=lifespan)
+Path("static/dist").mkdir(parents=True, exist_ok=True)  # built frontend; absent until `make ui-build`
 app.mount("/static", StaticFiles(directory="static"), name="static")
 Path("assets").mkdir(exist_ok=True)  # icons are downloaded, not committed
 app.mount("/assets", StaticFiles(directory="assets"), name="assets")
@@ -1337,13 +1352,23 @@ async def log_requests(request: Request, call_next):
     return response
 
 
+_APP_HTML = Path("static/dist/index.html")
+_APP_HEADERS = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
+_NOT_BUILT_HTML = (
+    "<!doctype html><meta charset=utf-8><title>ESO Armory</title>"
+    "<body style='background:#07070a;color:#e8dfc9;font:16px system-ui;padding:40px'>"
+    "<h1>ESO Armory frontend is not built</h1>"
+    "<p>Run <code>make ui-install</code> once, then <code>make ui-build</code>, and reload. "
+    "The Docker image builds it for you.</p></body>"
+)
+
+
 @app.get("/")
 async def root():
-    return FileResponse(
-        "static/index.html",
-        media_type="text/html; charset=utf-8",
-        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
-    )
+    """The Svelte app (built by Vite into static/dist)."""
+    if not _APP_HTML.exists():
+        return HTMLResponse(_NOT_BUILT_HTML, status_code=503, headers=_APP_HEADERS)
+    return FileResponse(_APP_HTML, media_type="text/html; charset=utf-8", headers=_APP_HEADERS)
 
 
 @app.head("/")
@@ -2200,6 +2225,77 @@ async def api_skill_info(name: str):
         logger.warning("Skill info fetch failed: {}: {}", name, exc)
     _lru_put(_skill_info_cache, slug, result, _EXTERNAL_CACHE_MAX)
     return JSONResponse(result)
+
+
+_GAME_ICON_RE = re.compile(r"^[a-z0-9_]{1,120}$")
+_GAME_ICON_DIR = Path("assets") / "esoicons"
+_game_icon_missing: collections.OrderedDict = collections.OrderedDict()  # names UESP doesn't have
+
+
+def _fetch_game_icon(name: str) -> bytes | None:
+    url = f"https://esoicons.uesp.net/esoui/art/icons/{name}.png"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 ESO-Armory/1.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = resp.read(512 * 1024)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return None
+        raise
+    return data if data.startswith(b"\x89PNG") else None
+
+
+@app.get("/esoicons/{name}.png")
+async def game_icon(name: str):
+    """Game icon from /esoui/art/icons (e.g. achievement icons). Downloaded from UESP on first use and
+    kept under assets/ like every other icon, so it is never committed and later requests are local."""
+    name = name.lower()
+    if not _GAME_ICON_RE.match(name):
+        return JSONResponse({"error": "invalid icon name"}, status_code=400)
+    path = _GAME_ICON_DIR / f"{name}.png"
+    if not path.exists():
+        if _lru_get(_game_icon_missing, name):
+            return Response(status_code=404)
+        try:
+            data = await asyncio.get_event_loop().run_in_executor(None, _fetch_game_icon, name)
+        except Exception as exc:
+            logger.warning("Game icon fetch failed: {}: {}", name, exc)
+            return Response(status_code=502)
+        if data is None:
+            _lru_put(_game_icon_missing, name, True, _EXTERNAL_CACHE_MAX * 4)
+            return Response(status_code=404)
+        _GAME_ICON_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".tmp")
+        tmp.write_bytes(data)
+        tmp.replace(path)
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
+
+
+@app.get("/api/ability_names")
+async def api_ability_names(ids: str = Query("")):
+    """Resolve ability ids iasync could not name (e.g. skills only seen in Wizards Wardrobe setups)."""
+    try:
+        wanted = list(dict.fromkeys(int(x) for x in ids.split(",") if x.strip()))
+    except ValueError:
+        return JSONResponse({"error": "ids must be comma-separated integers"}, status_code=400)
+    if len(wanted) > _ABILITY_NAMES_MAX_PER_REQUEST:
+        return JSONResponse({"error": f"at most {_ABILITY_NAMES_MAX_PER_REQUEST} ids per request"}, status_code=400)
+    names: dict[str, str] = {}
+    loop = asyncio.get_event_loop()
+    for aid in wanted:
+        if aid <= 0:
+            continue
+        cached = _lru_get(_ability_name_cache, aid)
+        if cached is None:
+            try:
+                cached = await loop.run_in_executor(None, _fetch_ability_name, aid)
+            except Exception as exc:
+                logger.warning("Ability name lookup failed: {}: {}", aid, exc)
+                continue  # not cached, so a later request retries
+            _lru_put(_ability_name_cache, aid, cached, _EXTERNAL_CACHE_MAX * 4)
+        if cached:
+            names[str(aid)] = cached
+    return JSONResponse({"names": names})
 
 
 @app.get("/api/ttc_price")

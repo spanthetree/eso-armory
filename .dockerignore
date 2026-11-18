@@ -17,3 +17,5 @@ config.json
 .claude
 docs
 *.md
+frontend/node_modules
+static/dist
