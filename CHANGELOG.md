@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.2.0-beta.8] - 2026-11-18
+
+### Fixed
+- Restore Classic panel backdrops after the equipment backdrop adjustment affected all panels.
+- Equipment panels use the full texture fade at fixed 16px top and bottom edges, keeping the backdrop dark behind the weapon slots.
+
 ## [0.2.0-beta.7] - 2026-11-18
 
 ### Added
