@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.2.0-beta.6] - 2026-11-18
+
+### Added
+- **Icons on hosts UESP blocks** - UESP's Cloudflare refuses many cloud servers (HTTP 403). Browsers are now sent to UESP for any icon the server lacks, both manifest icons under `/assets/` and on-demand `/esoicons/`, so pages still show them. The server records those icons in `uploads/missing_assets.txt`
+- **`scripts/sync_icons.py user@host`** - run from your own computer, it downloads the icons a server is missing and copies them into its `assets/` with rsync, so each icon is fetched from UESP once
+
+### Fixed
+- The container's icon download stops after a few 403s instead of retrying every icon, which could hold up startup for about half an hour on a blocked host
+
 ## [0.2.0-beta.5] - 2026-11-18
 
 ### Added

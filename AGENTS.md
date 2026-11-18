@@ -51,7 +51,7 @@ key = re.sub(r'[^a-z0-9]+', '_', icon.stem.lower()).strip('_')
 # JS (frontend/src/lib/eso.js iconKey):
 const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
 ```
-Icons are ZeniMax artwork and are **not committed**: `assets/` is gitignored and filled by `make assets` (`scripts/download_assets.py`) from the URLs in `scripts/assets_manifest.json` (UESP `images.uesp.net` / `esoicons.uesp.net`; needs a browser-like User-Agent). To add an icon, add a `"path": "url"` entry to the manifest and run `make assets`. Never commit image files under `assets/`.
+Icons are ZeniMax artwork and are **not committed**: `assets/` is gitignored and filled by `make assets` (`scripts/download_assets.py`) from the URLs in `scripts/assets_manifest.json` (UESP `images.uesp.net` / `esoicons.uesp.net`; needs a browser-like User-Agent). To add an icon, add a `"path": "url"` entry to the manifest and run `make assets`. Never commit image files under `assets/`. A host UESP refuses (Cloudflare 403, common on cloud IPs) redirects browsers to UESP for missing `/assets/...` (manifest) and `/esoicons/...` icons and records them in `uploads/missing_assets.txt`; `scripts/sync_icons.py user@host` (run from a desktop) downloads those and rsyncs them into the server's `assets/`.
 
 ## Design System
 Two looks, switched by the top-bar **UI** dropdown (`lib/uimode.svelte.js`, mirrored on `<html data-ui>`):
