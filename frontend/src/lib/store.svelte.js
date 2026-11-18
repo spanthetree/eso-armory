@@ -18,7 +18,7 @@ export const app = $state({
   ready: false,
   /** Server unreachable or answering 503 during startup (e.g. a cold start). */
   waking: false,
-  status: { isAdmin: false, hasServerKey: false, hasSessionKey: false },
+  status: { isAdmin: false, hasServerKey: false, hasSessionKey: false, sessionProvider: /** @type {string | null} */ (null), demoCode: /** @type {string | null} */ (null) },
   shareCode: api.session.share,
   workspace: { primary: { account: null }, shadow: { account: null }, activeSlot: 'primary', activeAccount: null },
   /** Last data mtime seen (ETag of /api/data); used by manual refresh. */
@@ -211,6 +211,7 @@ async function waitForServer() {
           hasServerKey: !!st.has_server_api_key,
           hasSessionKey: !!st.has_session_api_key,
           sessionProvider: st.session_api_provider ?? null,
+          demoCode: st.demo_code ?? null,
         };
         app.waking = false;
         return;

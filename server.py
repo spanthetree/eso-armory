@@ -17,6 +17,7 @@ import urllib.parse
 import urllib.request
 import gc
 import gzip
+import hashlib
 from contextlib import asynccontextmanager
 from html.parser import HTMLParser
 from pathlib import Path
@@ -258,6 +259,46 @@ def _save_share_registry() -> None:
     tmp = SHARE_REGISTRY_PATH.with_suffix(".tmp")
     tmp.write_text(json.dumps(_share_registry, indent=2, sort_keys=True), encoding="utf-8")
     tmp.replace(SHARE_REGISTRY_PATH)
+
+
+# ── Demo account ────────────────────────────────────────────────────────────────
+# demo/demo.json.gz (scripts/make_demo.py: real game data, anonymised) is loaded into the account @armory-demo and
+# shown through a fixed share code, so it is read-only like any share. The session that owns the account is derived
+# from the server's db_secret: unguessable, so nobody can act as its owner (upload into it, set its password).
+DEMO_PATH = _HERE / "demo" / "demo.json.gz"
+DEMO_ACCOUNT = "@armory-demo"
+DEMO_CODE = "DEMA-RMRY"
+_demo_ready = False
+
+
+def _demo_session_id() -> str:
+    h = hashlib.sha256(f"{_config.get('db_secret', '')}:armory-demo".encode()).hexdigest()
+    return f"{h[:8]}-{h[8:12]}-4{h[13:16]}-8{h[17:20]}-{h[20:32]}"
+
+
+def _ensure_demo_account() -> None:
+    """Load (or refresh, when the file changed) the demo account, bind its owner session and its share code."""
+    global _demo_ready
+    if not DEMO_PATH.exists():
+        return
+    blob = DEMO_PATH.read_bytes()
+    marker = "demo:" + hashlib.sha256(blob).hexdigest()[:16]
+    state = _db_get_account_state(DEMO_ACCOUNT)
+    if state is None or state.source_path != marker:
+        demo = json.loads(gzip.decompress(blob))
+        meta = demo["data"]["meta"]
+        now = time.time()
+        _db_upsert_account_payload(AccountPayload(
+            account_name=DEMO_ACCOUNT, server=meta.get("server", "NA"),
+            data_bytes=_json_bytes(demo["data"]), builds_bytes=_json_bytes(demo["builds"]),
+            achievements_bytes=_json_bytes(demo["achievements"]), stickerbook_bytes=_json_bytes(demo["stickerbook"]),
+            ww_builds_bytes=_json_bytes(demo["ww"]), data_mtime=now, ww_mtime=now,
+            item_count=meta.get("item_count"), character_count=meta.get("character_count"), source_path=marker,
+        ))
+        logger.info("Demo account loaded: {} items, {} characters", meta.get("item_count"), meta.get("character_count"))
+    _db_bind_session(_demo_session_id(), DEMO_ACCOUNT)
+    _db_get_or_create_share_code(DEMO_CODE, DEMO_ACCOUNT)
+    _demo_ready = True
 
 
 def _normalize_share_code(code: str | None) -> str | None:
@@ -1322,6 +1363,10 @@ async def lifespan(app: FastAPI):
     _init_db_fernet()
     _db_init(_config["database_url"])
     _load_share_registry()
+    try:
+        _ensure_demo_account()
+    except Exception as exc:  # the app works without the demo
+        logger.warning("Demo account not loaded: {}", exc)
     _ability_icon_map.update(_build_ability_icon_map())
     logger.info("Ability icons: {} loaded", len(_ability_icon_map))
     asyncio.create_task(_session_cleanup())
@@ -1554,6 +1599,8 @@ async def api_status(session: str | None = Query(None), share: str | None = Quer
                 "last_modified": None, "error": cache.get("error"),
                 "has_server_api_key": has_server_key, "has_session_api_key": has_session_key,
                 "session_api_provider": session_key[0] if has_session_key else None,
+        "demo_code": DEMO_CODE if _demo_ready else None,
+                "demo_code": DEMO_CODE if _demo_ready else None,
                 "is_admin": is_admin}
     meta = cache.get("meta") or {}
     return {
@@ -2018,7 +2065,9 @@ async def _handle_iasync_upload(upload: UploadFile, sid: str, sess: dict, active
         # No fallback: a file without an account name (e.g. a fresh, empty iasync.lua) must not
         # overwrite the active account or create a placeholder account other uploads would share.
         account_name = meta.get("account")
-        if not account_name:
+        if account_name == DEMO_ACCOUNT:
+            result = {"ok": False, "error": f"{DEMO_ACCOUNT} is reserved for the demo."}
+        elif not account_name:
             result = {"ok": False, "error": "This iasync.lua has no ESO account name. Log in to a character with iasync enabled, type /reloadui, then upload again."}
         else:
             slot, conflict = _select_upload_slot(sid, account_name)

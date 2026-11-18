@@ -578,3 +578,26 @@ def test_keys_saved_before_providers_are_anthropic(isolated_server, monkeypatch)
     isolated_server._db_save_session_api_key(TEST_SESSION, isolated_server._encrypt_api_key("sk-ant-legacy"))
     assert isolated_server._session_vision_key(TEST_SESSION) == ("anthropic", "sk-ant-legacy")
     assert isolated_server._json_reply('```json\n{"a": 1}\n```') == {"a": 1}
+
+
+@pytest.mark.api
+def test_demo_account_is_a_read_only_share(client, isolated_server, monkeypatch):
+    _with_fernet(isolated_server, monkeypatch)
+    monkeypatch.setattr(isolated_server, "_demo_ready", False)
+    isolated_server._ensure_demo_account()  # the real demo/demo.json.gz
+    isolated_server._ensure_demo_account()  # unchanged file: no reload, same binding
+
+    status = client.get(f"/api/status?session={TEST_SESSION}").json()
+    joined = client.post(f"/api/share/join?session={TEST_SESSION}&code={isolated_server.DEMO_CODE}")
+    data = client.get(f"/api/data?session={TEST_SESSION}&share={isolated_server.DEMO_CODE}").json()
+    sticker = client.get(f"/api/stickerbook?session={TEST_SESSION}&share={isolated_server.DEMO_CODE}").json()
+    claim = client.post(f"/api/upload?session={TEST_SESSION}", files={"iasync": (
+        "iasync.lua", b'iasync_data = { ["accountName"] = "@armory-demo", ["chars"] = {} }', "text/plain")}).json()
+
+    assert status["demo_code"] == isolated_server.DEMO_CODE
+    assert joined.status_code == 200
+    assert data["meta"]["account"] == "@armory-demo" and data["characters"] and data["items"]
+    assert all(c["name"] and not c["id"].isdigit() for c in data["characters"].values())  # generated, not real ids
+    assert sticker["sets"] and sticker["collectibles"]["items"]
+    assert claim["iasync"]["ok"] is False and "reserved" in claim["iasync"]["error"]
+    assert isolated_server._demo_session_id() != TEST_SESSION and len(isolated_server._demo_session_id()) == 36

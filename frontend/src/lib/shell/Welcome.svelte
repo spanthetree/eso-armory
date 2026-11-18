@@ -1,12 +1,27 @@
 <script>
   import Frame from '../ui/Frame.svelte';
-  import { app, login } from '../store.svelte.js';
+  import { app, login, joinShare } from '../store.svelte.js';
   import { nav } from '../nav.svelte.js';
 
   let name = $state('');
   let password = $state('');
   let busy = $state(false);
   let error = $state('');
+
+  let demoBusy = $state(false);
+  /** The demo account is a read-only share (scripts/make_demo.py); joining it loads everything like any share. */
+  async function demo() {
+    if (demoBusy || !app.status.demoCode) return;
+    demoBusy = true;
+    error = '';
+    try {
+      await joinShare(app.status.demoCode);
+    } catch (e) {
+      error = /** @type {Error} */ (e).message;
+    } finally {
+      demoBusy = false;
+    }
+  }
 
   async function submit() {
     if (busy) return;
@@ -25,6 +40,12 @@
 </script>
 
 <div class="welcome">
+  {#if app.status.demoCode}
+    <Frame title="TRY THE DEMO">
+      <p class="hint">See how everything looks with a sample account first: characters, gear, inventory, achievements, collections and more. Nothing to upload.</p>
+      <button class="btn primary" onclick={demo} disabled={demoBusy}>{demoBusy ? 'Loading the demo…' : 'Open the demo account'}</button>
+    </Frame>
+  {/if}
   <Frame title="LOAD YOUR ESO DATA" delay={0.05}>
     <ol>
       <li>Install the <strong>iasync</strong> addon (required). <strong>Wizards Wardrobe</strong> is optional and adds builds.</li>

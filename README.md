@@ -26,6 +26,7 @@ ESO has no way to see your account outside the game. Gear is spread across chara
 - **SuperStar import.** Upload a screenshot from the SuperStar addon and compare that build against your gear, slot by slot. Needs an Anthropic API key.
 - **Two looks.** *Classic* (the default) redraws the app in the game's own keyboard UI art: the main menu icon bar, window backdrops, buttons, dropdowns, list rows and progress bars, over a darkened loading screen. *Simple* is the plain web look. Switch with the **UI** dropdown in the top bar; the choice is remembered in your browser.
 - **Achievements.** Laid out like the in-game journal: a category tree, progress bars, recent unlocks and a timeline, criteria progress per character, and search across every category.
+- **Demo.** "Open the demo account" on the landing page shows a full sample armory before you upload anything (read-only).
 - **Activities.** The Tamriel Tome reward track, weekly and seasonal Endeavors and Golden Pursuits, plus every account currency (needs iasync 1.11.0).
 - **Journal.** Achievements and Antiquities (leads, zones, recovered counts and Codex progress).
 - **Collections.** The in-game Collections book with its tabs: Collectibles, Housing, Outfit Styles, Set Items and Tales of Tribute. Each has the game's category tree, a keyword filter and a locked/unlocked filter, with unlocked counts per category (collectibles need iasync 1.9.0). Set Items shows every set as a grid of its pieces, filtered by apparel and weapon type, completion and locked pieces, with where each piece drops and its Tamriel Trade Centre price.
@@ -150,6 +151,7 @@ Test fixtures in `tests/fixtures/` are sanitized. Do not commit live account dat
 | `data_processor.py` | iasync and WizardsWardrobe data to API payloads |
 | `item_link_decoder.py` | ESO item link decoder |
 | `frontend/` | Svelte 5 frontend: `src/App.svelte` shell, `src/lib/` tabs, components and logic (unit-tested `*.test.js`) |
+| `scripts/make_demo.py` | Rebuilds `demo/demo.json.gz`, the demo account, from a real `iasync.lua` (and `WizardsWardrobe.lua`), anonymised |
 | `scripts/assets_manifest.json` | Game icon sources; `make assets` downloads them into `assets/` |
 | `uesp.py` | Fetches UESP images, through a public image proxy when UESP refuses the host |
 
