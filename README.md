@@ -20,18 +20,17 @@ ESO has no way to see your account outside the game. Gear is spread across chara
 
 ## Features
 
-- **Characters.** Each character's equipped gear on an in-game style "Equipped" panel with the race silhouette, plus skill bars, Champion Points, attributes, max Health/Magicka/Stamina and Mundus Stone. Switch a character between Sheet, Wardrobe (saved WizardsWardrobe setups), Bags, Compare and SuperStar views.
+- **Characters.** Each character's equipped gear on an in-game style "Equipped" panel with each item's own icon, plus level, title, skill bars, Champion Points, attributes, max Health/Magicka/Stamina, Mundus Stone, Alliance War rank, riding and guilds, with tooltips for sets, the mundus and champion stars. Switch a character between Sheet, Crafting (trait research, motifs, recipes), Scribing, Wardrobe (saved WizardsWardrobe setups), Bags, Compare and SuperStar views.
 - **Inventory.** Every item across characters, bank, ESO Plus bank, craft bag, house chests and guild banks. Search and filter by quality, type, trait, location and character, or group by set. Tamriel Trade Centre values per item with totals by type and location, a duplicate-gear finder, and filter chips you can save.
 - **Build compare.** Export a build as a short code, import someone else's, and compare gear side by side. Missing pieces are listed with their source (dungeon, trial, arena) and an estimated Tamriel Trade Centre cost.
-- **SuperStar import.** Upload a screenshot from the SuperStar addon and compare that build against your gear, slot by slot. Needs an Anthropic API key.
+- **SuperStar import.** Upload a screenshot from the SuperStar addon and compare that build against your gear, slot by slot. Needs an OpenAI (default) or Anthropic API key.
 - **Two looks.** *Classic* (the default) redraws the app in the game's own keyboard UI art: the main menu icon bar, window backdrops, buttons, dropdowns, list rows and progress bars, over a darkened loading screen. *Simple* is the plain web look. Switch with the **UI** dropdown in the top bar; the choice is remembered in your browser.
-- **Achievements.** Laid out like the in-game journal: a category tree, progress bars, recent unlocks and a timeline, criteria progress per character, and search across every category.
 - **Demo.** "Open the demo account" on the landing page shows a full sample armory before you upload anything (read-only).
 - **Activities.** The Tamriel Tome reward track, weekly and seasonal Endeavors and Golden Pursuits, plus every account currency (needs iasync 1.11.0).
-- **Journal.** Achievements and Antiquities (leads, zones, recovered counts and Codex progress).
+- **Journal.** Achievements laid out like the in-game journal (category tree, progress bars, recent unlocks, a timeline, criteria progress per character, search) and Antiquities (leads, zones, recovered counts and Codex progress).
 - **Collections.** The in-game Collections book with its tabs: Collectibles, Housing, Outfit Styles, Set Items and Tales of Tribute. Each has the game's category tree, a keyword filter and a locked/unlocked filter, with unlocked counts per category (collectibles need iasync 1.9.0). Set Items shows every set as a grid of its pieces, filtered by apparel and weapon type, completion and locked pieces, with where each piece drops and its Tamriel Trade Centre price.
 - **Workspaces.** Each ESO account's data is stored once and reopens without re-uploading. Set a password to open it from another device with your ESO account name. Share a read-only view with a pairing code, or load an alt account beside your own.
-- **Auto-sync.** In Chrome and Edge, point the app at your ESO folder once and it uploads changed files as you play.
+- **Auto-sync.** In Chrome and Edge, point the app at your ESO folder once and it uploads changed files as you play (checked every 10 seconds; **Refresh** forces a sync).
 - **Looks like the game.** Dark panels with gold rules, the game's own icons, animated loading and transitions, and a layout that fits one screen.
 
 ## How it works
@@ -94,7 +93,7 @@ uv run server.py --port 8080  # or another port
 
 Open the server's address in a browser. The setup screen walks through the upload:
 
-1. Log in to each character in ESO so iasync captures it. Open your bank once to capture bank contents.
+1. Log in to each character in ESO so iasync captures it (use the latest iasync: item icons, crafting, scribing and champion star names need 1.11.0 to 1.14.0). Open your bank once to capture bank contents.
 2. Upload `iasync.lua` and `WizardsWardrobe.lua` from `Documents\Elder Scrolls Online\live\SavedVariables\`.
 
 ## Configuration

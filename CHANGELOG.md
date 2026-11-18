@@ -14,7 +14,7 @@
 - **Tamriel Tome tab** - the season's reward track (free and premium per level, claimed and current level), weekly and seasonal Endeavors with progress, rewards and reset timers, and Golden Pursuits with milestones and activities
 - **Antiquities** in the Journal (the Achievements tab gets Achievements and Antiquities books) - leads with time left, then every zone, with recovered counts and Codex progress
 - **All currencies** - hover the account's currencies for every account-wide one (Seals, Transmute, Tome Points, Crowns…), with icons from iasync 1.12.0
-- **Tooltips on the character page** - set bonuses (active ones highlighted), and the mundus stone and slotted champion stars with their in-game descriptions (iasync 1.12.0)
+- **Tooltips on the character page** - set bonuses (active ones highlighted), and the mundus stone and slotted champion stars with their in-game descriptions (iasync 1.12.0; with iasync 1.14.0 every star has a name and description, including stars only used in Wizards Wardrobe setups)
 - **The in-game Collections book** - the Collections tab gets the game's tab bar: Collectibles, Housing, Outfit Styles, Set Items and Tales of Tribute, each with its UESP tab icon. Every book has the in-game category tree with tree icons and completion, a Filter By search, a Show All / Locked / Unlocked filter and the game's 175x125 collectible tiles, in both Classic and Simple. Categories the game hides locked collectibles in hide them here too. The game's Stories tab (a list of DLC quests) is left out. Needs iasync 1.9.0; each book has its own link (`#/collections/housing`)
 - The server passes iasync's `collectibles` through in `/api/stickerbook`
 - **Tales of Tribute patrons** (iasync 1.10.0) - the book shows the in-game tree's Patrons and Neutral groups with their icons, and each patron's coin, unlocked or locked
@@ -37,6 +37,9 @@
 - **Changing a password needs the current one**, so a browser left logged in can't lock the owner out
 
 ### Fixed
+- Destruction Staff skills named after their element (Blockade of Fire, Flame Reach…) link to and describe their base skill on eso-skillbook.com instead of a 404
+- Skills whose name is still being looked up show a spinner instead of "?"
+- Tall Classic panels (Equipped) no longer stretch the panel texture's soft edges
 - **Refresh with a watched folder** reconnects the folder when the browser wants access re-granted, then uploads its files again even if unchanged
 - **Watched folder**: it checks every 10 s (and as soon as you return to the tab) instead of every minute. After a page reload, when the browser wants folder access re-granted, the top bar shows **Resume watching** instead of silently stopping
 - An item held by several characters took its icon from the first copy found, which could be one scanned before iasync recorded icons; any copy's icon is used now, including copies with a different trait, enchant or level

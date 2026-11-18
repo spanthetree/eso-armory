@@ -816,6 +816,8 @@ def process_iasync_builds(raw: dict) -> dict:
         "builds":       builds,
         "abilityNames": ability_names,
         "cpNames":      cp_names,
+        # iasync 1.14.0: every star's description at max points (each build's own, at its points, comes first)
+        "cpDescriptions": {str(k): _game_text(v) for k, v in (raw.get("cpDescriptions") or {}).items()},
     }
 
 

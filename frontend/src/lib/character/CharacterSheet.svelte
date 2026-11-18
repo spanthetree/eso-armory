@@ -91,7 +91,7 @@
 
   <div class="col">
     <SkillBars skills={build?.skills} {names} />
-    <ChampionPoints cp={build?.cp} names={cpNames} descriptions={build?.cpDescriptions} />
+    <ChampionPoints cp={build?.cp} names={cpNames} descriptions={{ ...app.builds.value?.cpDescriptions, ...build?.cpDescriptions }} />
     {#if char.riding || char.guilds?.length || char.ava_rank_name}
       <!-- iasync 1.11.0: Alliance War rank, riding skills, guilds -->
       <Frame title="PROFILE" delay={0.3}>
