@@ -16,6 +16,7 @@ import secrets
 import urllib.parse
 import urllib.request
 import gc
+import gzip
 from contextlib import asynccontextmanager
 from html.parser import HTMLParser
 from pathlib import Path
@@ -1440,32 +1441,34 @@ async def root_head():
     )
 
 
+def _payload_response(request: Request, body: bytes, headers: dict) -> Response:
+    """A JSON payload, gzipped when the client accepts it (these run to megabytes; the app adds no
+    compression middleware because it would buffer the /events stream)."""
+    headers = {**headers, "Vary": "Accept-Encoding"}
+    if len(body) > 1024 and "gzip" in request.headers.get("accept-encoding", ""):
+        body = gzip.compress(body, compresslevel=5)
+        headers["Content-Encoding"] = "gzip"
+    return Response(content=body, media_type="application/json", headers=headers)
+
+
 @app.get("/api/data")
-async def api_data(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_data(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
     cache = _resolve_cache(session, share)
     if cache["data_bytes"] is None:
         return JSONResponse({"error": cache.get("error", "User data not loaded")}, status_code=503)
-    return Response(
-        content=cache["data_bytes"],
-        media_type="application/json",
-        headers={"ETag": str(cache["mtime"]), "Cache-Control": "no-store"},
-    )
+    return _payload_response(request, cache["data_bytes"], {"ETag": str(cache["mtime"]), "Cache-Control": "no-store"})
 
 
 @app.get("/api/builds")
-async def api_builds(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_builds(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
     cache = _resolve_cache(session, share)
     if cache["builds_bytes"] is None:
         return JSONResponse({"error": cache.get("error", "User data not loaded")}, status_code=503)
-    return Response(
-        content=cache["builds_bytes"],
-        media_type="application/json",
-        headers={"Cache-Control": "no-store"},
-    )
+    return _payload_response(request, cache["builds_bytes"], {"Cache-Control": "no-store"})
 
 
 @app.get("/api/achievements")
-async def api_achievements(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_achievements(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
     cache, account_name = _resolve_cache_and_account(session, share)
     if cache["data_bytes"] is None:
         recovered, reason = await asyncio.get_event_loop().run_in_executor(
@@ -1497,15 +1500,11 @@ async def api_achievements(session: str | None = Query(None), share: str | None 
             {"error": "User data not loaded", "detail": "aux payload was not generated"},
             status_code=503,
         )
-    return Response(
-        content=cache["achievements_bytes"],
-        media_type="application/json",
-        headers={"Cache-Control": "no-store"},
-    )
+    return _payload_response(request, cache["achievements_bytes"], {"Cache-Control": "no-store"})
 
 
 @app.get("/api/stickerbook")
-async def api_stickerbook(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_stickerbook(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
     cache, account_name = _resolve_cache_and_account(session, share)
     if cache["data_bytes"] is None:
         recovered, reason = await asyncio.get_event_loop().run_in_executor(
@@ -1537,23 +1536,15 @@ async def api_stickerbook(session: str | None = Query(None), share: str | None =
             {"error": "User data not loaded", "detail": "aux payload was not generated"},
             status_code=503,
         )
-    return Response(
-        content=cache["stickerbook_bytes"],
-        media_type="application/json",
-        headers={"Cache-Control": "no-store"},
-    )
+    return _payload_response(request, cache["stickerbook_bytes"], {"Cache-Control": "no-store"})
 
 
 @app.get("/api/ww_builds")
-async def api_ww_builds(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_ww_builds(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
     ww = _resolve_ww_cache(session, share)
     if ww["ww_builds_bytes"] is None:
         return JSONResponse({"error": ww.get("error", "User data not loaded")}, status_code=503)
-    return Response(
-        content=ww["ww_builds_bytes"],
-        media_type="application/json",
-        headers={"Cache-Control": "no-store"},
-    )
+    return _payload_response(request, ww["ww_builds_bytes"], {"Cache-Control": "no-store"})
 
 
 @app.get("/api/status")

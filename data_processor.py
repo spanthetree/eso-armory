@@ -644,6 +644,57 @@ def process_iasync_builds(raw: dict) -> dict:
     }
 
 
+def _indexed(table) -> list[tuple[int, dict]]:
+    """Lua array-like tables arrive as dicts with int or str keys (in any order) or as lists; sorted (index, row)."""
+    pairs = table.items() if isinstance(table, dict) else enumerate(table or [], 1)
+    out = []
+    for k, v in pairs:
+        try:
+            out.append((int(k), v))
+        except (TypeError, ValueError):
+            continue
+    return sorted((kv for kv in out if isinstance(kv[1], dict)), key=lambda kv: kv[0])
+
+
+def process_iasync_collectibles(raw: dict) -> dict:
+    """iasync 1.9.0 ``collectibles``: the in-game Collections book. ``specialization`` picks the book tab
+    (0 Collectibles, 1 Stories, 2 Housing, 3 Outfit Styles, 4 Tribute Patrons); items point at their
+    category by ``cat`` and ``sub`` (0 = directly under the category)."""
+    src = raw.get("collectibles") or {}
+    if not isinstance(src, dict):
+        src = {}
+    categories = []
+    for idx, c in _indexed(src.get("categories")):
+        categories.append({
+            "idx":            idx,
+            "name":           str(c.get("name") or ""),
+            "icon":           str(c.get("icon") or ""),
+            "specialization": int(c.get("specialization") or 0),
+            "unlocked":       int(c.get("numUnlocked") or 0),
+            "total":          int(c.get("numTotal") or 0),
+            "hidesLocked":    bool(c.get("hidesLocked")),
+            "subcats": [{
+                "idx":      sidx,
+                "name":     str(sc.get("name") or ""),
+                "icon":     str(sc.get("icon") or ""),
+                "unlocked": int(sc.get("numUnlocked") or 0),
+                "total":    int(sc.get("numTotal") or 0),
+            } for sidx, sc in _indexed(c.get("subcats"))],
+        })
+    items = []
+    for cid, it in _indexed(src.get("items")):
+        items.append({
+            "id":       cid,
+            "name":     str(it.get("name") or ""),
+            "icon":     str(it.get("icon") or ""),
+            "unlocked": bool(it.get("unlocked")),
+            "cat":      int(it.get("cat") or 0),
+            "sub":      int(it.get("sub") or 0),
+        })
+    items.sort(key=lambda i: i["name"].lower())
+    return {"categories": categories, "items": items, "lastUpdate": int(src.get("lastUpdate") or 0)}
+
+
 def process_iasync_stickerbook(raw: dict) -> dict:
     """Build the /api/stickerbook response from iasync_data.stickerbook."""
     sb_raw   = raw.get("stickerbook", {})
@@ -693,4 +744,5 @@ def process_iasync_stickerbook(raw: dict) -> dict:
         "categoryIcons": {str(k): v for k, v in (sb_raw.get("categoryIcons") or {}).items() if isinstance(v, str)},
         "lastUpdate":    int(sb_raw.get("lastUpdate", 0)),
         "uiColors":      ui_colors(raw),
+        "collectibles":  process_iasync_collectibles(raw),
     }

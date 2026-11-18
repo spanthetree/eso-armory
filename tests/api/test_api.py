@@ -41,6 +41,7 @@ def test_upload_and_read_workspace(client, uploaded_workspace):
     assert ww.json()["builds"]["char-a"][0]["name"] == "Mock Raid Build"
     assert achievements.json()["earnedPts"] == 10
     assert stickerbook.json()["sets"][0]["name"] == "Mock Set"
+    assert stickerbook.json()["collectibles"] == {"categories": [], "items": [], "lastUpdate": 0}  # no iasync 1.9.0 data
 
 
 @pytest.mark.api
@@ -466,3 +467,21 @@ def test_icons_this_host_cannot_download_go_to_uesp_and_are_recorded(client, iso
         "esoicons/treeicons/tree_y.png https://esoicons.uesp.net/esoui/art/treeicons/tree_y.png",
         "esoui/x/missing.png https://esoicons.uesp.net/esoui/art/x/missing.png",
     ]
+
+
+@pytest.mark.api
+def test_large_payloads_are_gzipped_when_accepted(isolated_server):
+    import gzip as gz
+    from starlette.requests import Request
+
+    def req(enc):
+        return Request({"type": "http", "headers": [(b"accept-encoding", enc.encode())]})
+
+    body = json.dumps({"items": ["x" * 50] * 100}).encode()
+    zipped = isolated_server._payload_response(req("gzip, deflate"), body, {"Cache-Control": "no-store"})
+    plain = isolated_server._payload_response(req("identity"), body, {})
+    small = isolated_server._payload_response(req("gzip"), b"{}", {})
+    assert zipped.headers["content-encoding"] == "gzip" and gz.decompress(zipped.body) == body
+    assert zipped.headers["cache-control"] == "no-store" and zipped.headers["vary"] == "Accept-Encoding"
+    assert "content-encoding" not in plain.headers and plain.body == body
+    assert "content-encoding" not in small.headers

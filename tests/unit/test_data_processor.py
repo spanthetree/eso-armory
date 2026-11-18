@@ -120,3 +120,26 @@ def test_process_ww_builds_skips_empty_and_non_integer_gear(raw_ww):
     assert char_builds[0]["name"] == "Mock Raid Build"
     assert [g["slot"] for g in char_builds[0]["gear"]] == [4]
     assert char_builds[0]["food"]["link_name"] == "Mock Food"
+
+
+def test_collectibles_sorted_by_index_with_subcategories():
+    from data_processor import process_iasync_collectibles
+
+    raw = {"collectibles": {
+        "lastUpdate": 5,
+        "categories": {  # Lua arrays arrive as dicts with int or str keys, in any order
+            15: {"name": "Armor Styles", "icon": "/esoui/art/treeicons/a_up.dds", "specialization": 3, "numUnlocked": 1, "numTotal": 2,
+                 "subcats": {"2": {"name": "Chest", "numUnlocked": 0, "numTotal": 1}, "1": {"name": "Head", "numUnlocked": 1, "numTotal": 1}}},
+            "1": {"name": "Stories", "specialization": 1, "numUnlocked": 1, "numTotal": 1, "hidesLocked": True},
+        },
+        "items": {"7": {"name": "b helm", "icon": "/esoui/art/icons/x.dds", "unlocked": True, "cat": 15, "sub": 1},
+                  3: {"name": "A Chest", "unlocked": False, "cat": 15, "sub": 2}, "bad": "skip"},
+    }}
+    col = process_iasync_collectibles(raw)
+    assert [c["name"] for c in col["categories"]] == ["Stories", "Armor Styles"]
+    assert col["categories"][0]["hidesLocked"] is True and col["categories"][0]["subcats"] == []
+    assert [s["name"] for s in col["categories"][1]["subcats"]] == ["Head", "Chest"]
+    assert col["categories"][1]["specialization"] == 3
+    assert [(i["id"], i["name"], i["unlocked"], i["sub"]) for i in col["items"]] == [(3, "A Chest", False, 2), (7, "b helm", True, 1)]
+    assert col["lastUpdate"] == 5
+    assert process_iasync_collectibles({}) == {"categories": [], "items": [], "lastUpdate": 0}
