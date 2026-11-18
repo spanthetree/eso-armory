@@ -12,6 +12,8 @@
 - Set Items tree: the game's Summary icon, and the alliance category icons (the `/esoicons/charactercreate/` folder is now allowed)
 
 ### Changed
+- **Icons on hosts UESP blocks now come through a public image proxy.** After a 403 the server fetches through WordPress.com's Photon CDN (`i0.wp.com`) and saves the icons in `assets/`; on an AWS Lightsail server all 1,268 manifest icons downloaded this way in 78 s. A manifest icon missing from `assets/` is fetched and saved on first request. Only if UESP and the proxy both fail is the browser sent to UESP
+- `scripts/sync_icons.py` and `uploads/missing_assets.txt` (0.2.0-beta.6) are gone: the proxy replaces them
 - **Character views (Sheet, Wardrobe, Bags, Compare, SuperStar) switch from an icon row under the main tabs**, like the Collections books; the book and view bars show icons only
 - **"Collections" (the set collection) is now "Set Items"**, as in game. Without collectibles data the Collections tab opens on it, as before
 - `/api/data`, `/api/achievements`, `/api/stickerbook` and the build payloads are gzipped (a full account's collectibles are about 4 MB, 400 KB compressed)
@@ -22,13 +24,13 @@
 ## [0.2.0-beta.6] - 2026-11-18
 
 ### Added
-- **Icons on hosts UESP blocks** - UESP's Cloudflare refuses many cloud servers (HTTP 403). The server then fetches icons through WordPress.com's public Photon image proxy (`i0.wp.com`) and saves them like any other icon. On an AWS Lightsail server, all 1,268 manifest icons downloaded this way in 78 s
-- A manifest icon missing from `assets/` (for example one added by a new release) is fetched and saved on first request instead of returning 404. If neither UESP nor the proxy answers, the browser is sent to UESP
+- **Icons on hosts UESP blocks** - UESP's Cloudflare refuses many cloud servers (HTTP 403). Browsers are now sent to UESP for any icon the server lacks, both manifest icons under `/assets/` and on-demand `/esoicons/`, so pages still show them. The server records those icons in `uploads/missing_assets.txt`
+- **`scripts/sync_icons.py user@host`** - run from your own computer, it downloads the icons a server is missing and copies them into its `assets/` with rsync, so each icon is fetched from UESP once
 
 ### Fixed
 - **House chest items were counted once per house.** Storage chests are account-wide and iasync saves a copy under every house it scans, so quantities and values were multiplied by the number of houses visited. Each chest now counts once, using the newest copy
 - House chest labels no longer name a house (added in 0.2.0-beta.5): the chests are shared by every house, so the name only said where iasync last scanned them
-- The container's icon download no longer retries every icon on a host UESP refuses, which could hold up startup for about half an hour
+- The container's icon download stops after a few 403s instead of retrying every icon, which could hold up startup for about half an hour on a blocked host
 
 ## [0.2.0-beta.5] - 2026-11-18
 
