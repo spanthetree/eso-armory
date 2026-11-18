@@ -19,7 +19,8 @@
       <i class="hl"></i>
       <span class="icons">
         {#if c.class}<img src={classIcon(c.class)} alt={c.class} title={c.class} />{/if}
-        {#if c.alliance}<img src={allianceIcon(c.alliance)} alt={c.alliance} title={c.alliance} />{/if}
+        <!-- Classic shows the alliance banner on the left already -->
+        {#if c.alliance && !(ui.mode === 'classic' && badge(c.alliance))}<img src={allianceIcon(c.alliance)} alt={c.alliance} title={c.alliance} />{/if}
       </span>
       <span class="name">{c.name}</span>
       <span class="sub">{[c.race, c.class].filter(Boolean).join(' · ')}</span>

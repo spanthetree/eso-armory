@@ -38,8 +38,10 @@
 
 <style>
   .emblems { position: absolute; inset: 0 0 auto; height: 100%; pointer-events: none; z-index: -1; display: flex; justify-content: center; align-items: center; gap: clamp(140px, 28vw, 380px); }
+  /* As tall as the hero (sub line + name), so they never spill under the top bar. */
   .emblem {
-    width: clamp(90px, 10vw, 130px);
+    height: min(100%, 130px);
+    width: auto;
     aspect-ratio: 1;
     opacity: 0.16;
     filter: drop-shadow(0 0 14px var(--accent));
