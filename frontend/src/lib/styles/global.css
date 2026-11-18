@@ -72,7 +72,7 @@ code { font-size: 0.92em; padding: 1px 5px; background: #000000aa; color: var(--
   }
 }
 
-/* On-demand game icons (/esoicons) spin until they arrive; main.js sets data-loaded on load or error. */
-img[src^='/esoicons/']:not([data-loaded]) {
+/* On-demand game icons (/esoicons, ability icons) spin until they arrive; main.js sets data-loaded on load or error. */
+img[src^='/esoicons/']:not([data-loaded]), img[src^='/assets/abilities/']:not([data-loaded]) {
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='%23c5c29e' stroke-opacity='.25' stroke-width='2.5'/%3E%3Cpath d='M12 3a9 9 0 0 1 9 9' fill='none' stroke='%23c5c29e' stroke-width='2.5' stroke-linecap='round'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 12 12' to='360 12 12' dur='0.8s' repeatCount='indefinite'/%3E%3C/path%3E%3C/svg%3E") center / min(60%, 28px) no-repeat;
 }
