@@ -224,7 +224,7 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
     """Build the /api/data response from iasync_data."""
     t0 = time.monotonic()
 
-    account_name = raw.get("accountName") or next((k for k in raw if isinstance(k, str) and k.startswith("@")), "@unknown")
+    account_name = raw.get("accountName") or next((k for k in raw if isinstance(k, str) and k.startswith("@")), None)
     chars_raw  = raw.get("chars", {})
     bank_raw   = raw.get("bank", {})
     houses_raw = raw.get("houses", {})

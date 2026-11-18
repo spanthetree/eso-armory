@@ -1950,9 +1950,11 @@ async def _handle_iasync_upload(upload: UploadFile, sid: str, sess: dict, active
         result = {"ok": False, "error": s_cache["error"]}
     else:
         meta = s_cache.get("meta") or {}
-        account_name = meta.get("account") or active_account
+        # No fallback: a file without an account name (e.g. a fresh, empty iasync.lua) must not
+        # overwrite the active account or create a placeholder account other uploads would share.
+        account_name = meta.get("account")
         if not account_name:
-            result = {"ok": False, "error": "account name missing from upload"}
+            result = {"ok": False, "error": "This iasync.lua has no ESO account name. Log in to a character with iasync enabled, type /reloadui, then upload again."}
         else:
             slot, conflict = _select_upload_slot(sid, account_name)
             if not slot:

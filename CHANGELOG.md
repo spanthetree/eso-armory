@@ -28,6 +28,7 @@
 ### Fixed
 - Filtering the inventory by location (e.g. Bank) no longer shows an item's other stacks: each row's locations, quantity and value cover only the filtered locations
 - After an upload or a primary/shadow switch, the password button and dialog showed the previous account's state
+- **An iasync.lua with no account name** (such as a fresh, empty file) was stored as an account called `@unknown`. It took the primary slot, so every later real upload landed in Alt, and other users' nameless uploads shared that same account. Such files are now rejected with a hint to log in and /reloadui first
 
 ## [0.2.0-beta.6] - 2026-11-18
 

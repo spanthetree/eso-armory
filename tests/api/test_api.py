@@ -103,6 +103,17 @@ def test_share_code_is_read_only(client, uploaded_workspace, fixtures_dir):
 
 
 @pytest.mark.api
+def test_iasync_upload_without_account_name_is_rejected(client, uploaded_workspace):
+    files = {"iasync": ("iasync.lua", b'iasync_data = { ["chars"] = {} }', "text/plain")}
+    result = client.post(f"/api/upload?session={TEST_SESSION}", files=files).json()["iasync"]
+    assert result["ok"] is False
+    assert "no ESO account name" in result["error"]
+    workspace = client.get(f"/api/workspace?session={TEST_SESSION}").json()
+    assert (workspace["primary"]["account"], workspace["shadow"]["account"]) == ("@test_account", None)
+    assert client.get(f"/api/data?session={TEST_SESSION}").json()["meta"]["item_count"] == 6
+
+
+@pytest.mark.api
 def test_upload_errors_are_json(client, fixtures_dir):
     invalid_session = client.post("/api/upload?session=not-a-uuid")
     empty_upload = client.post(f"/api/upload?session={TEST_SESSION}")
