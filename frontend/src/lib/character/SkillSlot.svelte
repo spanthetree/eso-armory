@@ -55,4 +55,11 @@
   span { padding: 2px; overflow: hidden; }
   .empty { color: var(--muted); opacity: 0.5; }
   @keyframes pop { from { opacity: 0; transform: scale(0.6); } }
+  /* Classic: the action bar slot (abilityFrame64 over the icon). */
+  :global(:root[data-ui='classic']) .skill { position: relative; width: 40px; height: 40px; border: 0; background: url('/assets/esoui/achievements/achievements_iconbg.png') 0 0 / 100% 100%; box-shadow: none; }
+  :global(:root[data-ui='classic']) .skill::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: url('/assets/esoui/actionbar/abilityframe64_up.png') 0 0 / 100% 100%; }
+  :global(:root[data-ui='classic']) .skill img { width: 40px; height: 40px; }
+  :global(:root[data-ui='classic']) .skill.ult { box-shadow: 0 0 12px -3px var(--eso-xp-end); }
+  :global(:root[data-ui='classic']) a.skill:hover, :global(:root[data-ui='classic']) a.skill:focus-visible { transform: none; box-shadow: none; }
+  :global(:root[data-ui='classic']) a.skill:hover::after { background-image: url('/assets/esoui/actionbar/abilityframe64_up.png'), url('/assets/esoui/actionbar/actionbar_mouseover.png'); background-size: 100% 100%; }
 </style>

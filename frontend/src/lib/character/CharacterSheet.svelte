@@ -115,4 +115,7 @@
   .set { display: flex; justify-content: space-between; gap: 10px; padding: 3px 10px; border-left: 2px solid var(--accent); background: #ffffff06; font-size: 14px; }
   .set .num { color: var(--muted); }
   .none { text-align: center; margin: 4px 0; }
+  /* Classic: list rows on ZO_ListEntryBackdrop. */
+  :global(:root[data-ui='classic']) .set { border-left: 0; background: var(--eso-list-bg) 0 0 / 100% 100%; font: 500 17px var(--eso-font-medium); color: var(--eso-selected); }
+  :global(:root[data-ui='classic']) .set .num { color: var(--eso-normal); }
 </style>

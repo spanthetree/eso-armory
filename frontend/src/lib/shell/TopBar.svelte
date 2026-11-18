@@ -1,24 +1,11 @@
 <script>
+  import { ui, setUiMode } from '../uimode.svelte.js';
   import { app, refresh, switchSlot, deleteShadow, toast } from '../store.svelte.js';
   import { nav, go } from '../nav.svelte.js';
   import { watch, checkFolder } from '../upload.svelte.js';
 
   const data = $derived(app.data.value);
   const ws = $derived(app.workspace);
-
-  /** Character currency plus bank, like the classic header. @param {string} key */
-  function total(key) {
-    const chars = Object.values(data?.characters ?? {});
-    return chars.reduce((s, c) => s + (c[key] || 0), 0) + (data?.bank?.[key] || 0);
-  }
-  const CURRENCIES = [
-    ['gold', 'Gold'],
-    ['ap', 'Alliance Points'],
-    ['tv', 'Tel Var Stones'],
-    ['wv', 'Writs'],
-  ];
-  /** @param {number} n */
-  const short = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
 
   let refreshing = $state(false);
   async function onRefresh() {
@@ -62,18 +49,14 @@
     </div>
   {/if}
 
-  {#if data}
-    <div class="money">
-      {#each CURRENCIES as [key, label] (key)}
-        {@const n = total(key)}
-        {#if key === 'gold' || n > 0}
-          <span title="{label}: {n.toLocaleString('en-US')}"><img src="/assets/currencies/{key}.png" alt={label} /><span class="num">{short(n)}</span></span>
-        {/if}
-      {/each}
-    </div>
-  {/if}
-
   <div class="actions">
+    <label class="uisel" title="Classic: the in-game look. Simple: the plain web look.">
+      <span>UI</span>
+      <select class="field" value={ui.mode} onchange={(e) => setUiMode(/** @type {any} */ (e.currentTarget).value)} aria-label="UI style">
+        <option value="classic">Classic</option>
+        <option value="simple">Simple</option>
+      </select>
+    </label>
     {#if watch.handle}<span class="watch" title="Watching {watch.handle.name} for new SavedVariables">● {watch.handle.name}</span>{/if}
     <span class="live" class:on={app.live} title={app.live ? 'Live updates connected' : 'Live updates reconnecting'}></span>
     <button class="btn" disabled={refreshing} onclick={onRefresh} title="Check for updated SavedVariables data">
@@ -90,6 +73,8 @@
 </header>
 
 <style>
+  .uisel { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .uisel select { width: auto; padding: 3px 6px; }
   .bar {
     position: sticky;
     top: 0;
@@ -106,13 +91,10 @@
   .brand { display: grid; line-height: 1.2; }
   .word { font: 700 17px var(--f-display); letter-spacing: 0.16em; color: var(--fg); }
   .meta { font-size: 13px; color: var(--muted); }
-  .badge { margin-left: 4px; padding: 0 5px; font-size: 11px; font-weight: 600; color: var(--bg); background: var(--accent); }
+  .badge { margin-left: 4px; padding: 0 5px; font-size: 11px; font-weight: 600; color: var(--fg); text-shadow: 0 0 2px #000, 0 1px 1px #000; background: var(--accent); }
   .slots { display: flex; gap: 4px; }
   .slots .btn { padding: 3px 9px; font-size: 13px; }
   .slots [aria-pressed='true'] { color: var(--bg); background: var(--accent); border-color: var(--accent); }
-  .money { display: flex; gap: 14px; font-size: 14px; color: var(--muted); }
-  .money span { display: inline-flex; align-items: center; gap: 4px; }
-  .money img { width: 18px; height: 18px; }
   .actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
   @media (max-width: 700px) { .bar { position: static; } }
   .watch { font-size: 12px; color: var(--accent-hi); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -120,4 +102,14 @@
   .live.on { background: var(--q-fine); box-shadow: 0 0 8px var(--q-fine); }
   .spin { display: inline-block; animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Classic: a dark band like the game's screen edge, with the title divider under it. */
+  :global(:root[data-ui='classic']) .bar { background: linear-gradient(#000, #000c); backdrop-filter: none; border-bottom: 0; }
+  :global(:root[data-ui='classic']) .bar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -3px; height: 6px; display: block;
+    background: var(--eso-divider-l) left / 56px 6px no-repeat, var(--eso-divider-r) right / 56px 6px no-repeat, var(--eso-divider-m) center / calc(100% - 112px) 6px no-repeat; }
+  :global(:root[data-ui='classic']) .word { font: 700 22px var(--eso-font); letter-spacing: 0; text-transform: uppercase; }
+  :global(:root[data-ui='classic']) .meta, :global(:root[data-ui='classic']) .uisel { font: 500 16px var(--eso-font-medium); color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .badge { font: 700 13px var(--eso-font); color: var(--eso-selected); background: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .slots .btn { font-size: 16px; padding: 0 10px; }
+  :global(:root[data-ui='classic']) .slots [aria-pressed='true'] { color: var(--eso-selected); background: none; }
 </style>

@@ -35,4 +35,11 @@
   }
   @keyframes fill { from { transform: scaleX(0); } }
   @keyframes sheen { 0%, 60% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+  /* Classic: the game's arrow status bar frame, resource-coloured fill shaded by the generic fill texture. */
+  :global(:root[data-ui='classic']) .row { font: 700 18px var(--eso-font); letter-spacing: 0; color: var(--eso-selected); text-shadow: var(--eso-shadow); }
+  :global(:root[data-ui='classic']) small { font: 500 16px var(--eso-font-medium); color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .track { height: 16px; background: none; border: 0 solid transparent; border-image: var(--eso-bar-bg) 0 10 fill / 0 10px; overflow: visible; }
+  :global(:root[data-ui='classic']) .track::after { content: ''; position: absolute; inset: 0; pointer-events: none; border: 0 solid transparent; border-image: var(--eso-bar-frame) 0 10 fill / 0 10px; }
+  :global(:root[data-ui='classic']) .fill { inset: 2px auto 2px 2px; max-width: calc(100% - 10px); background-image: var(--eso-bar-gloss), var(--eso-bar-fill) !important; background-size: 100% 100%; background-blend-mode: normal, multiply; }
+  :global(:root[data-ui='classic']) .fill::after { display: none; }
 </style>

@@ -57,4 +57,15 @@
   .tip :global(.t-row) { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--muted); }
   .tip :global(hr) { border: 0; height: 1px; margin: 8px 0; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
   .tip :global(.t-off) { opacity: 0.45; }
+
+  /* Classic: the game's tooltip (ZO_BaseTooltip: ui-border + tooltip centre + munge overlay). */
+  :global(:root[data-ui='classic']) .tip { background: url('/assets/esoui/tooltips/munge_overlay.png') repeat, #000a; border: 0 solid transparent; border-image: var(--eso-backdrop) 16 fill / 16px;
+    padding: 16px 18px; font-family: var(--eso-font-medium); text-shadow: var(--eso-shadow-thin); }
+  :global(:root[data-ui='classic']) .tip :global(.t-name) { font: 700 20px var(--eso-font); letter-spacing: 0; text-transform: uppercase; text-align: center; }
+  :global(:root[data-ui='classic']) .tip :global(.t-head) { font: 700 16px var(--eso-font); color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .tip :global(.t-row) { font: 500 16px var(--eso-font-medium); color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .tip :global(.t-small) { font: 500 16px var(--eso-font-medium); }
+  :global(:root[data-ui='classic']) .tip :global(.t-faint) { font: 500 14px var(--eso-font-medium); color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .tip :global(.t-chip) { font: 500 14px var(--eso-font-medium); border-color: var(--line); background: #0006; }
+  :global(:root[data-ui='classic']) .tip :global(hr) { height: 8px; margin: 8px 0; background: url('/assets/esoui/miscellaneous/horizontaldivider.png') center / 100% 8px no-repeat; }
 </style>

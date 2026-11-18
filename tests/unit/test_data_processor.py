@@ -84,6 +84,13 @@ def test_process_achievements_and_stickerbook(raw_iasync):
     assert pieces[1]["icon"] == ""
     assert stickerbook["categoryIcons"] == {"Dungeons": "/esoui/art/collections/collections_categoryicon_dungeons_up.dds"}
     assert achievements["categories"][0]["icon"] == "/esoui/art/treeicons/achievements_indexicon_general_up.dds"
+    acct = achievements["account_items"][0]
+    assert acct["rewards"] == [{"type": "title", "name": "Mock Title", "id": 7}]
+    assert (acct["lineBaseId"], acct["linePreviousId"], acct["lineNextId"]) == (8999, 8999, 0)
+    assert (stickerbook["sets"][0]["reconCost"], stickerbook["sets"][0]["reconCurrency"]) == (25, 5)
+    assert [p["quality"] for p in pieces] == [4, 0]
+    assert achievements["uiColors"] == stickerbook["uiColors"] == {"textNormal": "c5c29e"}
+    assert process_iasync(raw_iasync)["uiColors"] == {"textNormal": "c5c29e"}
 
 
 @pytest.mark.unit

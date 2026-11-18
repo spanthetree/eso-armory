@@ -251,6 +251,7 @@ def process_iasync(raw: dict, server: str = "NA") -> dict:
         "bank":         bank,
         "house_chests": house_chests,
         "items":        items,
+        "uiColors":     ui_colors(raw),
     }
 
 
@@ -373,6 +374,26 @@ def process_ww_builds(raw: dict) -> dict:
     return {"builds": builds_by_char}
 
 
+_REWARD_FIELDS = ("type", "name", "id", "icon")
+_HEX6 = re.compile(r"^[0-9a-fA-F]{6}$")
+
+
+def _parse_rewards(raw) -> list[dict]:
+    """Achievement rewards (title, dye, collectible, item) as iasync records them; Lua arrays may arrive as dicts."""
+    items = raw.values() if isinstance(raw, dict) else raw if isinstance(raw, list) else []
+    out = []
+    for r in items:
+        if isinstance(r, dict) and r.get("type") in ("title", "dye", "collectible", "item"):
+            out.append({k: r[k] for k in _REWARD_FIELDS if r.get(k) not in (None, "")})
+    return out
+
+
+def ui_colors(raw: dict) -> dict:
+    """In-game interface colours (iasync 1.7.0 ``uiColors``), only well-formed ``rrggbb`` values."""
+    src = raw.get("uiColors") or {}
+    return {str(k): v.lower() for k, v in src.items() if isinstance(v, str) and _HEX6.match(v)} if isinstance(src, dict) else {}
+
+
 def process_iasync_achievements(raw: dict) -> dict:
     """Parse account-level category summaries and per-character individual achievements."""
     achiev_raw = raw.get("achievements", {})
@@ -438,6 +459,10 @@ def process_iasync_achievements(raw: dict) -> dict:
             "completionDate":      a.get("completionDate", ""),
             "completedByCharName": a.get("completedByCharName", ""),
             "criteria":            criteria,
+            "rewards":             _parse_rewards(a.get("rewards")),
+            "lineBaseId":          int(a.get("lineBaseId") or aid),
+            "linePreviousId":      int(a.get("linePreviousId") or 0),
+            "lineNextId":          int(a.get("lineNextId") or 0),
         }
 
     account_items: list[dict] = []
@@ -498,6 +523,7 @@ def process_iasync_achievements(raw: dict) -> dict:
         "items_by_char": items_by_char,
         "chars":         chars_with_achiev,
         "recent":        [a for _, a in recent],
+        "uiColors":      ui_colors(raw),
     }
 
 
@@ -631,6 +657,7 @@ def process_iasync_stickerbook(raw: dict) -> dict:
                 "collected":  bool(p.get("collected", False)),
                 "name":       p.get("name", ""),
                 "icon":       p.get("icon") or "",
+                "quality":    int(p.get("quality") or 0),
             })
 
         sets.append({
@@ -642,6 +669,8 @@ def process_iasync_stickerbook(raw: dict) -> dict:
             "numTotal":     num_total,
             "complete":     num_total > 0 and num_collected >= num_total,
             "pieces":       pieces,
+            "reconCost":    int(s["reconCost"]) if isinstance(s.get("reconCost"), (int, float)) else None,
+            "reconCurrency": int(s["reconCurrency"]) if isinstance(s.get("reconCurrency"), (int, float)) else None,
         })
 
     sets.sort(key=lambda s: s["name"].lower())
@@ -650,4 +679,5 @@ def process_iasync_stickerbook(raw: dict) -> dict:
         "sets":          sets,
         "categoryIcons": {str(k): v for k, v in (sb_raw.get("categoryIcons") or {}).items() if isinstance(v, str)},
         "lastUpdate":    int(sb_raw.get("lastUpdate", 0)),
+        "uiColors":      ui_colors(raw),
     }

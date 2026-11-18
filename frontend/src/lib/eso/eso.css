@@ -1,0 +1,123 @@
+/* In-game (ESO keyboard UI) look for the Achievements and Collections tabs.
+   Sizes and offsets are the game's own (esoui XML templates); textures are the game's, from UESP via `make assets`.
+   Colours default to approximations and are replaced by the client's real values when iasync 1.7.0 sends `uiColors`. */
+
+:root {
+  --eso-normal: #c5c29e;
+  --eso-selected: #ffffff;
+  --eso-highlight: #ffffff;
+  --eso-disabled: #5c5c5c;
+  --eso-default: #8a887c;
+  --eso-contrast: #e8dfaf;
+  --eso-second-selected: #ffffff;
+  --eso-second-normal: #c5c29e;
+  --eso-xp-start: #1e6f80;
+  --eso-xp-end: #7fd9d6;
+  /* Univers 57/67 Condensed is the game's font; it ships packed in the client, so use it only if installed locally. */
+  --eso-font: 'Univers 67 Condensed', 'Univers LT Std 67 Bold Condensed', 'UniversCondensed', 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --eso-font-medium: 'Univers 57 Condensed', 'Univers LT Std 57 Condensed', 'UniversCondensed', 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  /* soft-shadow-thick / soft-shadow-thin */
+  --eso-shadow: 1px 1px 2px #000, 2px 2px 3px #000c;
+  --eso-shadow-thin: 1px 1px 1px #000;
+}
+
+/* Stage: the game's coordinate space (x relative to the screen's right edge, y to its middle), scaled to fit. */
+.eso-win { position: relative; width: 100%; height: max(420px, calc(100dvh - 260px)); overflow: hidden; }
+.eso-stage {
+  position: absolute; left: 50%; top: 0; width: 995px; height: 800px; transform-origin: top left;
+  font: 700 18px/1.15 var(--eso-font); color: var(--eso-normal); text-shadow: var(--eso-shadow); -webkit-font-smoothing: antialiased;
+}
+.eso-stage * { box-sizing: border-box; }
+.eso-stage .eso-abs { position: absolute; }
+.eso-bg { position: absolute; pointer-events: none; }
+
+.eso-h2 { font-size: 24px; font-weight: 700; text-transform: uppercase; color: var(--eso-selected); }
+.eso-h3 { font-size: 20px; font-weight: 700; }
+.eso-h4 { font-size: 18px; font-weight: 700; }
+.eso-h5 { font-size: 16px; font-weight: 700; }
+.eso-game { font: 500 18px/1.15 var(--eso-font-medium); text-shadow: var(--eso-shadow-thin); }
+.eso-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ZO_DynamicHorizontalDivider */
+.eso-divider { display: flex; height: 6px; }
+.eso-divider i { display: block; height: 6px; background-size: 100% 100%; }
+.eso-divider i:nth-child(1) { width: 56px; background-image: var(--eso-divider-l); }
+.eso-divider i:nth-child(2) { flex: 1; background-image: var(--eso-divider-m); }
+.eso-divider i:nth-child(3) { width: 56px; background-image: var(--eso-divider-r); }
+
+/* ZO_EditBackdrop (+ ZO_SINGLE_LINE_EDIT_CONTAINER_PADDING) */
+.eso-edit {
+  height: 28px; padding: 3px 6px 3px 8px; border: 8px solid transparent; border-width: 0; border-image: var(--eso-edit) 8 fill / 8px;
+  font: 500 18px var(--eso-font-medium); color: var(--eso-selected); background: none; outline: none; text-shadow: var(--eso-shadow-thin);
+}
+.eso-edit::placeholder { color: var(--eso-default); opacity: 1; }
+.eso-edit::-webkit-search-cancel-button { filter: grayscale(1) brightness(1.6); }
+
+/* ZO_ComboBox on ZO_DefaultBackdrop (anchored 8px outside the control) */
+.eso-combo { position: relative; height: 31px; }
+.eso-combo::before { content: ''; position: absolute; inset: -8px; border: 0 solid transparent; border-image: var(--eso-backdrop) 16 fill / 16px; pointer-events: none; }
+.eso-combo::after { content: ''; position: absolute; right: 3px; top: 50%; width: 16px; height: 16px; margin-top: -8px; background: url('/assets/esoui/buttons/dropbox_arrow_normal.png'); pointer-events: none; }
+.eso-combo:hover::after { background-image: url('/assets/esoui/buttons/dropbox_arrow_mouseover.png'); }
+.eso-combo select, .eso-combo > button {
+  all: unset; position: relative; z-index: 1; box-sizing: border-box; display: block; width: 100%; height: 100%; padding: 0 20px 0 8px;
+  font: 500 18px/31px var(--eso-font-medium); color: var(--eso-selected); text-shadow: var(--eso-shadow-thin); cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.eso-combo select option { background: #111; color: #fff; }
+.eso-combo :focus-visible { outline: 1px solid var(--eso-normal); }
+
+/* ZO_CheckButton */
+.eso-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font: 700 18px var(--eso-font); color: var(--eso-normal); }
+.eso-check input { appearance: none; width: 16px; height: 16px; margin: 0; background: url('/assets/esoui/buttons/checkbox_unchecked.png'); cursor: pointer; }
+.eso-check input:checked { background-image: url('/assets/esoui/buttons/checkbox_checked.png'); }
+.eso-check:hover input:not(:checked) { background-image: url('/assets/esoui/buttons/checkbox_mouseover.png'); }
+.eso-check:hover { color: var(--eso-highlight); }
+.eso-check input:focus-visible { outline: 1px solid var(--eso-normal); }
+
+/* ZO_ListEntryBackdrop / selected highlight */
+.eso-list-bg { border-style: solid; border-color: transparent; border-width: 0; border-image: var(--eso-list-bg) 8 0 16 0 fill / 16px 0 32px 0; }
+.eso-list-hl { border-image: var(--eso-list-hl) 16 0 32 0 fill / 16px 0 32px 0; }
+
+/* Tree: ZO_IconHeader (icon 64px scaled .5 -> .75 when open/hovered, 180ms) and ZO_TreeLabelSubCategory */
+.eso-tree { padding: 0 0 10px; }
+.eso-th { all: unset; position: relative; display: block; box-sizing: border-box; width: 100%; min-height: 48px; padding: 9px 4px 9px 70px; cursor: pointer; }
+.eso-th .ico, .eso-th .ico-hl { position: absolute; left: 16px; top: -8px; width: 64px; height: 64px; transform: scale(0.5); transition: transform 0.18s linear; pointer-events: none; }
+.eso-th .ico-hl { opacity: 0; mix-blend-mode: plus-lighter; }
+.eso-th:hover .ico, .eso-th:hover .ico-hl, .eso-th[aria-expanded='true'] .ico, .eso-th[aria-expanded='true'] .ico-hl, .eso-th[aria-current='true'] .ico, .eso-th[aria-current='true'] .ico-hl { transform: scale(0.75); }
+.eso-th:hover .ico-hl { opacity: 1; }
+.eso-th .txt { display: block; max-width: 227px; font-size: 24px; font-weight: 700; color: var(--eso-normal); text-transform: none; }
+.eso-th:hover .txt { color: var(--eso-highlight); }
+.eso-th[aria-expanded='true'] .txt, .eso-th[aria-current='true'] .txt { color: var(--eso-selected); }
+.eso-th .pc { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); font: 500 16px var(--eso-font-medium); color: var(--eso-normal); }
+.eso-th:hover .pc, .eso-th[aria-expanded='true'] .pc { color: var(--eso-selected); }
+.eso-th .stat { position: absolute; left: 0; top: 8px; width: 32px; height: 32px; }
+.eso-th:focus-visible .txt, .eso-ts:focus-visible { outline: 1px solid var(--eso-normal); }
+.eso-ts { all: unset; position: relative; display: block; box-sizing: border-box; width: 228px; margin-left: 76px; padding: 2px 0; font-size: 18px; font-weight: 700; color: var(--eso-normal); cursor: pointer; text-shadow: var(--eso-shadow); }
+.eso-ts:hover { color: var(--eso-highlight); }
+.eso-ts[aria-current='true'] { color: var(--eso-selected); }
+.eso-ts.dim { color: var(--eso-disabled); }
+.eso-ts .tick { position: absolute; right: 100%; margin-right: 3px; top: 50%; width: 24px; height: 24px; margin-top: -12px; }
+
+/* ZO_TreeButtonArrow */
+.eso-arrow { all: unset; width: 32px; height: 32px; flex: none; cursor: pointer; background: url('/assets/esoui/buttons/tree_closed_up.png'); }
+.eso-arrow:hover { background-image: url('/assets/esoui/buttons/tree_closed_over.png'); }
+.eso-arrow[aria-expanded='true'] { background-image: url('/assets/esoui/buttons/tree_open_up.png'); }
+.eso-arrow[aria-expanded='true']:hover { background-image: url('/assets/esoui/buttons/tree_open_over.png'); }
+.eso-arrow:focus-visible { outline: 1px solid var(--eso-normal); }
+
+/* ZO_ScrollContainer: 16px bar with the game's arrows and elevator (WebKit/Blink; Firefox gets plain colours). */
+.eso-scroll { overflow-y: auto; overflow-x: hidden; scrollbar-color: #7d7a63 transparent; }
+.eso-scroll::-webkit-scrollbar { width: 16px; }
+.eso-scroll::-webkit-scrollbar-track { background: transparent; }
+.eso-scroll::-webkit-scrollbar-thumb { border-style: solid; border-width: 0; border-image: url('/assets/esoui/miscellaneous/scrollbox_elevator.png') 10 0 10 0 fill / 10px 0 10px 0; }
+.eso-scroll::-webkit-scrollbar-button:single-button { display: block; height: 16px; background-size: 16px 16px; }
+.eso-scroll::-webkit-scrollbar-button:single-button:vertical:decrement { background-image: url('/assets/esoui/buttons/scrollbox_uparrow_up.png'); }
+.eso-scroll::-webkit-scrollbar-button:single-button:vertical:decrement:hover { background-image: url('/assets/esoui/buttons/scrollbox_uparrow_over.png'); }
+.eso-scroll::-webkit-scrollbar-button:single-button:vertical:increment { background-image: url('/assets/esoui/buttons/scrollbox_downarrow_up.png'); }
+.eso-scroll::-webkit-scrollbar-button:single-button:vertical:increment:hover { background-image: url('/assets/esoui/buttons/scrollbox_downarrow_over.png'); }
+
+/* Achievement / item icon: icon + ZO achievements_iconBG behind + abilityFrame64 over it */
+.eso-icon { position: relative; display: inline-block; vertical-align: top; flex: none; background: url('/assets/esoui/achievements/achievements_iconbg.png') 0 0 / 100% 100%; }
+.eso-icon::after { content: ''; position: absolute; inset: 0; background: url('/assets/esoui/actionbar/abilityframe64_up.png') 0 0 / 100% 100%; pointer-events: none; }
+.eso-icon img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.eso-icon.off img { filter: grayscale(0.5); }

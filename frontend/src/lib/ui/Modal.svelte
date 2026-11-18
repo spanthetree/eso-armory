@@ -65,4 +65,10 @@
   .x:focus-visible { outline: 1px solid var(--accent-hi); }
   @keyframes open { from { opacity: 0; transform: translateY(12px) scale(0.97); } }
   @keyframes fade { from { opacity: 0; } }
+
+  /* Classic: ZO_DialogBase (ZO_DefaultBackdrop + munge overlay), ZO_DialogTitle over ZO_DialogDivider. */
+  :global(:root[data-ui='classic']) .body { background: none; box-shadow: 0 24px 80px #000; border: 0 solid transparent; border-image: var(--eso-backdrop) 16 fill / 16px; padding: 28px 30px 26px; }
+  :global(:root[data-ui='classic']) .body::before { background: url('/assets/esoui/tooltips/munge_overlay.png') repeat; opacity: 0.5; }
+  :global(:root[data-ui='classic']) h2 { font: 700 24px var(--eso-font); text-transform: uppercase; text-align: center; letter-spacing: 0; margin: 0 0 16px; padding-bottom: 12px;
+    background: url('/assets/esoui/miscellaneous/horizontaldivider.png') bottom center / min(512px, 100%) 8px no-repeat; }
 </style>

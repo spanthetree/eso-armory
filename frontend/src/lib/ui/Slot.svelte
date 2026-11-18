@@ -43,4 +43,10 @@
   }
   img { width: 78%; height: 78%; object-fit: contain; }
   @keyframes pop { from { opacity: 0; transform: scale(0.6); } }
+  /* Classic: achievement-style icon slot (iconBG + abilityFrame64), mouse-over glow added on top. */
+  :global(:root[data-ui='classic']) .slot { border: 0; background: var(--slot-bg); }
+  :global(:root[data-ui='classic']) .slot:not(.empty)::before { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1; background: url('/assets/esoui/actionbar/abilityframe64_up.png') 0 0 / 100% 100%; }
+  :global(:root[data-ui='classic']) .slot::after { inset: 4px; opacity: 0.8; }
+  :global(:root[data-ui='classic']) .slot:hover, :global(:root[data-ui='classic']) .slot:focus-visible { transform: none; border-color: transparent; box-shadow: 0 0 16px -4px var(--qc); }
+  :global(:root[data-ui='classic']) .slot:not(.empty):hover::before { background-image: url('/assets/esoui/actionbar/abilityframe64_up.png'), url('/assets/esoui/actionbar/actionbar_mouseover.png'); background-size: 100% 100%; }
 </style>

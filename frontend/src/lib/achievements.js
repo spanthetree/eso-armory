@@ -132,3 +132,33 @@ export function extraSubcats(idx, cat, charId) {
     };
   });
 }
+
+/**
+ * The in-game list shows one row per achievement line (tiers I, II, III...): the first tier not yet earned, or the last
+ * if all are. Each shown row gets `line`, the whole line in order, when it has more than one tier.
+ * @param {any[]} list
+ */
+export function collapseLines(list) {
+  const byId = new Map(list.map((a) => [a.id, a]));
+  /** @type {Map<number, any[]>} */
+  const groups = new Map();
+  for (const a of list) {
+    const k = a.lineBaseId || a.id;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)?.push(a);
+  }
+  return [...groups.values()].map((g) => {
+    const ids = new Set(g.map((a) => a.id));
+    let cur = g.find((a) => !ids.has(a.linePreviousId)) ?? g[0];
+    const line = [];
+    const seen = new Set();
+    while (cur && ids.has(cur.id) && !seen.has(cur.id)) {
+      line.push(cur);
+      seen.add(cur.id);
+      cur = byId.get(cur.lineNextId);
+    }
+    for (const a of g) if (!seen.has(a.id)) line.push(a);
+    const shown = line.find((a) => !a.complete) ?? line[line.length - 1];
+    return line.length > 1 ? { ...shown, line } : shown;
+  });
+}

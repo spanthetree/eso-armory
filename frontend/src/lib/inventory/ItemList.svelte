@@ -1,5 +1,9 @@
 <script>
   import MultiSelect from '../ui/MultiSelect.svelte';
+  import { ui } from '../uimode.svelte.js';
+  /** Classic: the in-game inventory filter tab icon for each item type. */
+  /** @type {Record<string, string>} */
+  const TYPE_ICON = { 1: 'weapons', 2: 'armor', 25: 'craftbag_jewelrycrafting', 3: 'consumables', 4: 'crafting', 6: 'craftbag_enchanting', 21: 'furnishing_seating', 5: 'misc' };
   import ItemTip from '../tips/ItemTip.svelte';
   import { tooltip } from '../ui/tooltip.svelte.js';
   import { itemIcon } from '../gear.js';
@@ -191,6 +195,7 @@
         {@const s = all.types[t.v]}
         {#if s}
           <button type="button" class="stat" aria-pressed={f.types.includes(t.v)} onclick={() => toggleIn('types', t.v)}>
+            {#if ui.mode === 'classic' && TYPE_ICON[t.v]}<img class="ti" src="/assets/esoui/inventory/inventory_tabicon_{TYPE_ICON[t.v]}_{f.types.includes(t.v) ? 'down' : 'up'}.png" alt="" />{/if}
             <span class="sl">{t.l}</span><span class="sv"><span class="num">{s.count.toLocaleString('en-US')}</span>{#if s.value}{@render coin(s.value)}{/if}</span>
           </button>
         {/if}
@@ -274,7 +279,7 @@
   .name .field { width: 170px; padding: 2px 8px; font-size: 13px; }
   .name .btn { padding: 2px 10px; }
 
-  .strip { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+  .strip { display: flex; flex-wrap: wrap; gap: 6px; }
   .stat { all: unset; flex: 1 0 auto; display: grid; padding: 4px 10px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; transition: border-color 0.2s; }
   .stat:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
   .stat[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
@@ -327,4 +332,43 @@
   tr.set span { font: 400 12px var(--f-ui); color: var(--muted); letter-spacing: 0; }
   .empty { text-align: center; padding: 36px; color: var(--muted); }
   @media (max-width: 760px) { .type, .where, .val { display: none; } }
+  .ti { display: none; }
+  /* Classic: the in-game inventory window. Panels on the window backdrop, list rows on ZO_ListEntryBackdrop with the
+     teal mouse-over highlight, sort headers in the header font, type stats with the inventory tab icons. */
+  :global(:root[data-ui='classic']) .filters, :global(:root[data-ui='classic']) .scroll { background: var(--eso-panel) center / 100% 100%; border: 0; }
+  :global(:root[data-ui='classic']) .filters { padding: 12px 16px; }
+  :global(:root[data-ui='classic']) .count { font: 500 16px var(--eso-font-medium); color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .total, :global(:root[data-ui='classic']) .sv .g { color: var(--eso-selected); }
+  :global(:root[data-ui='classic']) .fchip, :global(:root[data-ui='classic']) .fchip.own { border: 0 solid transparent; border-radius: 0; border-image: url('/assets/esoui/buttons/eso_buttonlarge_normal.png') 0 9 fill / 0 9px stretch;
+    padding: 2px 12px; font: 700 16px var(--eso-font); color: var(--eso-normal); text-shadow: var(--eso-shadow); }
+  :global(:root[data-ui='classic']) .fchip.own button { font: 700 16px var(--eso-font); color: inherit; }
+  :global(:root[data-ui='classic']) .fchip:hover, :global(:root[data-ui='classic']) .fchip.own button:hover { color: var(--eso-highlight); }
+  :global(:root[data-ui='classic']) .fchip[aria-pressed='true'], :global(:root[data-ui='classic']) .fchip.own.on { color: var(--eso-selected); background: none; border-image-source: url('/assets/esoui/buttons/eso_buttonllarge_mousedown.png'); }
+  :global(:root[data-ui='classic']) .fchip.add { border-style: solid; }
+  :global(:root[data-ui='classic']) .stat { position: relative; grid-template-columns: auto 1fr; column-gap: 4px; align-items: center; background: none; border: 0; padding: 2px 3px; }
+  :global(:root[data-ui='classic']) .strip { gap: 2px; }
+  :global(:root[data-ui='classic']) .stat > .sl, :global(:root[data-ui='classic']) .stat > .sv { grid-column: 2; }
+  :global(:root[data-ui='classic']) .ti { display: block; grid-row: span 2; width: 28px; height: 28px; }
+  :global(:root[data-ui='classic']) .stat:hover { border-color: transparent; background: var(--eso-hover) center / 100% 100%; }
+  :global(:root[data-ui='classic']) .stat[aria-pressed='true'] { box-shadow: none; background: var(--eso-list-hl) center / 100% 100%; }
+  :global(:root[data-ui='classic']) .sl { font: 700 15px var(--eso-font); letter-spacing: 0; color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .sv { font: 500 16px var(--eso-font-medium); color: var(--eso-selected); }
+  :global(:root[data-ui='classic']) .sep { width: 8px; margin: 0 4px; background: url('/assets/esoui/miscellaneous/verticaldivider_64.png') center / 8px 100% no-repeat; }
+  :global(:root[data-ui='classic']) .pop { background: none; border: 0 solid transparent; border-image: var(--eso-backdrop) 16 fill / 16px; padding: 18px; }
+  :global(:root[data-ui='classic']) .pill { font: 500 16px var(--eso-font-medium); }
+  :global(:root[data-ui='classic']) .tick { font: 500 18px var(--eso-font-medium); color: var(--eso-selected); }
+  :global(:root[data-ui='classic']) table { font: 500 18px var(--eso-font-medium); }
+  :global(:root[data-ui='classic']) thead th { background: #000c; border-bottom: 0; }
+  :global(:root[data-ui='classic']) th button, :global(:root[data-ui='classic']) th.where { font: 700 16px var(--eso-font); letter-spacing: 0; text-transform: uppercase; color: var(--eso-normal); text-shadow: var(--eso-shadow); }
+  :global(:root[data-ui='classic']) th button:hover { color: var(--eso-highlight); }
+  :global(:root[data-ui='classic']) td { border-bottom: 0; padding: 4px 12px; }
+  :global(:root[data-ui='classic']) tr.item { background: var(--eso-list-bg) 0 0 / 100% 100%; }
+  :global(:root[data-ui='classic']) tr.item:hover, :global(:root[data-ui='classic']) tr.item:focus-visible { background: var(--eso-hover) 0 0 / 100% 100%; }
+  :global(:root[data-ui='classic']) td.name img { width: 40px; height: 40px; }
+  :global(:root[data-ui='classic']) td.type, :global(:root[data-ui='classic']) td.qty, :global(:root[data-ui='classic']) td.val { color: var(--eso-selected); }
+  :global(:root[data-ui='classic']) .lv { font-size: 16px; color: var(--eso-normal); }
+  :global(:root[data-ui='classic']) .chip { font: 500 15px var(--eso-font-medium); color: var(--eso-normal); border-color: var(--line); }
+  :global(:root[data-ui='classic']) button.chip[aria-pressed='true'], :global(:root[data-ui='classic']) .cell[aria-pressed='true'] { color: var(--eso-highlight); }
+  :global(:root[data-ui='classic']) tr.set td { background: #0008; font: 700 18px var(--eso-font); letter-spacing: 0; text-transform: uppercase; color: var(--eso-selected); }
+  :global(:root[data-ui='classic']) tr.set span { font: 500 16px var(--eso-font-medium); color: var(--eso-normal); }
 </style>

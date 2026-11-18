@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildIndex, achievementsIn, extraSubcats, pct, achievementIcon, gameIcon, pressedIcon, searchAll, timeline, charName } from './achievements.js';
+import { buildIndex, achievementsIn, extraSubcats, pct, achievementIcon, gameIcon, pressedIcon, searchAll, timeline, charName, collapseLines } from './achievements.js';
 
 const DATA = {
   account_items: [
@@ -80,4 +80,19 @@ test('timeline groups by day and drops repeats', () => {
   ]);
   assert.deepEqual(days.map((d) => `${d.day}:${d.list.map((a) => a.id)}`), ['6/10/2026:1,2', '6/9/2026:3']);
   assert.equal(charName('boltaction^Mx'), 'boltaction');
+});
+
+test('collapseLines shows the first unearned tier of each line, in chain order', () => {
+  const list = [
+    { id: 12, lineBaseId: 10, linePreviousId: 11, lineNextId: 0, complete: false },
+    { id: 10, lineBaseId: 10, linePreviousId: 0, lineNextId: 11, complete: true },
+    { id: 11, lineBaseId: 10, linePreviousId: 10, lineNextId: 12, complete: false },
+    { id: 20, complete: true },
+    { id: 31, lineBaseId: 30, linePreviousId: 30, lineNextId: 0, complete: true },
+    { id: 30, lineBaseId: 30, linePreviousId: 0, lineNextId: 31, complete: true },
+  ];
+  const rows = collapseLines(list);
+  assert.deepEqual(rows.map((r) => r.id), [11, 20, 31]);
+  assert.deepEqual(rows[0].line.map((/** @type {any} */ a) => a.id), [10, 11, 12]);
+  assert.equal(rows[1].line, undefined);
 });

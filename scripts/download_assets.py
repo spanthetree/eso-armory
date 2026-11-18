@@ -23,7 +23,7 @@ PNG = b"\x89PNG\r\n\x1a\n"
 def fetch(url: str) -> bytes:
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=30) as r:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=120) as r:
                 body = r.read()
             if not body.startswith(PNG):
                 raise ValueError("not a PNG")

@@ -1,4 +1,5 @@
 <script>
+  import Currencies from './lib/shell/Currencies.svelte';
   import { app, start } from './lib/store.svelte.js';
   import { restoreFolder } from './lib/upload.svelte.js';
   import { nav, go, TABS } from './lib/nav.svelte.js';
@@ -17,6 +18,10 @@
   import InventoryTab from './lib/inventory/InventoryTab.svelte';
   import AchievementsTab from './lib/achievements/AchievementsTab.svelte';
   import CollectionsTab from './lib/collections/CollectionsTab.svelte';
+  import AchievementsSimple from './lib/achievements/AchievementsSimple.svelte';
+  import CollectionsSimple from './lib/collections/CollectionsSimple.svelte';
+  import { ui } from './lib/uimode.svelte.js';
+  import { applyUiColors } from './lib/eso/tex.js';
   import Segmented from './lib/ui/Segmented.svelte';
   import ShareDialog from './lib/shell/ShareDialog.svelte';
   import PasswordDialog from './lib/shell/PasswordDialog.svelte';
@@ -25,21 +30,22 @@
   start().then(restoreFolder);
 
   const data = $derived(app.data.value);
+  $effect(() => applyUiColors(data?.uiColors));
   const char = $derived(nav.charId ? data?.characters?.[nav.charId] ?? null : null);
 
   const CHAR_VIEW_ITEMS = [
-    { id: 'sheet', label: 'Sheet' },
-    { id: 'wardrobe', label: 'Wardrobe' },
-    { id: 'bags', label: 'Bags' },
-    { id: 'compare', label: 'Compare' },
-    { id: 'superstar', label: 'SuperStar' },
+    { id: 'sheet', label: 'Sheet', icon: 'inventory/inventory_tabicon_armor' },
+    { id: 'wardrobe', label: 'Wardrobe', icon: 'inventory/inventory_tabicon_appearance' },
+    { id: 'bags', label: 'Bags', icon: 'inventory/inventory_tabicon_items' },
+    { id: 'compare', label: 'Compare', icon: 'inventory/inventory_tabicon_quickslot' },
+    { id: 'superstar', label: 'SuperStar', icon: 'mainmenu/menubar_skills' },
   ];
 
   const TAB_ITEMS = [
-    { id: 'characters', label: 'Characters' },
-    { id: 'inventory', label: 'Inventory' },
-    { id: 'achievements', label: 'Achievements' },
-    { id: 'collections', label: 'Collections' },
+    { id: 'characters', label: 'Characters', icon: 'character' },
+    { id: 'inventory', label: 'Inventory', icon: 'inventory' },
+    { id: 'achievements', label: 'Achievements', icon: 'journal' },
+    { id: 'collections', label: 'Collections', icon: 'collections' },
   ];
 
   // Slide tab content in from the side you moved towards.
@@ -81,7 +87,8 @@
           <h1>{char.name}</h1>
         {:else}
           <div class="sub">{data.meta.server} · {data.meta.character_count} characters</div>
-          <h1>{data.meta.account}</h1>
+          <h1 class="acct">{data.meta.account}</h1>
+          <Currencies />
           <div class="orn" aria-hidden="true">◆</div>
         {/if}
       </header>
@@ -105,9 +112,9 @@
           {:else if nav.tab === 'inventory'}
             <InventoryTab />
           {:else if nav.tab === 'achievements'}
-            <AchievementsTab />
+            {#if ui.mode === 'classic'}<AchievementsTab />{:else}<AchievementsSimple />{/if}
           {:else if nav.tab === 'collections'}
-            <CollectionsTab />
+            {#if ui.mode === 'classic'}<CollectionsTab />{:else}<CollectionsSimple />{/if}
           {/if}
         </section>
       {/key}
@@ -115,9 +122,14 @@
   </div>
 {/if}
 
+<footer class="legal">
+  Fan-made and not affiliated with or endorsed by ZeniMax Online Studios, Bethesda or Microsoft. The Elder Scrolls Online, its names and its art are trademarks and copyright of ZeniMax Media Inc.
+</footer>
+
 <style>
   .stage { position: relative; isolation: isolate; }
-  main { max-width: 1240px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .legal { max-width: 1240px; margin: 0 auto; padding: 0 16px 8px; text-align: center; font-size: 11px; line-height: 1.3; color: var(--muted); opacity: 0.7; }
+  main { max-width: 1240px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .hero { position: relative; isolation: isolate; text-align: center; display: grid; gap: 2px; padding-top: 4px; }
   .hero h1 { color: var(--fg); font-size: clamp(24px, 3.4vw, 34px); letter-spacing: 0.12em; text-shadow: 0 0 18px #ffffff26; text-wrap: balance; }
   .sub { color: var(--muted); text-transform: uppercase; letter-spacing: 0.2em; font-size: 13px; }
@@ -137,4 +149,19 @@
   .sigil { font-size: 30px; color: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
   .splash p { font: 500 17px var(--f-display); letter-spacing: 0.12em; color: var(--fg); margin: 0; }
   @keyframes pulse { 50% { opacity: 0.35; transform: scale(0.85); } }
+  /* Classic: ZO_PanelTitle (ZoFontWindowTitle, uppercase) with the dynamic divider; no ornament. */
+  :global(:root[data-ui='classic']) .hero h1 { position: relative; font: 700 30px/1.1 var(--eso-font); letter-spacing: 0; text-transform: uppercase; text-shadow: var(--eso-shadow); padding-bottom: 8px; }
+  :global(:root[data-ui='classic']) .hero h1::after { content: ''; position: absolute; left: 50%; bottom: 0; width: min(560px, 90%); height: 6px; transform: translateX(-50%);
+    background: var(--eso-divider-l) left / 56px 6px no-repeat, var(--eso-divider-r) right / 56px 6px no-repeat, var(--eso-divider-m) center / calc(100% - 112px) 6px no-repeat; }
+  :global(:root[data-ui='classic']) .sub { font: 700 16px var(--eso-font); letter-spacing: 0; color: var(--eso-normal); }
+  /* Account view: the divider goes under the currencies (on .orn) instead of under the name. */
+  :global(:root[data-ui='classic']) .hero h1.acct { padding-bottom: 0; }
+  :global(:root[data-ui='classic']) .hero h1.acct::after { display: none; }
+  :global(:root[data-ui='classic']) .orn { display: block; justify-self: center; width: min(560px, 90%); height: 6px; margin-top: 4px; font-size: 0;
+    background: var(--eso-divider-l) left / 56px 6px no-repeat, var(--eso-divider-r) right / 56px 6px no-repeat, var(--eso-divider-m) center / calc(100% - 112px) 6px no-repeat; }
+  :global(:root[data-ui='classic']) .orn::before, :global(:root[data-ui='classic']) .orn::after { display: none; }
+  :global(:root[data-ui='classic']) .back { font: 700 18px var(--eso-font); color: var(--eso-normal); text-shadow: var(--eso-shadow); }
+  :global(:root[data-ui='classic']) .back:hover, :global(:root[data-ui='classic']) .back:focus-visible { color: var(--eso-highlight); }
+  :global(:root[data-ui='classic']) .splash p { font: 700 20px var(--eso-font); letter-spacing: 0; text-transform: uppercase; }
+  :global(:root[data-ui='classic']) .sigil { color: var(--eso-normal); }
 </style>
