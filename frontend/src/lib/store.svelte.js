@@ -189,8 +189,8 @@ export async function logout() {
 }
 
 /** Set or change the account password. Throws with the server's message. */
-export async function setPassword(/** @type {string} */ password) {
-  await api.post('/api/auth/set_password', { label: 'Password', init: jsonInit({ password }) });
+export async function setPassword(/** @type {string} */ password, current_password = '') {
+  await api.post('/api/auth/set_password', { label: 'Password', init: jsonInit({ password, current_password }) });
   await loadAuth();
   toast('Password saved');
 }

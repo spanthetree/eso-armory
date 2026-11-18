@@ -82,6 +82,27 @@ def test_share_code_join_resolves_uploaded_workspace(client, uploaded_workspace)
 
 
 @pytest.mark.api
+def test_share_code_is_read_only(client, uploaded_workspace, fixtures_dir):
+    code = client.post(f"/api/share?session={TEST_SESSION}").json()["code"]
+    viewer = "00000000-0000-4000-8000-000000000002"
+    q = f"session={viewer}&share={code}"
+
+    assert client.get(f"/api/data?{q}").status_code == 200
+    assert client.get(f"/api/auth/status?{q}").json()["account_name"] is None
+    assert client.post(f"/api/auth/set_password?{q}", json={"password": "password123"}).status_code == 403
+    assert client.get(f"/api/auth/status?session={TEST_SESSION}").json()["has_password"] is False
+
+    files = {"iasync": ("iasync.lua", fixtures_dir.joinpath("iasync.lua").read_bytes(), "text/plain")}
+    client.post(f"/api/upload?{q}", files=files)
+    # The upload lands in the viewer's own workspace, never the sharer's.
+    assert client.get(f"/api/workspace?session={TEST_SESSION}").json()["shadow"]["account"] is None
+
+    build_code = client.post(f"/api/build_export?session={TEST_SESSION}&character_id=char-a").json()["code"]
+    client.post(f"/api/compare_builds/import?{q}&character_id=char-a&code={build_code}")
+    assert "char-a" not in client.get(f"/api/compare_builds?session={TEST_SESSION}").json()["imported"]
+
+
+@pytest.mark.api
 def test_upload_errors_are_json(client, fixtures_dir):
     invalid_session = client.post("/api/upload?session=not-a-uuid")
     empty_upload = client.post(f"/api/upload?session={TEST_SESSION}")
@@ -349,6 +370,15 @@ def test_upload_for_password_protected_account_requires_login(client, uploaded_w
     login = client.post(f"/api/auth/login?session={OTHER_SESSION}", json={"account_name": "@test_account", "password": "password123"})
     assert login.status_code == 200
     assert _upload_iasync(client, fixtures_dir, OTHER_SESSION)["iasync"]["ok"] is True
+
+
+@pytest.mark.api
+def test_changing_password_needs_current_password(client, uploaded_workspace):
+    url = f"/api/auth/set_password?session={TEST_SESSION}"
+    assert client.post(url, json={"password": "password123"}).status_code == 200
+    assert client.post(url, json={"password": "newpassword1"}).status_code == 403
+    assert client.post(url, json={"password": "newpassword1", "current_password": "wrong-one"}).status_code == 403
+    assert client.post(url, json={"password": "newpassword1", "current_password": "password123"}).status_code == 200
 
 
 @pytest.mark.api

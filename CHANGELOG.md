@@ -21,6 +21,10 @@
 - **The shadow workspace is now called Alt** - a second ESO account in your browser, next to Primary
 - `/api/data`, `/api/achievements`, `/api/stickerbook` and the build payloads are gzipped (a full account's collectibles are about 4 MB, 400 KB compressed)
 
+### Security
+- **Share codes are read-only.** Anyone holding a share code could upload into the sharer's workspace, set or change the account password (locking the owner out), import or delete compare builds, and upload TTC price tables if the sharer was an admin. These now act only on the viewer's own browser
+- **Changing a password needs the current one**, so a browser left logged in can't lock the owner out
+
 ### Fixed
 - Filtering the inventory by location (e.g. Bank) no longer shows an item's other stacks: each row's locations, quantity and value cover only the filtered locations
 - After an upload or a primary/shadow switch, the password button and dialog showed the previous account's state

@@ -1718,13 +1718,10 @@ async def api_compare_builds(session: str | None = Query(None), share: str | Non
 @app.post("/api/compare_builds/import")
 async def api_compare_builds_import(
     session: str | None = Query(None),
-    share: str | None = Query(None),
     character_id: str | None = Query(None),
     code: str | None = Query(None),
 ):
-    sid, err = _resolve_session_context(session, share)
-    if err:
-        return JSONResponse({"error": err}, status_code=400)
+    sid = _valid_session(session)
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
     if not character_id:
@@ -1733,13 +1730,13 @@ async def api_compare_builds_import(
     if not normalized_code:
         return JSONResponse({"error": "valid build code required"}, status_code=400)
 
-    account_name, account_err = _resolve_account_name(sid, share)
+    account_name, account_err = _resolve_account_name(sid, None)
     if account_err:
         return JSONResponse({"error": account_err}, status_code=400)
     if not account_name:
         return JSONResponse({"error": "upload armory data before importing a compare build"}, status_code=400)
 
-    cache = _resolve_cache(sid, share)
+    cache = _resolve_cache(sid)
     valid_chars = _character_ids_for_cache(cache)
     if str(character_id) not in valid_chars:
         return JSONResponse({"error": "character_id is not in the active workspace"}, status_code=400)
@@ -1768,17 +1765,14 @@ async def api_compare_builds_import(
 @app.delete("/api/compare_builds")
 async def api_compare_builds_delete(
     session: str | None = Query(None),
-    share: str | None = Query(None),
     character_id: str | None = Query(None),
 ):
-    sid, err = _resolve_session_context(session, share)
-    if err:
-        return JSONResponse({"error": err}, status_code=400)
+    sid = _valid_session(session)
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
     if not character_id:
         return JSONResponse({"error": "character_id is required"}, status_code=400)
-    account_name, account_err = _resolve_account_name(sid, share)
+    account_name, account_err = _resolve_account_name(sid, None)
     if account_err:
         return JSONResponse({"error": account_err}, status_code=400)
     if not account_name:
@@ -2059,12 +2053,9 @@ async def api_upload(
     ttc_lookup: UploadFile | None = File(None),
     ttc_price: UploadFile | None = File(None),
     session: str | None = Query(None),
-    share: str | None = Query(None),
 ):
     """Accept uploaded live-folder files for iasync, WW, and TTC tables."""
-    sid, err = _resolve_session_context(session, share)
-    if err:
-        return JSONResponse({"error": err}, status_code=400)
+    sid = _valid_session(session)
     if not sid:
         return JSONResponse({"error": "valid session required"}, status_code=400)
 
@@ -2172,9 +2163,9 @@ async def api_share_join(session: str | None = Query(None), code: str | None = Q
 
 
 @app.get("/api/auth/status")
-async def api_auth_status(session: str | None = Query(None), share: str | None = Query(None)):
+async def api_auth_status(session: str | None = Query(None)):
     sid = _valid_session(session)
-    account_name, _ = _resolve_account_name(sid, share)
+    account_name, _ = _resolve_account_name(sid, None)
     if not account_name:
         return JSONResponse({"has_password": False, "account_name": None})
     state = _db_get_account_state(account_name)
@@ -2183,9 +2174,9 @@ async def api_auth_status(session: str | None = Query(None), share: str | None =
 
 
 @app.post("/api/auth/set_password")
-async def api_auth_set_password(request: Request, session: str | None = Query(None), share: str | None = Query(None)):
+async def api_auth_set_password(request: Request, session: str | None = Query(None)):
     sid = _valid_session(session)
-    account_name, _ = _resolve_account_name(sid, share)
+    account_name, _ = _resolve_account_name(sid, None)
     if not account_name:
         return JSONResponse({"error": "no account bound to this session"}, status_code=403)
     try:
@@ -2195,6 +2186,13 @@ async def api_auth_set_password(request: Request, session: str | None = Query(No
     password = body.get("password", "")
     if len(password) < 8:
         return JSONResponse({"error": "password must be at least 8 characters"}, status_code=400)
+    # Changing a password needs the current one, so a forgotten logged-in browser can't lock the owner out.
+    current_hash = _db_get_account_password_hash(account_name)
+    if current_hash:
+        current = str(body.get("current_password", ""))
+        loop = asyncio.get_event_loop()
+        if not await loop.run_in_executor(None, lambda: bcrypt.checkpw(current.encode(), current_hash.encode())):
+            return JSONResponse({"error": "current password is incorrect"}, status_code=403)
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
     ok = _db_set_account_password(account_name, hashed)
     if not ok:

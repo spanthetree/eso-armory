@@ -71,6 +71,7 @@
       {app.shareCode ? `🔗 ${app.shareCode}` : 'Share'}
     </button>
     {#if data}
+      {#if app.auth.account_name}
       <span class="pwd">
         <button class="btn" class:ring={nudge} onclick={() => (nav.dialog = 'password')}>{app.auth.has_password ? '🔐 Password' : '🔓 Set password'}</button>
         {#if nudge}
@@ -82,6 +83,7 @@
           </span>
         {/if}
       </span>
+      {/if}
       <button class="btn" onclick={logout} title="Forget this browser">Log out</button>
     {/if}
   </div>

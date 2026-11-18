@@ -3,6 +3,7 @@
   import { app, setPassword } from '../store.svelte.js';
   import { nav } from '../nav.svelte.js';
 
+  let current = $state('');
   let pwd = $state('');
   let confirm = $state('');
   let busy = $state(false);
@@ -11,7 +12,7 @@
 
   $effect(() => {
     if (nav.dialog === 'password') {
-      pwd = confirm = '';
+      current = pwd = confirm = '';
       status = null;
     }
   });
@@ -22,8 +23,8 @@
     if (pwd !== confirm) return (status = { ok: false, msg: 'Passwords do not match.' });
     busy = true;
     try {
-      await setPassword(pwd);
-      pwd = confirm = '';
+      await setPassword(pwd, current);
+      current = pwd = confirm = '';
       status = { ok: true, msg: 'Password saved.' };
     } catch (e) {
       status = { ok: false, msg: /** @type {Error} */ (e).message };
@@ -38,6 +39,9 @@
   <form onsubmit={(e) => { e.preventDefault(); save(); }}>
     <!-- Read-only so password managers save the ESO account name with the password. -->
     <input class="field" type="text" value={app.auth.account_name || ''} readonly autocomplete="username" aria-label="ESO account name" />
+    {#if hasPassword}
+      <input class="field" type="password" bind:value={current} placeholder="Current password" autocomplete="current-password" aria-label="Current password" />
+    {/if}
     <input class="field" type="password" bind:value={pwd} placeholder="New password (at least 8 characters)" autocomplete="new-password" aria-label="New password" />
     <input class="field" type="password" bind:value={confirm} placeholder="Confirm password" autocomplete="new-password" aria-label="Confirm password" />
     <button class="btn primary" disabled={busy}>{busy ? 'Saving…' : hasPassword ? 'Change password' : 'Save password'}</button>

@@ -91,15 +91,15 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `DELETE /api/workspace/shadow?session=` | Remove shadow slot |
 | `POST /api/build_export?session=&share=&character_id=` | Export current build to short code (one row per account+character; re-export overwrites) |
 | `GET /api/compare_builds?session=&share=` | Imported compare builds keyed by destination `character_id` |
-| `POST /api/compare_builds/import?session=&share=&character_id=&code=` | Store imported compare build |
-| `DELETE /api/compare_builds?session=&share=&character_id=` | Delete imported compare build |
+| `POST /api/compare_builds/import?session=&character_id=&code=` | Store imported compare build |
+| `DELETE /api/compare_builds?session=&character_id=` | Delete imported compare build |
 | `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/..."}` - static, built at startup |
 | `GET /api/status?session=&share=` | `{ok, item_count, character_count, last_modified, error, is_admin}` |
-| `GET /api/auth/status?session=` | `{account_name, has_password}` for the session's active account |
-| `POST /api/auth/set_password?session=` | Body `{password}` (≥ 8 chars) → bcrypt hash on the active account |
+| `GET /api/auth/status?session=` | `{account_name, has_password}` for this browser's own active account (a share code is ignored) |
+| `POST /api/auth/set_password?session=` | Body `{password, current_password}` (≥ 8 chars) → bcrypt hash on this browser's active account; `current_password` is required once one is set |
 | `POST /api/auth/login?session=` | Body `{account_name, password}` → binds this browser to the account as primary; rate-limited per IP |
 | `POST /api/auth/logout?session=` | Deletes this browser's `workspace_sessions` row and imported compare builds, and drops share-registry entries pointing at it. Account data stays |
-| `POST /api/upload?session=&share=` | Multipart: `iasync`, `ww`, `ttc_lookup`, `ttc_price` files; iasync/WW parsed in memory → all payloads stored to SQLite by ESO accountName (no raw bytes retained); `ttc_lookup`/`ttc_price` admin-only → written to global `uploads/ttc/` |
+| `POST /api/upload?session=` | Multipart: `iasync`, `ww`, `ttc_lookup`, `ttc_price` files; iasync/WW parsed in memory → all payloads stored to SQLite by ESO accountName (no raw bytes retained); `ttc_lookup`/`ttc_price` admin-only → written to global `uploads/ttc/` |
 | `POST /api/parse_superstar` | Multipart `image` upload → Claude Vision parses SuperStar addon screenshot → `{character, mundus, gear[{slot, slot_id, item_name, set_name, trait, enchantment}]}` - requires `ANTHROPIC_API_KEY` env var or `anthropic_api_key` in `config.json` |
 | `GET /events?session=&share=` | SSE stream; sends `"reload"` on data change (iasync only - not WW) |
 
@@ -169,6 +169,9 @@ _MAX_IMAGE_BYTES  =  20 * 1024 * 1024  # 20 MB - SuperStar image
 
 ### Account ownership
 The ESO account name in an upload is not proof of ownership. An account with no password can be claimed by any upload that names it; once a password is set, only sessions that logged in (or were already bound) can upload to, read, or re-password it. Users should set a password after their first upload.
+
+### Share codes are read-only
+A share code lets another browser read the sharer's workspace. Writes ignore `share` and act only on the caller's own session: upload (including admin TTC files), set_password, auth status and compare-build import/delete. `build_export` still accepts `share`; it only publishes a code for a build the viewer can already see.
 
 ### Login protection
 - **Rate limiting**: `_check_login_rate_limit(ip)` / `_record_login_failure(ip)` - 5 failures in 60 s → 5-min lockout; HTTP 429
