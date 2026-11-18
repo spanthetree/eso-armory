@@ -196,3 +196,13 @@ def test_iasync_1_11_details_currencies_activities_antiquities():
     assert data["activities"]["resets"] == {"weekly": 7}
     assert data["antiquities"][0] | {} == {**data["antiquities"][0], "name": "Totem", "set": "Set A", "zone": "Zone B", "lead": True}
     assert process_iasync_builds(raw)["builds"][0]["mundusDescriptions"] == {"The Lady": "Increases 2744 Resistance"}
+
+
+def test_merged_item_takes_its_icon_from_any_copy():
+    from data_processor import _add_slot
+
+    link = "|H1:item:5001:0:1:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"
+    item_map: dict = {}
+    _add_slot(item_map, {"link": link, "name": "Mask"}, 1, "character", "c1", "Old Scan", 0, "Equipped")
+    _add_slot(item_map, {"link": link, "name": "Mask", "icon": "/esoui/art/icons/gear_mask.dds"}, 1, "character", "c2", "New Scan", 0, "Equipped")
+    assert item_map[link]["icon"] == "/esoui/art/icons/gear_mask.dds"

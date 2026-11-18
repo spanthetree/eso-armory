@@ -47,6 +47,8 @@ export const watch = $state({
   /** when each file was last synced (ms) */
   synced: /** @type {Record<WatchKey, number>} */ ({ iasync: 0, ww: 0, ttcLookup: 0, ttcPrice: 0 }),
   checked: 0,
+  /** @type {any} a remembered folder whose access the browser wants re-granted (needs a click) */
+  pending: null,
 });
 
 /** Where each file lives under the live folder, and the upload field it goes to. */
@@ -103,10 +105,15 @@ export async function checkFolder() {
 
 /** @type {ReturnType<typeof setInterval> | undefined} */
 let timer;
+const tick = async () => (await checkFolder()) && toast('Data updated');
 function startTimer() {
   clearInterval(timer);
-  // A cheap metadata check every minute; files are only uploaded when they changed.
-  timer = setInterval(async () => (await checkFolder()) && toast('Data updated'), 60_000);
+  // A cheap metadata check (file timestamps only) every 10 s, and at once when the tab comes back to the front;
+  // files are only uploaded when they changed (ESO writes them on /reloadui and logout).
+  timer = setInterval(tick, 10_000);
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && tick());
 }
 
 // The directory handle survives reloads in IndexedDB (handles can't go in localStorage).
@@ -149,7 +156,9 @@ export async function restoreFolder() {
   if (!canWatchFolder) return;
   try {
     const handle = await idb('readonly', (s) => s.get('dirHandle'));
-    if (!handle || (await handle.queryPermission({ mode: 'read' })) !== 'granted') return;
+    if (!handle) return;
+    // After a reload Chrome usually asks again; re-granting needs a click, so offer it instead of stopping silently.
+    if ((await handle.queryPermission({ mode: 'read' })) !== 'granted') return void (watch.pending = handle);
     watch.handle = handle;
     await checkFolder();
     startTimer();
@@ -158,7 +167,25 @@ export async function restoreFolder() {
   }
 }
 
+/** Re-grant access to the remembered folder (call from a click) and resume watching. */
+export async function resumeWatching() {
+  const handle = watch.pending;
+  if (!handle) return false;
+  try {
+    if ((await handle.requestPermission({ mode: 'read' })) !== 'granted') return false;
+  } catch {
+    return false;
+  }
+  watch.pending = null;
+  watch.handle = handle;
+  await checkFolder();
+  startTimer();
+  toast('Watching live folder');
+  return true;
+}
+
 export async function stopWatching() {
+  watch.pending = null;
   clearInterval(timer);
   watch.handle = null;
   watch.checked = 0;

@@ -297,6 +297,8 @@ def _add_slot(item_map: dict, item_data: dict, slot, loc_type: str, loc_key: str
 
     if link not in item_map:
         item_map[link] = _new_item_entry(link, iid, item_data)
+    elif not item_map[link]["icon"] and item_data.get("icon"):
+        item_map[link]["icon"] = str(item_data["icon"])  # copies scanned by older iasync have none; any copy's will do
 
     item_map[link]["total_quantity"] += qty
     existing = next((l for l in item_map[link]["locations"]

@@ -2,7 +2,7 @@
   import { ui, setUiMode } from '../uimode.svelte.js';
   import { app, refresh, switchSlot, deleteShadow, logout, toast } from '../store.svelte.js';
   import { nav, go } from '../nav.svelte.js';
-  import { watch, checkFolder } from '../upload.svelte.js';
+  import { watch, checkFolder, resumeWatching } from '../upload.svelte.js';
 
   const data = $derived(app.data.value);
   const ws = $derived(app.workspace);
@@ -61,7 +61,8 @@
         <option value="simple">Simple</option>
       </select>
     </label>
-    {#if watch.handle}<span class="watch" title="Watching {watch.handle.name} for new SavedVariables">● {watch.handle.name}</span>{/if}
+    {#if watch.handle}<span class="watch" title="Watching {watch.handle.name} for new SavedVariables (checked every 10 s)">● {watch.handle.name}</span>
+    {:else if watch.pending}<button class="btn" onclick={resumeWatching} title="The browser needs your OK again to read {watch.pending.name}">Resume watching {watch.pending.name}</button>{/if}
     <span class="live" class:on={app.live} title={app.live ? 'Live updates connected' : 'Live updates reconnecting'}></span>
     <button class="btn" disabled={refreshing} onclick={onRefresh} title="Check for updated SavedVariables data">
       <span class:spin={refreshing}>↻</span>{refreshing ? 'Checking…' : 'Refresh'}
