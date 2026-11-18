@@ -34,6 +34,7 @@
 - **Changing a password needs the current one**, so a browser left logged in can't lock the owner out
 
 ### Fixed
+- On phones a divider line hung mid-screen on every page: the top bar's divider was positioned against the viewport instead of the bar
 - The `/api/data` parser dropped iasync's top-level `uiColors`
 - Character pages: the class and faction emblems fit the header; roster cards show the faction once in Classic
 - Filtering the inventory by location (e.g. Bank) no longer shows an item's other stacks: each row's locations, quantity and value cover only the filtered locations

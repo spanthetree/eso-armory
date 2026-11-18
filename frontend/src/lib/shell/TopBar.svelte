@@ -115,7 +115,8 @@
   .slots .btn { padding: 3px 9px; font-size: 13px; }
   .slots [aria-pressed='true'] { color: var(--bg); background: var(--accent); border-color: var(--accent); }
   .actions { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-  @media (max-width: 700px) { .bar { position: static; } }
+  /* Not sticky on phones (it wraps to several rows); relative so its ::after divider stays at its bottom edge. */
+  @media (max-width: 700px) { .bar { position: relative; } }
   .watch { font-size: 12px; color: var(--accent-hi); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .live { width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background 0.4s, box-shadow 0.4s; }
   .live.on { background: var(--q-fine); box-shadow: 0 0 8px var(--q-fine); }
