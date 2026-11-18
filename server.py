@@ -377,7 +377,7 @@ def _select_upload_slot(session_id: str, account_name: str) -> tuple[str | None,
         return "primary", None
     if not workspace["shadow_account"]:
         return "shadow", None
-    return None, f"Workspace already has primary {workspace['primary_account']} and shadow {workspace['shadow_account']}. Delete shadow or switch uploads."
+    return None, f"Workspace already has primary {workspace['primary_account']} and alt {workspace['shadow_account']}. Remove the alt account first."
 
 
 def _active_account_label(workspace: dict) -> str:
@@ -1607,7 +1607,7 @@ async def api_workspace_delete_shadow(session: str | None = Query(None)):
         return JSONResponse({"error": "valid session required"}, status_code=400)
     account_name, deleted = _db_delete_shadow_slot(sid)
     if not account_name:
-        return JSONResponse({"error": "shadow slot is empty"}, status_code=400)
+        return JSONResponse({"error": "alt slot is empty"}, status_code=400)
     if deleted:
         shutil.rmtree(_account_upload_dir(account_name), ignore_errors=True)
         _prune_share_registry_for_account(account_name)

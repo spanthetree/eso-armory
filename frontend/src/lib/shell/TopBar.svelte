@@ -45,10 +45,10 @@
         {ws.primary.account ? 'Primary' : 'Primary · empty'}
       </button>
       <button class="btn" aria-pressed={ws.activeSlot === 'shadow'} disabled={!ws.shadow.account} onclick={() => slot('shadow')}>
-        {ws.shadow.account ? 'Shadow' : 'Shadow · empty'}
+        {ws.shadow.account ? 'Alt' : 'Alt · empty'}
       </button>
       {#if ws.activeSlot === 'shadow' && ws.shadow.account}
-        <button class="btn" title="Delete shadow workspace" aria-label="Delete shadow workspace" onclick={deleteShadow}>🗑</button>
+        <button class="btn" title="Remove alt account" aria-label="Remove alt account" onclick={deleteShadow}>🗑</button>
       {/if}
     </div>
   {/if}

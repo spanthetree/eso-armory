@@ -31,7 +31,7 @@
       result = await uploadFiles(app.status.isAdmin ? files : { iasync: files.iasync, ww: files.ww });
       if (result?.iasync?.ok) {
         nav.dialog = '';
-        toast(`Armory loaded into ${result.iasync.slot_updated || app.workspace.activeSlot}`);
+        toast(`Armory loaded into ${(result.iasync.slot_updated || app.workspace.activeSlot) === 'shadow' ? 'alt' : 'primary'}`);
       }
     } catch (e) {
       error = /** @type {Error} */ (e).message;

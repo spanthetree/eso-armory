@@ -154,9 +154,9 @@ export async function switchSlot(slot) {
 
 export async function deleteShadow() {
   try {
-    setWorkspace(await api.del('/api/workspace/shadow', { label: 'Delete shadow', share: false }));
+    setWorkspace(await api.del('/api/workspace/shadow', { label: 'Remove alt', share: false }));
     await reloadWorkspaceData();
-    toast('Shadow workspace deleted');
+    toast('Alt account removed');
   } catch (e) {
     toast(/** @type {Error} */ (e).message || 'Delete failed');
   }
