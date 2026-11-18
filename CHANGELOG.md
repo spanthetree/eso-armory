@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.2.0-beta.5] - 2026-11-18
+
+### Added
+- **Guild banks in the inventory** - a Guild Banks location filter and summary tile, and the guild's name in each item's Where label. Needs iasync 1.8.0, which captures each guild bank correctly
+- **Tales of Tribute card upgrade rewards** on achievements
+- **House names on house chests** (for example "House Chest 2 · Linchal Grand Manor")
+
 ## [0.2.0-beta.4] - 2026-11-18
 
 ### Changed
