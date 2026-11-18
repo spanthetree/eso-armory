@@ -255,6 +255,7 @@ def _new_item_entry(link: str, iid: int | None, item_data: dict) -> dict:
     is_enchanted = bool(enchant_name) or decoded.get("is_enchanted", False)
     return {
         "key":              link,
+        "icon":             str(item_data.get("icon") or ""),  # the item's own texture (iasync >= 1.13.0)
         "item_id":          iid,
         "name":             _strip_locale(item_data.get("name", "Unknown")),
         "quality":          quality,

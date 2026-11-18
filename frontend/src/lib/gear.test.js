@@ -31,3 +31,11 @@ test('mundus, slugs and mythic set keys', () => {
   assert.equal(setKey({ set_id: 0, set_name: "Velothi Ur-Mage's Amulet" }), 'velothi-ur-mages-amulet');
   assert.equal(setKey({ set_id: 123, set_name: 'X' }), 123);
 });
+
+test('an item with its own icon uses it; otherwise the generic slot icon', async () => {
+  const { slotIcon, itemIcon } = await import('./gear.js');
+  const helm = { filter_type: 2, armor_type: 'Heavy', icon: '/esoui/art/icons/gear_undmonster_head_a.dds' };
+  assert.equal(slotIcon(0, helm), '/esoicons/gear_undmonster_head_a.png');
+  assert.equal(itemIcon(helm), '/esoicons/gear_undmonster_head_a.png');
+  assert.notEqual(slotIcon(0, { ...helm, icon: '' }), '/esoicons/gear_undmonster_head_a.png');
+});
