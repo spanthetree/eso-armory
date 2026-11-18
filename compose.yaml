@@ -1,3 +1,6 @@
+# docker compose up -d                          start (first start downloads game icons, about 2 minutes)
+# docker compose down                           stop
+# docker compose pull && docker compose up -d   upgrade to the latest release
 services:
   web:
     image: ghcr.io/spanthetree/eso-armory:${ESO_ARMORY_VERSION:-latest}
@@ -9,9 +12,12 @@ services:
       - path: .env  # optional: ANTHROPIC_API_KEY for SuperStar import
         required: false
     volumes:
-      - data:/app/uploads   # SQLite workspaces, TTC tables, share codes, config.json (holds db_secret)
-      - assets:/app/assets  # game icons, downloaded from UESP on first start
+      # The same folders a source install uses, so a container started in a checkout (or pointed at one with
+      # ESO_ARMORY_DIR) reads its existing database and icons. Missing folders are created and start empty.
+      - ${ESO_ARMORY_DIR:-.}/uploads:/app/uploads  # SQLite workspaces, TTC tables, share codes, config.json
+      - ${ESO_ARMORY_DIR:-.}/assets:/app/assets    # game icons, downloaded from UESP on first start
+      - ${ESO_ARMORY_DIR:-.}:/import:ro            # read on first start: a source install's config.json (holds db_secret)
+      - data:/import-volume:ro                     # read on first start: the data volume of compose files before 0.2.0-beta.4
 
 volumes:
   data:
-  assets:

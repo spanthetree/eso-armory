@@ -25,12 +25,12 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 COPY --from=frontend /static/dist ./static/dist
 
-# assets/ and uploads/ become volumes; create them owned by the app user so the volumes inherit it.
+# assets/ and uploads/ are mounted from the host. The entrypoint starts as root, then drops to the owner of uploads/
+# (the armory user when Docker created it).
 RUN useradd --system --uid 10001 --home-dir /app armory \
     && mkdir -p assets uploads logs \
     && chown -R armory:armory assets uploads logs
 
-USER armory
 EXPOSE 5000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=3 \
