@@ -1,5 +1,6 @@
 <script>
   import { app } from '../store.svelte.js';
+  import { gameIcon } from '../achievements.js';
   import { iconKey } from '../eso.js';
   import { tooltip } from '../ui/tooltip.svelte.js';
   import { skillbookUrl, pendingAbilityIds } from '../lookups.svelte.js';
@@ -7,12 +8,12 @@
 
   /**
    * One ability on a skill bar: game icon when known, else the name. Links to eso-skillbook.com.
-   * @type {{ name: string, ultimate?: boolean, delay?: number }}
+   * @type {{ name: string, iconPath?: string, ultimate?: boolean, delay?: number }}
    */
-  let { name, ultimate = false, delay = 0 } = $props();
+  let { name, iconPath = '', ultimate = false, delay = 0 } = $props();
 
   const known = $derived(!!name && !name.startsWith('#'));
-  const icon = $derived(known ? app.abilityIcons[iconKey(name)] : null);
+  const icon = $derived(gameIcon(iconPath) || (known ? app.abilityIcons[iconKey(name)] : null));
 </script>
 
 {#if known}
@@ -29,8 +30,8 @@
   </a>
 {:else}
   {@const looking = !!name && pendingAbilityIds[name.slice(1)]}
-  <span class="skill empty" class:ult={ultimate} class:icon-loading={looking} style="--d: {delay}s"
-    title={looking ? 'Looking up this ability…' : name ? `Unknown ability ${name}: no name from iasync or UESP` : 'Empty slot'}>{name && !looking ? '?' : ''}</span>
+  <span class="skill" class:empty={!icon} class:ult={ultimate} class:icon-loading={looking && !icon} style="--d: {delay}s"
+    title={looking ? 'Looking up this ability…' : name ? `Unknown ability ${name}: no name from iasync or UESP` : 'Empty slot'}>{#if icon}<img src={icon} alt="" loading="lazy" />{:else}{name && !looking ? '?' : ''}{/if}</span>
 {/if}
 
 <style>

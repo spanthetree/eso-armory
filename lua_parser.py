@@ -221,7 +221,7 @@ def parse_iasync_core_text(content: str) -> dict:
     parser._expect('{')
 
     result = {}
-    wanted_top_level = {"lastUpdate", "accountName", "abilityNames", "cpNames", "chars", "bank", "houses", "guildBanks",
+    wanted_top_level = {"lastUpdate", "accountName", "abilityNames", "$abilityNames", "abilityIcons", "$abilityIcons", "cpNames", "chars", "bank", "houses", "guildBanks",
                         "uiColors", "currencies", "activities", "antiquities"}  # iasync 1.7.0 / 1.11.0
     while True:
         c = parser._peek()

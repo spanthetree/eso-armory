@@ -337,7 +337,13 @@ def test_ww_parse_from_bytes_sets_error_on_bad_input(isolated_server, fixtures_d
 
 
 @pytest.mark.api
-def test_build_export_and_compare_import_cycle(client, uploaded_workspace):
+def test_build_export_and_compare_import_cycle(client, uploaded_workspace, fixtures_dir):
+    source = (fixtures_dir / "iasync.lua").read_text().replace(
+        'iasync_data = {',
+        'iasync_data = { ["abilityIcons"] = { [101] = "/esoui/art/icons/mock_whip.dds" },',
+        1,
+    )
+    assert client.post(f"/api/upload?session={TEST_SESSION}", files={"iasync": ("iasync.lua", source)}).status_code == 200
     exported = client.post(f"/api/build_export?session={TEST_SESSION}&character_id=char-a")
     assert exported.status_code == 200
     code = exported.json()["code"]
@@ -353,6 +359,7 @@ def test_build_export_and_compare_import_cycle(client, uploaded_workspace):
     assert "char-a" in body["imported"]
     assert body["imported"]["char-a"]["source_code"] == code
     assert body["imported"]["char-a"]["build"]["char_id"] == "char-a"
+    assert body["imported"]["char-a"]["build"]["abilityIcons"] == {"101": "/esoui/art/icons/mock_whip.dds"}
 
     deleted = client.delete(f"/api/compare_builds?session={TEST_SESSION}&character_id=char-a")
     assert deleted.status_code == 200
@@ -449,6 +456,12 @@ def test_ability_names_resolves_and_validates(client, isolated_server, monkeypat
 
     assert first.json() == {"names": {"20323": "Shatterspike Mantle"}}
     assert again.json() == {"names": {"20323": "Shatterspike Mantle"}}
+    isolated_server._ability_name_cache.clear()  # simulate a restart with UESP unavailable
+    def offline(aid):
+        raise OSError("offline")
+    monkeypatch.setattr(isolated_server, "_fetch_ability_name", offline)
+    assert client.get("/api/ability_names?ids=20323").json() == first.json()
+    assert not (isolated_server.UPLOADS_DIR / "ability_names" / "99.txt").exists()
     assert calls == [20323, 99]  # deduped, and cached across requests (unknown ids too)
     assert bad.status_code == 400
     assert too_many.status_code == 400
@@ -481,6 +494,7 @@ def test_game_icon_downloads_once_and_validates(client, isolated_server, monkeyp
     assert missing.status_code == 404 and missing_again.status_code == 404
     assert tree.status_code == 200 and (tmp_path / "esoicons" / "treeicons" / "tree_x.png").exists()
     assert bad_folder.status_code == 400
+    assert first.headers["cache-control"] == "public, max-age=31536000, immutable"
     assert calls == ["achievement_x", "nope", "treeicons/tree_x"]  # cached on disk / remembered as missing
     assert bad.status_code in (400, 404)
 
@@ -518,10 +532,16 @@ def test_missing_icons_are_fetched_and_saved_or_sent_to_uesp(client, isolated_se
     assert icon.status_code == 307 and icon.headers["location"] == "https://esoicons.uesp.net/esoui/art/icons/broken_icon.png"
     assert icon.headers["cache-control"] == "no-store"
     assert asset.status_code == 200 and asset.content == png  # fetched, saved, served
+    assert asset.headers["cache-control"] == "public, max-age=31536000, immutable"
+    cached = client.get("/assets/esoui/x/new.png", headers={"If-None-Match": asset.headers["etag"]})
+    assert cached.status_code == 304
+    assert cached.headers["cache-control"] == asset.headers["cache-control"]
     assert again.status_code == 200 and asked.count("https://esoicons.uesp.net/esoui/art/x/new.png") == 1
     assert (tmp_path / "assets" / "esoui" / "x" / "new.png").read_bytes() == png
     assert down.status_code == 307 and down.headers["location"] == "https://esoicons.uesp.net/esoui/art/x/broken.png"
     assert unknown.status_code == 404
+    assert "immutable" not in unknown.headers.get("cache-control", "")
+    assert down.headers["cache-control"] == "no-store"
 
 
 @pytest.mark.api

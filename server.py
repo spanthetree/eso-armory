@@ -11,6 +11,7 @@ import re
 import sqlite3
 import sys
 import threading
+import tempfile
 import time
 import secrets
 import urllib.parse
@@ -718,6 +719,32 @@ def _fetch_ability_name(ability_id: int) -> str:
         if str(rec.get("id")) == str(ability_id):
             return str(rec.get("name") or "")
     return ""
+
+
+def _resolve_ability_name(ability_id: int) -> str:
+    """Keep successful public name lookups in persistent storage across restarts."""
+    path = UPLOADS_DIR / "ability_names" / f"{ability_id}.txt"
+    try:
+        name = path.read_text(encoding="utf-8").strip()
+        if name:
+            return name
+    except (OSError, UnicodeError):
+        pass
+    name = _fetch_ability_name(ability_id)
+    if name:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as tmp:
+                temporary = Path(tmp.name)
+                try:
+                    tmp.write(name)
+                    tmp.close()
+                    temporary.replace(path)
+                finally:
+                    temporary.unlink(missing_ok=True)
+        except OSError as exc:
+            logger.warning("Could not persist ability name {}: {}", ability_id, exc)
+    return name
 
 
 def _fetch_skill_info(slug: str) -> dict:
@@ -1429,6 +1456,8 @@ class _AssetFiles(StaticFiles):
         return await super().get_response(path, scope)
 
 
+_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable"
+
 app.mount("/assets", _AssetFiles(directory="assets"), name="assets")
 
 
@@ -1443,6 +1472,8 @@ def _apply_security_headers(response) -> None:
 async def log_requests(request: Request, call_next):
     if request.url.path.startswith(("/static", "/assets")):
         response = await call_next(request)
+        if request.url.path.startswith("/assets/") and response.status_code in (200, 206, 304):
+            response.headers["Cache-Control"] = _ASSET_CACHE_CONTROL
         _apply_security_headers(response)
         return response
     t0 = time.monotonic()
@@ -1705,10 +1736,12 @@ async def api_build_export(
     ability_names = parsed_builds.get("abilityNames") or {}
     cp_names = parsed_builds.get("cpNames") or {}
     skill_ids: set[str] = set()
-    for bar in ("primary", "backup"):
+    for bar in ("primary", "backup", "werewolf"):
         for _, skill_id in (build.get("skills", {}).get(bar, {}) or {}).items():
             if skill_id:
                 skill_ids.add(str(skill_id))
+    ability_icons = parsed_builds.get("abilityIcons") or {}
+    build["abilityIcons"] = {sid: ability_icons[sid] for sid in skill_ids if ability_icons.get(sid)}
     cp_ids = {str(v) for _, v in (build.get("cp", {}) or {}).items() if v}
     payload = {
         "schema_version": 2,
@@ -2454,7 +2487,7 @@ async def _serve_game_icon(folder: str, name: str):
             _lru_put(_game_icon_missing, key, True, _EXTERNAL_CACHE_MAX * 4)
             return Response(status_code=404)
         _save_icon(path, data)
-    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": _ASSET_CACHE_CONTROL})
 
 
 @app.get("/api/ability_names")
@@ -2474,7 +2507,7 @@ async def api_ability_names(ids: str = Query("")):
         cached = _lru_get(_ability_name_cache, aid)
         if cached is None:
             try:
-                cached = await loop.run_in_executor(None, _fetch_ability_name, aid)
+                cached = await loop.run_in_executor(None, _resolve_ability_name, aid)
             except Exception as exc:
                 logger.warning("Ability name lookup failed: {}: {}", aid, exc)
                 continue  # not cached, so a later request retries
