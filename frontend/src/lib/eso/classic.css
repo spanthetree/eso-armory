@@ -88,4 +88,4 @@
 /* The main menu icon bar is taller than the Simple tab strip; keep the tab windows on one screen. */
 :root[data-ui='classic'] .eso-win { height: max(420px, calc(100dvh - 280px)); }
 /* The Collections book switcher adds a row under the tabs. */
-:root[data-ui='classic'] main:has(.books) .eso-win { height: max(420px, calc(100dvh - 330px)); }
+:root[data-ui='classic'] main:has(.subbar) .eso-win { height: max(420px, calc(100dvh - 330px)); }

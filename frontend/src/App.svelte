@@ -87,7 +87,6 @@
           <HeroEmblems cls={char.class} alliance={char.alliance} />
           <div class="herobar">
             <button class="back" onclick={() => go('characters')}>‹ All characters</button>
-            <Segmented label="Character view" options={CHAR_VIEW_ITEMS} value={nav.charView} onchange={(v) => go('characters', char.id, /** @type {any} */ (v))} />
           </div>
           <div class="sub">{[char.race, char.class, char.alliance].filter(Boolean).join(' · ')}</div>
           <h1>{char.name}</h1>
@@ -101,8 +100,10 @@
 
       <div class="tabrow">
         <Tabs items={TAB_ITEMS} active={nav.tab} onchange={(id) => go(/** @type {any} */ (id))} />
-        {#if nav.tab === 'collections'}
-          <div class="books"><Segmented label="Collections book" options={BOOKS} value={book} showLabel={false} onchange={(v) => go('collections', null, 'sheet', /** @type {any} */ (v))} /></div>
+        {#if nav.tab === 'characters' && char}
+          <div class="subbar"><Segmented label="Character view" options={CHAR_VIEW_ITEMS} value={nav.charView} showLabel={false} onchange={(v) => go('characters', char.id, /** @type {any} */ (v))} /></div>
+        {:else if nav.tab === 'collections'}
+          <div class="subbar"><Segmented label="Collections book" options={BOOKS} value={book} showLabel={false} onchange={(v) => go('collections', null, 'sheet', /** @type {any} */ (v))} /></div>
         {/if}
       </div>
 
@@ -139,8 +140,8 @@
 
 <style>
   .stage { position: relative; isolation: isolate; }
-  /* The Collections book switcher: its own row under the main tabs. */
-  .books { display: flex; justify-content: center; margin-top: 6px; }
+  /* Character views and Collections books: their own row under the main tabs. */
+  .subbar { display: flex; justify-content: center; margin-top: 0; }
   .legal { max-width: 1240px; margin: 0 auto; padding: 0 16px 8px; text-align: center; font-size: 11px; line-height: 1.3; color: var(--muted); opacity: 0.7; }
   main { max-width: 1240px; margin: 0 auto; padding: 12px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .hero { position: relative; isolation: isolate; text-align: center; display: grid; gap: 2px; padding-top: 4px; }
@@ -149,8 +150,8 @@
   .orn { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--accent); font-size: 12px; }
   .orn::before, .orn::after { content: ''; width: 90px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent)); }
   .orn::after { transform: scaleX(-1); }
-  /* Back link and view switcher share a row above the name, so long names never collide with them. */
-  .herobar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 2px; min-width: 0; }
+  /* The back link sits in the hero's corner; the view switcher has its own row under the tabs. */
+  .herobar { position: absolute; left: 0; top: 4px; z-index: 1; }
   .back { all: unset; cursor: pointer; font-size: 14px; color: var(--muted); }
   .back:hover, .back:focus-visible { color: var(--fg); }
   .pane { animation: pane 0.45s var(--ease-out) both; }
