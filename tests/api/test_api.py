@@ -352,6 +352,18 @@ def test_upload_for_password_protected_account_requires_login(client, uploaded_w
 
 
 @pytest.mark.api
+def test_logout_unbinds_browser_but_keeps_account(client, uploaded_workspace):
+    client.post(f"/api/auth/set_password?session={TEST_SESSION}", json={"password": "password123"})
+    assert client.post(f"/api/auth/logout?session={TEST_SESSION}").json() == {"ok": True}
+    assert client.get(f"/api/workspace?session={TEST_SESSION}").json()["primary"]["account"] is None
+    assert client.get(f"/api/auth/status?session={TEST_SESSION}").json()["account_name"] is None
+
+    login = client.post(f"/api/auth/login?session={OTHER_SESSION}", json={"account_name": "@test_account", "password": "password123"})
+    assert login.status_code == 200
+    assert client.get(f"/api/data?session={OTHER_SESSION}").status_code == 200
+
+
+@pytest.mark.api
 def test_admin_requires_config_entry_and_password(client, isolated_server, uploaded_workspace):
     status = lambda: client.get(f"/api/status?session={TEST_SESSION}").json()["is_admin"]
     assert status() is False

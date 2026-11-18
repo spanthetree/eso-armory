@@ -1,6 +1,6 @@
 <script>
   import { ui, setUiMode } from '../uimode.svelte.js';
-  import { app, refresh, switchSlot, deleteShadow, toast } from '../store.svelte.js';
+  import { app, refresh, switchSlot, deleteShadow, logout, toast } from '../store.svelte.js';
   import { nav, go } from '../nav.svelte.js';
   import { watch, checkFolder } from '../upload.svelte.js';
 
@@ -82,6 +82,7 @@
           </span>
         {/if}
       </span>
+      <button class="btn" onclick={logout} title="Forget this browser">Log out</button>
     {/if}
   </div>
 </header>

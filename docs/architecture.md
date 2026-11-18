@@ -95,6 +95,10 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `DELETE /api/compare_builds?session=&share=&character_id=` | Delete imported compare build |
 | `GET /api/ability_icons` | `{normalizedName: "/assets/abilities/..."}` - static, built at startup |
 | `GET /api/status?session=&share=` | `{ok, item_count, character_count, last_modified, error, is_admin}` |
+| `GET /api/auth/status?session=` | `{account_name, has_password}` for the session's active account |
+| `POST /api/auth/set_password?session=` | Body `{password}` (≥ 8 chars) → bcrypt hash on the active account |
+| `POST /api/auth/login?session=` | Body `{account_name, password}` → binds this browser to the account as primary; rate-limited per IP |
+| `POST /api/auth/logout?session=` | Deletes this browser's `workspace_sessions` row and imported compare builds, and drops share-registry entries pointing at it. Account data stays |
 | `POST /api/upload?session=&share=` | Multipart: `iasync`, `ww`, `ttc_lookup`, `ttc_price` files; iasync/WW parsed in memory → all payloads stored to SQLite by ESO accountName (no raw bytes retained); `ttc_lookup`/`ttc_price` admin-only → written to global `uploads/ttc/` |
 | `POST /api/parse_superstar` | Multipart `image` upload → Claude Vision parses SuperStar addon screenshot → `{character, mundus, gear[{slot, slot_id, item_name, set_name, trait, enchantment}]}` - requires `ANTHROPIC_API_KEY` env var or `anthropic_api_key` in `config.json` |
 | `GET /events?session=&share=` | SSE stream; sends `"reload"` on data change (iasync only - not WW) |

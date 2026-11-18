@@ -36,6 +36,7 @@ from db import (
     AccountPayload,
     bind_session as _db_bind_session,
     delete_imported_build as _db_delete_imported_build,
+    delete_session as _db_delete_session,
     delete_shadow_slot as _db_delete_shadow_slot,
     find_share_code_for_account as _db_find_share_code_for_account,
     find_session_for_account as _db_find_session_for_account,
@@ -2198,6 +2199,22 @@ async def api_auth_set_password(request: Request, session: str | None = Query(No
     ok = _db_set_account_password(account_name, hashed)
     if not ok:
         return JSONResponse({"error": "account not found"}, status_code=404)
+    return JSONResponse({"ok": True})
+
+
+@app.post("/api/auth/logout")
+async def api_auth_logout(session: str | None = Query(None)):
+    sid = _valid_session(session)
+    if not sid:
+        return JSONResponse({"error": "valid session required"}, status_code=400)
+    _db_delete_session(sid)
+    _sessions.pop(sid, None)
+    # Share codes that pointed at this browser fall back to another browser bound to the account.
+    stale = [code for code, entry in _share_registry["codes"].items() if entry.get("session_id") == sid]
+    for code in stale:
+        _share_registry["codes"].pop(code, None)
+    if stale:
+        _save_share_registry()
     return JSONResponse({"ok": True})
 
 

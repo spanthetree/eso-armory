@@ -344,3 +344,16 @@ def test_password_nudge_until_password_set(page: Page, app_url: str, fixtures_di
     page.keyboard.press("Escape")
     expect(page.get_by_role("button", name="🔐 Password")).to_be_visible()
     expect(nudge).to_have_count(0)
+
+
+@pytest.mark.ui
+def test_logout_returns_to_welcome(page: Page, app_url: str, fixtures_dir):
+    page.goto(app_url)
+    upload_all_fixtures(page, fixtures_dir)
+    old_session = page.evaluate("localStorage.getItem('eso-session-id')")
+    messages = []
+    page.once("dialog", lambda d: (messages.append(d.message), d.accept()))
+    page.get_by_role("button", name="Log out").click()
+    expect(page.get_by_text("Load Your ESO Data", exact=False)).to_be_visible(timeout=15000)
+    assert page.evaluate("localStorage.getItem('eso-session-id')") != old_session
+    assert messages[0].startswith("@test_account has no password")

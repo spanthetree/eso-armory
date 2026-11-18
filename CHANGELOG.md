@@ -11,12 +11,14 @@
 - **Spinner on icons still loading** - game icons fetched on demand spin until they arrive
 - Set Items tree: the game's Summary icon, and the alliance category icons (the `/esoicons/charactercreate/` folder is now allowed)
 - **Password reminder** - until the account has a password, a toast under Set password reminds you that one is needed to open the armory on another device, and rings every 30 seconds. The password dialog shows the ESO account name, so password managers save it with the password
+- **Log out** - forgets this browser and returns to the Welcome screen. The account's data stays on the server; it warns first if the account has no password, since that data can't be opened again without a new upload
 
 ### Changed
 - **Icons on hosts UESP blocks now come through a public image proxy.** After a 403 the server fetches through WordPress.com's Photon CDN (`i0.wp.com`) and saves the icons in `assets/`; on an AWS Lightsail server all 1,268 manifest icons downloaded this way in 78 s. A manifest icon missing from `assets/` is fetched and saved on first request. Only if UESP and the proxy both fail is the browser sent to UESP
 - `scripts/sync_icons.py` and `uploads/missing_assets.txt` (0.2.0-beta.6) are gone: the proxy replaces them
 - **Character views (Sheet, Wardrobe, Bags, Compare, SuperStar) switch from an icon row under the main tabs**, like the Collections books; the book and view bars show icons only
 - **"Collections" (the set collection) is now "Set Items"**, as in game. Without collectibles data the Collections tab opens on it, as before
+- **The shadow workspace is now called Alt** - a second ESO account in your browser, next to Primary
 - `/api/data`, `/api/achievements`, `/api/stickerbook` and the build payloads are gzipped (a full account's collectibles are about 4 MB, 400 KB compressed)
 
 ### Fixed

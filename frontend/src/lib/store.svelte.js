@@ -173,6 +173,21 @@ export async function login(/** @type {string} */ name, /** @type {string} */ pa
   toast('Logged in');
 }
 
+/** Forget this browser and reload to the Welcome screen. */
+export async function logout() {
+  const warn = app.auth.account_name && !app.auth.has_password
+    ? `${app.auth.account_name} has no password. After logging out you can't open it again until you upload it again. Log out?`
+    : 'Log out of this browser?';
+  if (!confirm(warn)) return;
+  try {
+    await api.post('/api/auth/logout', { label: 'Logout', share: false });
+  } catch (e) {
+    return toast(/** @type {Error} */ (e).message);
+  }
+  api.forgetSession();
+  location.replace(location.pathname);
+}
+
 /** Set or change the account password. Throws with the server's message. */
 export async function setPassword(/** @type {string} */ password) {
   await api.post('/api/auth/set_password', { label: 'Password', init: jsonInit({ password }) });
