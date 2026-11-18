@@ -73,6 +73,17 @@ Data lives in two folders next to `compose.yaml`, the same ones a source install
 - Put `ANTHROPIC_API_KEY=...` in `.env` to enable SuperStar import.
 - To change [configuration](#configuration), edit `uploads/config.json`, then `docker compose restart`.
 
+#### Hosting on a cloud server
+
+UESP's Cloudflare refuses many cloud hosts (AWS, Lightsail and others) with HTTP 403, so a server there can't download icons. The site still works: browsers are sent to UESP for any icon the server lacks, and the server lists those icons in `uploads/missing_assets.txt`. To copy them onto the server, run this now and then from your own computer (needs `ssh` with `sudo` on the server, and `rsync`):
+
+```bash
+uv run scripts/sync_icons.py user@your-server --dry-run   # list what the server is missing
+uv run scripts/sync_icons.py user@your-server             # download here, copy into /srv/eso-armory/assets
+```
+
+`--dir` sets the server folder holding `compose.yaml` (default `/srv/eso-armory`). Each icon is downloaded once, so UESP sees fewer requests over time.
+
 ### Run from source
 
 Also needs [Node.js](https://nodejs.org/) 18 or newer to build the frontend.
@@ -145,6 +156,7 @@ Test fixtures in `tests/fixtures/` are sanitized. Do not commit live account dat
 | `item_link_decoder.py` | ESO item link decoder |
 | `frontend/` | Svelte 5 frontend: `src/App.svelte` shell, `src/lib/` tabs, components and logic (unit-tested `*.test.js`) |
 | `scripts/assets_manifest.json` | Game icon sources; `make assets` downloads them into `assets/` |
+| `scripts/sync_icons.py` | Copies icons a server can't download (UESP blocks it) from your computer to the server |
 
 ## Contributing
 

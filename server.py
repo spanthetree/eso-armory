@@ -23,8 +23,9 @@ from pathlib import Path
 import bcrypt
 import uvicorn
 from fastapi import FastAPI, File, Form, Query, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
 from loguru import logger
 
 from lua_parser import LuaParser, parse_iasync_core_text, parse_lua_text_variable
@@ -1328,7 +1329,67 @@ app = FastAPI(title="ESO Armory", lifespan=lifespan)
 Path("static/dist").mkdir(parents=True, exist_ok=True)  # built frontend; absent until `make ui-build`
 app.mount("/static", StaticFiles(directory="static"), name="static")
 Path("assets").mkdir(exist_ok=True)  # icons are downloaded, not committed
-app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+
+# ── Icons this host is missing ────────────────────────────────────────────────
+# UESP sits behind Cloudflare, which refuses many cloud hosts (HTTP 403), so a server may lack icons it cannot
+# download. The browser is sent to UESP instead (visitors are not blocked), and the miss is recorded in
+# uploads/missing_assets.txt as "<path under assets/> <url>" for scripts/sync_icons.py, which fetches them from
+# a machine UESP serves and copies them up.
+_ASSET_MANIFEST_PATH = _HERE / "scripts" / "assets_manifest.json"
+_asset_manifest: dict | None = None
+_missing_assets: set[str] | None = None
+_UESP_BLOCK_BACKOFF = 600  # seconds to stop asking UESP after it refuses this host
+_uesp_blocked_until = 0.0
+
+
+def _asset_source(path: str) -> str | None:
+    """UESP URL of an icon in scripts/assets_manifest.json."""
+    global _asset_manifest
+    if _asset_manifest is None:
+        try:
+            _asset_manifest = json.loads(_ASSET_MANIFEST_PATH.read_text())
+        except (OSError, ValueError):
+            _asset_manifest = {}
+    return _asset_manifest.get(path)
+
+
+def _note_missing_asset(path: str, url: str) -> None:
+    global _missing_assets
+    log = UPLOADS_DIR / "missing_assets.txt"
+    if _missing_assets is None:
+        try:
+            _missing_assets = {line.split(" ", 1)[0] for line in log.read_text().splitlines() if line}
+        except OSError:
+            _missing_assets = set()
+    if path in _missing_assets:
+        return
+    _missing_assets.add(path)
+    try:
+        with log.open("a") as fh:
+            fh.write(f"{path} {url}\n")
+    except OSError as exc:
+        logger.warning("Could not record missing icon {}: {}", path, exc)
+
+
+def _to_uesp(path: str, url: str) -> Response:
+    _note_missing_asset(path, url)
+    return RedirectResponse(url, status_code=307, headers={"Cache-Control": "no-store"})
+
+
+class _AssetFiles(StaticFiles):
+    """assets/ as static files; a missing manifest icon redirects to UESP and is recorded (see above)."""
+
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except HTTPException as exc:
+            url = _asset_source(path) if exc.status_code == 404 else None
+            if url is None:
+                raise
+            return _to_uesp(path, url)
+
+
+app.mount("/assets", _AssetFiles(directory="assets"), name="assets")
 
 
 def _apply_security_headers(response) -> None:
@@ -2270,11 +2331,18 @@ async def _serve_game_icon(folder: str, name: str):
     if not path.exists():
         if _lru_get(_game_icon_missing, key):
             return Response(status_code=404)
+        global _uesp_blocked_until
+        url = f"https://esoicons.uesp.net/esoui/art/{folder}/{name}.png"
+        rel = str(path.relative_to(_GAME_ICON_DIR.parent))
+        if time.monotonic() < _uesp_blocked_until:
+            return _to_uesp(rel, url)
         try:
             data = await asyncio.get_event_loop().run_in_executor(None, _fetch_game_icon, name, folder)
         except Exception as exc:
             logger.warning("Game icon fetch failed: {}: {}", key, exc)
-            return Response(status_code=502)
+            if isinstance(exc, urllib.error.HTTPError) and exc.code == 403:
+                _uesp_blocked_until = time.monotonic() + _UESP_BLOCK_BACKOFF
+            return _to_uesp(rel, url)
         if data is None:
             _lru_put(_game_icon_missing, key, True, _EXTERNAL_CACHE_MAX * 4)
             return Response(status_code=404)

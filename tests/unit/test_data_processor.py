@@ -52,7 +52,24 @@ def test_process_iasync_labels_storage_locations(raw_iasync):
 
     assert {"character", "bank", "craftbag", "house_chest", "guild_bank"} <= locations
     assert data["house_chests"]["7"]["capacity"] == 30
-    assert data["house_chests"]["7"]["label"] == "House Chest 1 · Test House"
+    assert data["house_chests"]["7"]["label"] == "House Chest 1"
+
+
+def test_house_chests_are_counted_once_across_houses():
+    from data_processor import _collect_house_chests
+
+    item = {"link": "|H1:item:5001:0:1:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h", "name": "Box", "qty": 3}
+    houses = {  # the same account-wide chest saved under three houses; one copy is stale, one empty
+        "1": {"name": "Old", "chests": {"7": {"slots": {"0": dict(item, qty=1)}, "lastUpdate": 100}}},
+        "2": {"name": "New", "chests": {"7": {"slots": {"0": item}, "lastUpdate": 300}}},
+        "3": {"name": "Visited", "chests": {"7": {"slots": {}, "lastUpdate": 400}}},
+    }
+    item_map: dict = {}
+    chests = _collect_house_chests(item_map, houses)
+    (entry,) = item_map.values()
+    assert entry["total_quantity"] == 3
+    assert [loc["quantity"] for loc in entry["locations"]] == [3]
+    assert chests["7"]["label"] == "House Chest 1"
 
 
 @pytest.mark.unit

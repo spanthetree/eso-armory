@@ -181,20 +181,31 @@ def _collect_bank_items(item_map: dict, bank_raw: dict):
 
 
 def _collect_house_chests(item_map: dict, houses_raw: dict) -> dict:
-    house_chests: dict[str, dict] = {}
-    for house_id, house_data in houses_raw.items():
-        house_name = house_data.get("name") or ""
+    # Storage chests (BAG_HOUSE_BANK_*) are account-wide: iasync saves the same chests under every house it
+    # scanned. Use one copy per chest, the newest non-empty one (an empty copy only when there is no other).
+    best: dict[int, tuple] = {}
+    for house_data in houses_raw.values():
+        if not isinstance(house_data, dict):
+            continue
         for chest_id_raw, chest in house_data.get("chests", {}).items():
-            chest_id  = int(chest_id_raw)
-            chest_num = chest.get("chestNum", chest_id - _HOUSE_BAG_START + 1)
-            label     = f"House Chest {chest_num} · {house_name}" if house_name else f"House Chest {chest_num}"
-            house_chests[str(chest_id)] = {
-                "bag_id":   chest_id,
-                "label":    label,
-                "capacity": int(chest.get("capacity", 0)),
-            }
-            for slot, item_data in chest.get("slots", {}).items():
-                _add_slot(item_map, item_data, slot, "house_chest", label, label, chest_id, label)
+            if not isinstance(chest, dict):
+                continue
+            chest_id = int(chest_id_raw)
+            rank = (bool(chest.get("slots")), int(chest.get("lastUpdate") or house_data.get("lastUpdate") or 0))
+            if chest_id not in best or rank > best[chest_id][0]:
+                best[chest_id] = (rank, chest)
+
+    house_chests: dict[str, dict] = {}
+    for chest_id, (_, chest) in sorted(best.items()):
+        chest_num = chest.get("chestNum", chest_id - _HOUSE_BAG_START + 1)
+        label     = f"House Chest {chest_num}"
+        house_chests[str(chest_id)] = {
+            "bag_id":   chest_id,
+            "label":    label,
+            "capacity": int(chest.get("capacity", 0)),
+        }
+        for slot, item_data in chest.get("slots", {}).items():
+            _add_slot(item_map, item_data, slot, "house_chest", label, label, chest_id, label)
     return house_chests
 
 
