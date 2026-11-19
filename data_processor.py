@@ -735,7 +735,9 @@ def _armory_builds(c: dict) -> list[dict]:
         for slot, g in (b.get("gear") or {}).items():
             if not isinstance(g, dict):
                 continue
-            link = g.get("link") or ""
+            # A missing piece comes with the game's placeholder location (backpack slot 0), so its item fields are
+            # whatever sits there (early iasync 1.16.0 builds saved them).
+            link = (g.get("link") or "") if g.get("state") != "missing" else ""
             m = _ITEM_LINK_RE.search(link)
             gear.append({
                 "slot":  _int(slot),

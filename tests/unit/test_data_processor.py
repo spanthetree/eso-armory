@@ -245,7 +245,8 @@ def test_armory_builds_flag_the_worn_build_and_keep_missing_gear():
     def build(name, link, attrs, **extra):
         return {"name": name, "icon": "EsoUI/Art/Armory/BuildIcons/buildIcon_5.dds", "attributes": attrs,
                 "mundus": {1: "The Lady"}, "curse": "vampire", "outfitIndex": 2, "skillPoints": 400,
-                "gear": {0: {"state": "valid", "link": link, "name": name}, 1: {"state": "missing"}},
+                "gear": {0: {"state": "valid", "link": link, "name": name},
+                         1: {"state": "missing", "bagId": 1, "slotIndex": 0, "link": other, "name": "Skill Respecification Scroll"}},
                 "bars": bars, "effectiveBars": {"primary": {3: 12}, "backup": {}},
                 "cp": {"slots": {1: 66, 2: 0}, "disciplines": {2: {"name": "Fitness", "spent": 5}, 1: {"name": "Warfare", "spent": 7}}},
                 **extra}
