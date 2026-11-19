@@ -1,6 +1,6 @@
 import urllib.error
 
-import uesp
+from app import uesp
 
 
 def test_uesp_first_then_the_proxy_after_a_403(monkeypatch):

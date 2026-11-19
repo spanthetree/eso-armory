@@ -35,4 +35,4 @@ fi
 # Fetch game icons on first start; later starts skip existing files.
 python scripts/download_assets.py || echo "warning: some icons failed to download; the app still runs" >&2
 # The container always listens on 5000 inside (compose maps the host port), whatever port the config names.
-exec python server.py --port 5000 "$@"
+exec python -m app --port 5000 "$@"

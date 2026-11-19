@@ -8,7 +8,7 @@ and page names, Armory build and outfit names) is replaced, and the script refus
 
     uv run scripts/make_demo.py <iasync.lua> [<WizardsWardrobe.lua>]
 
-The server loads demo/demo.json.gz on start (server.py _ensure_demo_account).
+The server loads demo/demo.json.gz on start (app/server.py _ensure_demo_account).
 """
 import gzip
 import json
@@ -17,10 +17,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from data_processor import (  # noqa: E402
+from app.data_processor import (  # noqa: E402
     process_iasync, process_iasync_achievements, process_iasync_builds, process_iasync_stickerbook, process_ww_builds,
 )
-from lua_parser import parse_lua_variable  # noqa: E402
+from app.lua_parser import parse_lua_variable  # noqa: E402
 
 OUT = ROOT / "demo" / "demo.json.gz"
 ACCOUNT = "@armory-demo"

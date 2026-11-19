@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from data_processor import (
+from app.data_processor import (
     process_iasync,
     process_iasync_achievements,
     process_iasync_builds,
     process_iasync_stickerbook,
     process_ww_builds,
 )
-from lua_parser import parse_lua_variable
+from app.lua_parser import parse_lua_variable
 
 
 @pytest.fixture
@@ -56,7 +56,7 @@ def test_process_iasync_labels_storage_locations(raw_iasync):
 
 
 def test_house_chests_are_counted_once_across_houses():
-    from data_processor import _collect_house_chests
+    from app.data_processor import _collect_house_chests
 
     item = {"link": "|H1:item:5001:0:1:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h", "name": "Box", "qty": 3}
     houses = {  # the same account-wide chest saved under three houses; one copy is stale, one empty
@@ -123,7 +123,7 @@ def test_process_ww_builds_skips_empty_and_non_integer_gear(raw_ww):
 
 
 def test_collectibles_sorted_by_index_with_subcategories():
-    from data_processor import process_iasync_collectibles
+    from app.data_processor import process_iasync_collectibles
 
     raw = {"collectibles": {
         "lastUpdate": 5,
@@ -146,7 +146,7 @@ def test_collectibles_sorted_by_index_with_subcategories():
 
 
 def test_tribute_patrons_in_tree_order_with_unlock_state():
-    from data_processor import process_iasync_collectibles
+    from app.data_processor import process_iasync_collectibles
 
     raw = {"collectibles": {
         "items": {"500": {"name": "Saint Pelin", "unlocked": True, "cat": 2, "sub": 0}},
@@ -163,8 +163,8 @@ def test_tribute_patrons_in_tree_order_with_unlock_state():
 
 
 def test_iasync_1_11_details_currencies_activities_antiquities():
-    from data_processor import process_iasync, process_iasync_builds
-    from lua_parser import parse_iasync_core_text
+    from app.data_processor import process_iasync, process_iasync_builds
+    from app.lua_parser import parse_iasync_core_text
 
     lua = """iasync_data = {
       ["accountName"] = "@acct",
@@ -201,7 +201,7 @@ def test_iasync_1_11_details_currencies_activities_antiquities():
 
 
 def test_merged_item_takes_its_icon_from_any_copy():
-    from data_processor import _add_slot
+    from app.data_processor import _add_slot
 
     link = "|H1:item:5001:0:1:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"
     item_map: dict = {}
@@ -211,7 +211,7 @@ def test_merged_item_takes_its_icon_from_any_copy():
 
 
 def test_items_lend_their_icon_across_links_of_the_same_item():
-    from data_processor import process_iasync
+    from app.data_processor import process_iasync
 
     old = "|H1:item:5001:363:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"
     new = "|H1:item:5001:364:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"

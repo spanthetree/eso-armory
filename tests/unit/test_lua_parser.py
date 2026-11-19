@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from lua_parser import LuaParser, parse_lua_variable
-from server import _parse_lua_assignment
+from app.lua_parser import LuaParser, parse_lua_variable
+from app.server import _parse_lua_assignment
 
 
 @pytest.mark.unit

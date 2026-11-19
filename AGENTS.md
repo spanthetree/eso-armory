@@ -4,10 +4,10 @@
 Local web app that reads ESO SavedVariables and presents inventory, equipment, and builds in a web-based armory. FastAPI backend, Svelte 5 + Vite frontend in `frontend/` built into `static/dist/`. Designed for WSL2 on Windows where the ESO client runs natively.
 
 ## Stack
-- **Backend**: Python / FastAPI + Uvicorn (`server.py`)
+- **Backend**: Python / FastAPI + Uvicorn, the `app/` package (`app/server.py`)
 - **Frontend**: Svelte 5 (runes, plain JS with JSDoc, no TypeScript) + Vite 6 in `frontend/`. `make ui-build` builds it into `static/dist/` (gitignored); the server serves `static/dist/index.html` at `/`. Vite is pinned to 6 so it builds on Node 18; Docker/CI use Node 22. Fonts are bundled via `@fontsource` (no CDN).
-- **Lua parser**: Custom recursive-descent in `lua_parser.py` (stdlib only, no lupa/lark)
-- **Start**: `make ui-build` once (and after frontend changes), then `uv run server.py` → http://localhost:5000 (or `python server.py` if virtualenv active via `uv sync --active`)
+- **Lua parser**: Custom recursive-descent in `app/lua_parser.py` (stdlib only, no lupa/lark)
+- **Start**: `make ui-build` once (and after frontend changes), then `make run` (`uv run python -m app`) → http://localhost:5000 (or `python -m app` if virtualenv active via `uv sync --active`)
 - **Tests**: pytest unit/API, `node --test` frontend units (`frontend/src/lib/*.test.js`), Playwright UI (Chromium + Firefox)
 
 ## Approval Preference
@@ -16,11 +16,16 @@ Before making code or file changes, ask for explicit approval unless the user ha
 ## Key Files
 | File | Purpose |
 |------|---------|
-| `server.py` | FastAPI app, file watcher, caches, SSE push, ability icon map, set bonus + skill info scrapers |
-| `lua_parser.py` | `parse_lua_variable(path, varname)` |
-| `data_processor.py` | `process_iasync()`, `process_iasync_builds()`, `process_iasync_achievements()`, `process_iasync_stickerbook()` (includes `process_iasync_collectibles()`), `process_ww_builds()` |
-| `item_link_decoder.py` | Decodes ESO `\|H1:item:...\|h` links → trait/style/enchant fields |
-| `config.json` | TTC addon paths, port, server region (`NA`/`EU`), database URL |
+| `app/server.py` | FastAPI app, file watcher, caches, SSE push, ability icon map, set bonus + skill info scrapers |
+| `app/lua_parser.py` | `parse_lua_variable(path, varname)` |
+| `app/data_processor.py` | `process_iasync()`, `process_iasync_builds()`, `process_iasync_achievements()`, `process_iasync_stickerbook()` (includes `process_iasync_collectibles()`), `process_ww_builds()` |
+| `app/item_link_decoder.py` | Decodes ESO `\|H1:item:...\|h` links → trait/style/enchant fields |
+| `app/db.py` | SQLite workspace storage (SQLAlchemy) |
+| `app/uesp.py` | UESP image fetches, with the Photon proxy fallback |
+| `app/__main__.py` | `python -m app [--port N]` entry point (`make run`) |
+| `config.json` | Created at the repo root on first run (gitignored): TTC paths, port, region (`NA`/`EU`), database URL. Template: `docs/config.example.json` |
+| `docker/` | `Dockerfile` (build context is the repo root) and `entrypoint.sh` |
+| `docs/` | User and developer docs; index in `docs/README.md` |
 | `frontend/src/App.svelte` | App shell: top bar, hero, tabs, character sub-views, dialogs |
 | `frontend/src/lib/store.svelte.js` | App state and API loaders (payloads are `$state.raw`), live updates (SSE), sharing, auth, compare/SuperStar calls |
 | `frontend/src/lib/api.js` | Session id + share code (same localStorage keys as before), URL building, `readJson` error handling |
@@ -46,12 +51,12 @@ Data formats, API endpoints, server caches, workspaces, TTC storage, admin accou
 
 ## Icon Normalization (Python + JS must match)
 ```python
-# Python (server.py):
+# Python (app/server.py):
 key = re.sub(r'[^a-z0-9]+', '_', icon.stem.lower()).strip('_')
 # JS (frontend/src/lib/eso.js iconKey):
 const key = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
 ```
-Icons are ZeniMax artwork and are **not committed**: `assets/` is gitignored and filled by `make assets` (`scripts/download_assets.py`) from the URLs in `scripts/assets_manifest.json` (UESP `images.uesp.net` / `esoicons.uesp.net`; needs a browser-like User-Agent). To add an icon, add a `"path": "url"` entry to the manifest and run `make assets`. Never commit image files under `assets/`. Icons come through `uesp.py`: UESP first, and after a 403 (Cloudflare refuses many cloud IPs) WordPress.com's Photon image proxy (`i0.wp.com/<host>/<path>`) for 10 minutes. A missing manifest icon under `/assets/` and every `/esoicons/` icon are fetched on first request and saved into `assets/`; only if both routes fail is the browser redirected (307) to UESP.
+Icons are ZeniMax artwork and are **not committed**: `assets/` is gitignored and filled by `make assets` (`scripts/download_assets.py`) from the URLs in `scripts/assets_manifest.json` (UESP `images.uesp.net` / `esoicons.uesp.net`; needs a browser-like User-Agent). To add an icon, add a `"path": "url"` entry to the manifest and run `make assets`. Never commit image files under `assets/`. Icons come through `app/uesp.py`: UESP first, and after a 403 (Cloudflare refuses many cloud IPs) WordPress.com's Photon image proxy (`i0.wp.com/<host>/<path>`) for 10 minutes. A missing manifest icon under `/assets/` and every `/esoicons/` icon are fetched on first request and saved into `assets/`; only if both routes fail is the browser redirected (307) to UESP.
 
 ## Design System
 Two looks, switched by the top-bar **UI** dropdown (`lib/uimode.svelte.js`, mirrored on `<html data-ui>`):
@@ -68,9 +73,9 @@ Two looks, switched by the top-bar **UI** dropdown (`lib/uimode.svelte.js`, mirr
 
 ## Restarting the Server
 ```bash
-fuser -k 5000/tcp 2>/dev/null; sleep 1 && uv run server.py &
+fuser -k 5000/tcp 2>/dev/null; sleep 1 && uv run python -m app &
 # If virtualenv active via uv sync --active:
-fuser -k 5000/tcp 2>/dev/null; sleep 1 && python server.py &
+fuser -k 5000/tcp 2>/dev/null; sleep 1 && python -m app &
 ```
 Use `fuser -k 5000/tcp` (not `pkill`) - targets the port directly, works reliably in WSL2.
 
@@ -87,7 +92,7 @@ Agents may run git and `gh` commands (branch, commit, push, open PRs).
 - Merging a version bump releases it: `.github/workflows/release.yml` builds and pushes `ghcr.io/spanthetree/eso-armory`, tags `vX.Y.Z`, and creates a GitHub release from the CHANGELOG section. Never tag by hand.
 - No force-push, history rewrite, or branch deletion without asking.
 
-## Item Link Decoder (`item_link_decoder.py`)
+## Item Link Decoder (`app/item_link_decoder.py`)
 `|H1:item:F0:F1:...:F20|h[name]|h` - key fields (0-indexed after `item:`):
 `[0]`=item_id, `[3]`=enchant_id, `[6]`=trait_id, `[14]`=flags (bit8=stolen, bit11=transmuted), `[15]`=style_id, `[16]`=crafted, `[17]`=bound, `[19]`=sell_value
 

@@ -3,7 +3,7 @@
 import re
 import time
 
-from item_link_decoder import decode as decode_link
+from app.item_link_decoder import decode as decode_link
 
 QUALITY_NAMES = {
     0: "Trash", 1: "Normal", 2: "Fine", 3: "Superior",

@@ -19,7 +19,7 @@ git clone https://github.com/spanthetree/eso-armory.git && cd eso-armory
 uv sync --dev
 make assets              # game icons from UESP
 make playwright-install  # browsers for the UI tests
-uv run server.py         # http://localhost:5000
+make run                 # http://localhost:5000
 ```
 
 [docs/architecture.md](docs/architecture.md) explains how the server, storage

@@ -25,7 +25,7 @@ markers = [
 addopts = "--strict-markers"
 
 [tool.coverage.run]
-source = ["."]
+source = ["app"]
 omit = [
     "tests/*",
     "scripts/*",

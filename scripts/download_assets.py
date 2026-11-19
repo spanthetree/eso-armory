@@ -7,7 +7,7 @@ being committed. Existing files are skipped; pass --force to re-download.
     uv run scripts/download_assets.py [--dest DIR] [--force]
 
 If UESP refuses this host (HTTP 403, common on cloud servers) the icons come through a public image proxy;
-see uesp.py.
+see app/uesp.py.
 """
 import argparse
 import json
@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = Path(__file__).resolve().parent / "assets_manifest.json"
 sys.path.insert(0, str(ROOT))
-import uesp  # noqa: E402
+from app import uesp  # noqa: E402
 
 
 def fetch(url: str) -> bytes:
