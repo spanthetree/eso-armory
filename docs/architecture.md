@@ -1,10 +1,12 @@
 # Architecture
 
+[Documentation](README.md) · [Back to the README](../README.md)
+
 ESO Armory is a FastAPI server and a single-page frontend. Players upload the `SavedVariables` files written by the iasync and WizardsWardrobe addons; the server parses them once, stores the processed JSON per ESO account in SQLite, and serves it to the browser.
 
 ```text
 ESO addons ─▶ SavedVariables/*.lua ─▶ browser upload or folder watcher
-   ─▶ POST /api/upload ─▶ lua_parser ─▶ data_processor ─▶ SQLite (per account)
+   ─▶ POST /api/upload ─▶ app/lua_parser ─▶ app/data_processor ─▶ SQLite (per account)
    ─▶ GET /api/* ─▶ Svelte app (frontend/ built into static/dist, served at /)
 ```
 
@@ -201,4 +203,4 @@ Ability names, CP names and build payloads come from uploaded Lua files and shar
 Session-scoped SSE queue sets are capped at `_MAX_SSE_PER_SESSION = 10`; excess connections return HTTP 429.
 
 ### Encryption
-Per-session Anthropic API keys are Fernet-encrypted in SQLite using a key stored under `db_secret` in `config.json`. `config.json` is gitignored and must not be exposed via the web server document root. HTTPS should be terminated by a reverse proxy (nginx/Caddy) - the app speaks plain HTTP.
+Per-session SuperStar API keys (OpenAI or Anthropic) are Fernet-encrypted in SQLite using a key stored under `db_secret` in `config.json`. `config.json` is gitignored and must not be exposed via the web server document root. HTTPS should be terminated by a reverse proxy (nginx/Caddy) - the app speaks plain HTTP.

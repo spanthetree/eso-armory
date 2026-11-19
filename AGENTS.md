@@ -84,7 +84,7 @@ Agents may run git and `gh` commands (branch, commit, push, open PRs).
 - Make every change on a new branch cut from a freshly pulled `master` (`git checkout master && git pull && git checkout -b <branch>`). Never commit to `master` directly.
 - One PR per issue, with each phase as its own commit.
 - Before running `gh pr create`, make a final commit on the branch that:
-  1. Updates `README.md` if anything user-facing changed
+  1. Updates `README.md` and `docs/` if anything user-facing changed
   2. Adds a dated `## [x.y.z] - YYYY-MM-DD` section to `CHANGELOG.md`
   3. Bumps the version in `pyproject.toml` and runs `uv lock` so `uv.lock` matches
 - Run `make test-all` before opening the PR.

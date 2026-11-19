@@ -1,5 +1,9 @@
 # Changelog
 
+All notable changes to ESO Armory are listed here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [Unreleased]
 
 ## [0.2.0-beta.11] - 2026-11-19
@@ -10,6 +14,9 @@
 - The demo account has Armory builds too, under generic role names
 
 ### Changed
+- **Documentation** - a shorter README, and a `docs/` set: installing, configuration, using every view, an FAQ (privacy, which iasync version adds what, troubleshooting) and development. Every external service the server calls is listed and linked. Fixed the Wizard's Wardrobe link, which pointed at another addon
+- **Repository layout** - the Python modules are now the `app/` package: start the server with `make run` or `uv run python -m app` (no longer `uv run server.py`). The Dockerfile and entrypoint moved to `docker/`, `CONTRIBUTING.md` and `SECURITY.md` to `.github/`, the header artwork and `config.example.json` to `docs/`. The Docker image and `compose.yaml` work as before
+- Issue and pull request templates
 - The **Wardrobe** character view is now labelled **Wizards Wardrobe**, after the addon it reads
 
 ### Fixed

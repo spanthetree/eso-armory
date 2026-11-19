@@ -12,17 +12,19 @@ a [private report](SECURITY.md), not an issue.
 
 ## Setting up
 
-You need Python 3.12 and [uv](https://docs.astral.sh/uv/).
+You need Python 3.12, [uv](https://docs.astral.sh/uv/) and [Node.js](https://nodejs.org/) 18 or newer.
 
 ```bash
 git clone https://github.com/spanthetree/eso-armory.git && cd eso-armory
 uv sync --dev
+make ui-build            # the frontend
 make assets              # game icons from UESP
 make playwright-install  # browsers for the UI tests
 make run                 # http://localhost:5000
 ```
 
-[docs/architecture.md](docs/architecture.md) explains how the server, storage
+[Development](../docs/development.md) covers the project layout, tests and
+icons; [Architecture](../docs/architecture.md) explains how the server, storage
 and API fit together.
 
 Never commit real SavedVariables, screenshots or logs from a live account.
@@ -43,10 +45,10 @@ CI runs these on every pull request.
 - One pull request per issue.
 - Before you open the PR, the branch's last change must:
   - add a dated section to `CHANGELOG.md`;
-  - update `README.md` if anything user-facing changed;
+  - update `README.md` and `docs/` if anything user-facing changed;
   - bump the version in `pyproject.toml` and run `uv lock`.
 - A change to the API, storage or security model updates
-  [docs/architecture.md](docs/architecture.md) in the same PR.
+  [docs/architecture.md](../docs/architecture.md) in the same PR.
 
 ## Releases
 
@@ -60,7 +62,7 @@ publishes `edge`.
 ## Licensing your contribution
 
 ESO Armory is source-available under the
-[PolyForm Noncommercial License 1.0.0](LICENSE): anyone may use, copy, change
+[PolyForm Noncommercial License 1.0.0](../LICENSE): anyone may use, copy, change
 and share it for any noncommercial purpose.
 
 So that the maintainer can keep every version under one license, and offer it

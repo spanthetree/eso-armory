@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest something ESO Armory could do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you want to do
+      description: The problem or the use, not just the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How it could work
+      description: Where it would appear, and what the game shows for it, if anything.
+  - type: dropdown
+    id: data
+    attributes:
+      label: Does it need new data from the game?
+      description: Anything not already in iasync.lua needs an iasync change first.
+      options:
+        - No, the data is already uploaded
+        - Yes, iasync would need to capture more
+        - Not sure
