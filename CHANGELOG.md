@@ -9,6 +9,12 @@
 - Skill bars and champion stars appear once iasync has recorded them at an Armory station, since the game only provides them there
 - The demo account has Armory builds too, under generic role names
 
+### Changed
+- The **Wardrobe** character view is now labelled **Wizards Wardrobe**, after the addon it reads
+
+### Fixed
+- **Champion star tooltips** show the description for every star again, not "needs a newer iasync": uploads now keep iasync's account-wide star descriptions (1.14.0), which the upload parser dropped
+
 ## [0.2.0-beta.10] - 2026-11-18
 
 ### Changed
