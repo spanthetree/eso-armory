@@ -13,6 +13,7 @@
 - The **Wardrobe** character view is now labelled **Wizards Wardrobe**, after the addon it reads
 
 ### Fixed
+- **Refresh syncs a watched folder again** - watching the SavedVariables folder itself (instead of the ESO live folder) now finds its files, and Refresh waits for a background check that is mid-upload instead of reporting "Folder files not found". The message now says what went wrong: no files in the folder, or why the upload failed
 - **Champion star tooltips** show the description for every star again, not "needs a newer iasync": uploads now keep iasync's account-wide star descriptions (1.14.0), which the upload parser dropped
 
 ## [0.2.0-beta.10] - 2026-11-18

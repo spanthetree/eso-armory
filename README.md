@@ -31,7 +31,7 @@ ESO has no way to see your account outside the game. Gear is spread across chara
 - **Journal.** Achievements laid out like the in-game journal (category tree, progress bars, recent unlocks, a timeline, criteria progress per character, search) and Antiquities (leads, zones, recovered counts and Codex progress).
 - **Collections.** The in-game Collections book with its tabs: Collectibles, Housing, Outfit Styles, Set Items and Tales of Tribute. Each has the game's category tree, a keyword filter and a locked/unlocked filter, with unlocked counts per category (collectibles need iasync 1.9.0). Set Items shows every set as a grid of its pieces, filtered by apparel and weapon type, completion and locked pieces, with where each piece drops and its Tamriel Trade Centre price.
 - **Workspaces.** Each ESO account's data is stored once and reopens without re-uploading. Set a password to open it from another device with your ESO account name. Share a read-only view with a pairing code, or load an alt account beside your own.
-- **Auto-sync.** In Chrome and Edge, point the app at your ESO folder once and it uploads changed files as you play (checked every 10 seconds; **Refresh** forces a sync).
+- **Auto-sync.** In Chrome and Edge, point the app at your ESO `live` folder (or its `SavedVariables` folder) once and it uploads changed files as you play (checked every 10 seconds; **Refresh** forces a sync).
 - **Looks like the game.** Dark panels with gold rules, the game's own icons, animated loading and transitions, and a layout that fits one screen.
 
 ## How it works
