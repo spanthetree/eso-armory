@@ -4,7 +4,7 @@
 The demo shows visitors a full armory before they upload their own: real items, sets, achievements, collections,
 activities and antiquities, but under the account @armory-demo with generated character and guild names. Every
 string that identifies the source account (account, character ids and names, guild names, Wizards Wardrobe setup
-and page names) is replaced, and the script refuses to write if any of them still appears in the output.
+and page names, Armory build and outfit names) is replaced, and the script refuses to write if any of them still appears in the output.
 
     uv run scripts/make_demo.py <iasync.lua> [<WizardsWardrobe.lua>]
 
@@ -27,6 +27,9 @@ ACCOUNT = "@armory-demo"
 NAMES = ["Aldric Vane", "Seryn Thorne", "Drevis Ulvo", "Kaela Sunshield", "Mira Ashfall", "Torvald Ironhand",
          "Jhazri-Ko", "Velis Dunmere", "Brannoc the Grey", "Ysolde Marr", "Rhazir", "Teodora Valen",
          "Hakon Frostmane", "Nirili Swiftreed", "Orsa gro-Bagol", "Caius Ventor", "Lyra Duskwhisper", "Ezen-Tei"]
+# Armory builds get role names, so the demo doesn't copy the source account's build list.
+ARMORY_NAMES = ["Trial DPS", "Dungeon DPS", "Off-Tank", "Healer", "PvP Brawler", "PvP Tank", "Solo Arena", "Overland",
+                "Main Tank", "Support"]
 GUILDS = ["Order of the Silver Quill", "The Ashen Lantern", "Coin and Crown Traders", "Wardens of the Rift", "Hollow Oak Society"]
 
 
@@ -53,6 +56,12 @@ def build(iasync_path: Path, ww_path: Path | None) -> dict:
     for setups in payload["ww"]["builds"].values():
         for n, s in enumerate(setups):
             s["name"], s["page_name"] = f"Setup {n + 1}", f"Page {s.get('page', 1)}"
+    armory_src = {b[k] for a in payload["builds"].get("armory", {}).values() for b in a for k in ("name", "outfit_name") if b.get(k)}
+    for armory in payload["builds"].get("armory", {}).values():
+        for n, b in enumerate(armory):
+            b["name"] = ARMORY_NAMES[n % len(ARMORY_NAMES)]
+            if b.get("outfit_name"):
+                b["outfit_name"] = f"Outfit {b['outfit_index'] or n + 1}"
 
     # Longest first, so a name containing another is replaced whole; substrings too (achievements store "Name^Mx").
     keys = sorted((k for k in swap if k), key=len, reverse=True)
@@ -77,6 +86,8 @@ def build(iasync_path: Path, ww_path: Path | None) -> dict:
                                character_count=len(out["data"]["characters"]))
     text = json.dumps(out, ensure_ascii=False)
     leaks = [k for k in keys if k not in swap.values() and len(k) >= 4 and k in text]
+    armory_json = json.dumps(out["builds"].get("armory", {}), ensure_ascii=False)
+    leaks += [n for n in armory_src if n not in ARMORY_NAMES and f'"{n}"' in armory_json]
     if leaks:
         raise SystemExit(f"refusing to write: source names still present: {leaks[:5]}")
     return out
@@ -96,6 +107,7 @@ def fill_in(out: dict) -> None:
         del chars[cid]
         out["builds"]["builds"] = [b for b in out["builds"]["builds"] if b["char_id"] != cid]
         out["ww"]["builds"].pop(cid, None)
+        out["builds"].get("armory", {}).pop(cid, None)
         out["achievements"].get("items_by_char", {}).pop(cid, None)
         out["achievements"]["chars"] = [c for c in out["achievements"].get("chars", []) if c.get("id") != cid]
         for i in data["items"]:
@@ -107,9 +119,14 @@ def fill_in(out: dict) -> None:
         if donors:
             c.update({k: donors[n % len(donors)][k] for k in DETAILS if k in donors[n % len(donors)]})
     ww_donor = next(iter(out["ww"]["builds"].values()), None)
+    armory = out["builds"].setdefault("armory", {})
+    # Lent Armory builds aren't what the borrower wears, so none of them is "equipped".
+    armory_donor = [dict(b, active=False, worn=0) for b in next(iter(armory.values()), [])]
     for cid in chars:
         if ww_donor and cid not in out["ww"]["builds"]:
             out["ww"]["builds"][cid] = ww_donor
+        if armory_donor and cid not in armory:
+            armory[cid] = armory_donor
 
 
 def main() -> int:
