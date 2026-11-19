@@ -40,7 +40,7 @@
     placeholder="/assets/interface/gearslot_{PH[s]}.png"
     color={item?.quality_color}
     {delay}
-    tip={item ? { component: ItemTip, props: { item, slotLabel: SLOT_LABELS[s], equippedFromSet: setCount(item) } } : null} />
+    tip={item ? { component: ItemTip, props: { item, slotLabel: warn[s] ? `${SLOT_LABELS[s]} (${warn[s]})` : SLOT_LABELS[s], equippedFromSet: setCount(item) } } : null} />
 {/snippet}
 
 <Frame {title} delay={0.05} fixedFade>

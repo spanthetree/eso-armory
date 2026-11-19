@@ -34,7 +34,8 @@ iasync_data
     .build_cp.earned + .slots[1..12]  -- abilityId per HOTBAR_CATEGORY_CHAMPION slot
     .armoryBuilds[buildIndex]  -- in-game Armory builds (iasync 1.16.0): name, icon, skillPoints, curse
                                --   ("none"/"vampire"/"werewolf"), outfitIndex, outfitName, attributes, mundus,
-                               --   gear[equipSlot].{state valid/inaccessible/missing, bagId, slotIndex, + bag item fields},
+                               --   gear[equipSlot].{state valid/inaccessible/missing, bagId, slotIndex, + bag item fields;
+                               --   missing: only lastKnown = the item fields from the last scan that saw it (1.17.0)},
                                --   bars/effectiveBars.primary/backup[3..8], cp.slots[1..12], cp.disciplines[id].{name, spent},
                                --   barsUpdate (bars and CP load only at an Armory station; kept from the last station visit)
     .armoryBuildsUpdate

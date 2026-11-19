@@ -263,7 +263,10 @@ def test_armory_builds_flag_the_worn_build_and_keep_missing_gear():
     assert (worn_b["index"], worn_b["name"], worn_b["active"], worn_b["worn"]) == (1, "Worn", True, 1)
     assert other_b["active"] is False
     assert worn_b["icon"] == "/esoui/art/armory/buildicons/buildicon_5.dds"
-    assert worn_b["gear"][1] == {"slot": 1, "state": "missing", "item": None}
+    assert worn_b["gear"][1] == {"slot": 1, "state": "missing", "item": None}  # placeholder scroll ignored
+    raw["chars"]["c1"]["armoryBuilds"][1]["gear"][1] = {"state": "missing", "lastKnown": {"link": other, "name": "Old Ring"}}
+    again = process_iasync_builds(raw)["armory"]["c1"][0]
+    assert (again["gear"][1]["item"]["name"], again["active"]) == ("Old Ring", True)  # shown, but doesn't block "equipped"
     assert worn_b["gear"][0]["item"]["key"] == worn
     assert worn_b["skills"] == {"primary": {"3": 12}, "backup": {}}  # effectiveBars win
     assert worn_b["cp"] == {"1": 66}

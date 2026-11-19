@@ -32,9 +32,11 @@
     return m;
   });
   /** @type {Record<string, string>} */
+  // A missing piece shows what iasync last saw in the slot (iasync 1.17.0 lastKnown), tinted red like the game.
   const WARN = { missing: 'missing', inaccessible: 'in a house chest' };
   const warn = $derived(Object.fromEntries((build?.gear ?? []).filter((/** @type {any} */ g) => WARN[g.state]).map((/** @type {any} */ g) => [g.slot, WARN[g.state]])));
-  const sets = $derived(setCounts(gear));
+  // A missing piece adds nothing to its set's bonus.
+  const sets = $derived(setCounts(Object.fromEntries(Object.entries(gear).filter(([s]) => warn[s] !== 'missing'))));
   const setCount = (/** @type {any} */ item) => sets.find(([s]) => s === item?.set_name)?.[1] ?? 0;
   const attrTotal = $derived(Object.values(build?.attributes ?? {}).reduce((s, v) => s + (Number(v) || 0), 0));
   const cpTotal = $derived((build?.cp_spent ?? []).reduce((/** @type {number} */ s, /** @type {any} */ d) => s + d.spent, 0));

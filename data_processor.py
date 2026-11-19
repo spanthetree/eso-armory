@@ -735,14 +735,16 @@ def _armory_builds(c: dict) -> list[dict]:
         for slot, g in (b.get("gear") or {}).items():
             if not isinstance(g, dict):
                 continue
-            # A missing piece comes with the game's placeholder location (backpack slot 0), so its item fields are
-            # whatever sits there (early iasync 1.16.0 builds saved them).
-            link = (g.get("link") or "") if g.get("state") != "missing" else ""
+            # A missing piece comes with the game's placeholder location (backpack slot 0), so its own item fields are
+            # whatever sits there (early iasync 1.16.0 builds saved them); show what iasync last saw there instead (1.17.0).
+            missing = g.get("state") == "missing"
+            src = (g.get("lastKnown") if isinstance(g.get("lastKnown"), dict) else {}) if missing else g
+            link = src.get("link") or ""
             m = _ITEM_LINK_RE.search(link)
             gear.append({
                 "slot":  _int(slot),
                 "state": g.get("state") or "valid",  # valid / inaccessible (house chest) / missing
-                "item":  _new_item_entry(link, int(m.group(1)) if m else None, g) if link else None,
+                "item":  _new_item_entry(link, int(m.group(1)) if m else None, src) if link else None,
             })
         gear.sort(key=lambda g: g["slot"])
         # effectiveBars has the morph/scribed id the game shows; fall back to the raw saved id per bar.
@@ -752,7 +754,8 @@ def _armory_builds(c: dict) -> list[dict]:
         attributes = {k: _int(v) for k, v in (b.get("attributes") or {}).items()}
         mundus = _values_any(b.get("mundus"))
         curse = b.get("curse") or "none"
-        on = sum(1 for g in gear if g["item"] and worn.get(g["slot"]) == g["item"]["key"])
+        present = [g for g in gear if g["item"] and g["state"] != "missing"]
+        on = sum(1 for g in present if worn.get(g["slot"]) == g["item"]["key"])
         out.append({
             "index":         index,
             "name":          _text(b.get("name")) or f"Build {index}",
@@ -772,7 +775,7 @@ def _armory_builds(c: dict) -> list[dict]:
             "worn":          on,
             "active":        False,
             # Missing gear (sold, deconstructed) can't be worn, so only pieces that still exist count.
-            "_rank": (on > 0 and on == sum(1 for g in gear if g["item"]), attributes == {k: _int(v) for k, v in (c.get("build_attributes") or {}).items()},
+            "_rank": (on > 0 and on == len(present), attributes == {k: _int(v) for k, v in (c.get("build_attributes") or {}).items()},
                       mundus == now_mundus, skills == now_bars),
         })
     best = max(out, key=lambda b: b["_rank"], default=None)

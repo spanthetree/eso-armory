@@ -5,7 +5,7 @@
 ## [0.2.0-beta.11] - 2026-11-19
 
 ### Added
-- **Armory view** - each character's saved in-game Armory builds (iasync 1.16.0), laid out like the game's Armory: build icons and names, gear with missing or out-of-reach pieces tinted red, skill bars, champion stars, attributes, mundus, curse and outfit. The game can't say which build is loaded, so the one whose gear is all worn and whose attributes and mundus match is marked **Equipped**
+- **Armory view** - each character's saved in-game Armory builds (iasync 1.16.0), laid out like the game's Armory: build icons and names, gear with missing or out-of-reach pieces tinted red (a missing piece shows the item last seen there, iasync 1.17.0), skill bars, champion stars, attributes, mundus, curse and outfit. The game can't say which build is loaded, so the one whose gear is all worn and whose attributes and mundus match is marked **Equipped**
 - Skill bars and champion stars appear once iasync has recorded them at an Armory station, since the game only provides them there
 - The demo account has Armory builds too, under generic role names
 
