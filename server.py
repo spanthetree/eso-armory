@@ -2439,8 +2439,9 @@ async def api_skill_info(name: str):
 _GAME_ICON_RE = re.compile(r"^[a-z0-9_][a-z0-9_-]{0,119}$")  # hyphens: patron coins (saint-pelin_coin)
 # esoui/art folders the proxy may fetch from besides icons/ (category tree icons)
 # charactercreate: alliance set categories; tribute(/patrons): Tales of Tribute tree icons and patron coins;
-# currency: currency icons; icons/mapkey: map icons inlined in activity names
-_GAME_ICON_DIRS = {"treeicons", "collections", "achievements", "charactercreate", "tribute", "tribute/patrons", "currency", "icons/mapkey"}
+# currency: currency icons; icons/mapkey: map icons inlined in activity names; armory/buildicons: Armory build icons
+_GAME_ICON_DIRS = {"treeicons", "collections", "achievements", "charactercreate", "tribute", "tribute/patrons", "currency", "icons/mapkey",
+                   "armory/buildicons"}
 _GAME_ICON_DIR = Path("assets") / "esoicons"
 _game_icon_missing: collections.OrderedDict = collections.OrderedDict()  # names UESP doesn't have
 

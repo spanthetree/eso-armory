@@ -5,7 +5,7 @@ export const TABS = /** @type {const} */ (['characters', 'inventory', 'achieveme
 /** @typedef {typeof TABS[number]} Tab */
 
 /** Sub-views of one character. */
-export const CHAR_VIEWS = /** @type {const} */ (['sheet', 'crafting', 'scribing', 'wardrobe', 'bags', 'compare', 'superstar']);
+export const CHAR_VIEWS = /** @type {const} */ (['sheet', 'crafting', 'scribing', 'armory', 'wardrobe', 'bags', 'compare', 'superstar']);
 /** @typedef {typeof CHAR_VIEWS[number]} CharView */
 
 /** Each tab's books (its scene group in game). A plain #/<tab> leaves the choice to the app (book null). */

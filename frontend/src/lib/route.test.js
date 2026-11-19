@@ -11,6 +11,7 @@ test('hash round-trip', () => {
   assert.deepEqual(parseHash('#/nope/x'), { tab: 'characters', charId: null, charView: 'sheet', book: null });
   assert.equal(toHash('characters', 'char a'), '#/characters/char%20a');
   assert.equal(toHash('characters', 'c1', 'wardrobe'), '#/characters/c1/wardrobe');
+  assert.equal(parseHash('#/characters/c1/armory').charView, 'armory');
   assert.equal(toHash('inventory', 'ignored', 'bags'), '#/inventory');
   assert.equal(parseHash('#/collections/housing').book, 'housing');
   assert.equal(parseHash('#/collections/nope').book, null);

@@ -232,3 +232,38 @@ def test_build_ability_metadata_merges_characters_and_legacy(raw_iasync):
         char.pop("abilityIcons", None)
     raw_iasync.pop("abilityIcons")
     assert process_iasync_builds(raw_iasync)["abilityIcons"] == {}
+
+
+@pytest.mark.unit
+def test_armory_builds_flag_the_worn_build_and_keep_missing_gear():
+    worn = "|H1:item:100:0:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0|h|h"
+    other = "|H1:item:200:0:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0|h|h"
+    bars = {"primary": {3: 11, 4: 0}, "backup": {}}
+
+    def build(name, link, attrs, **extra):
+        return {"name": name, "icon": "EsoUI/Art/Armory/BuildIcons/buildIcon_5.dds", "attributes": attrs,
+                "mundus": {1: "The Lady"}, "curse": "vampire", "outfitIndex": 2, "skillPoints": 400,
+                "gear": {0: {"state": "valid", "link": link, "name": name}, 1: {"state": "missing"}},
+                "bars": bars, "effectiveBars": {"primary": {3: 12}, "backup": {}},
+                "cp": {"slots": {1: 66, 2: 0}, "disciplines": {2: {"name": "Fitness", "spent": 5}, 1: {"name": "Warfare", "spent": 7}}},
+                **extra}
+
+    raw = {"chars": {"c1": {
+        "name": "A", "bags": {0: {0: {"link": worn}}}, "build_attributes": {"health": 64},
+        "build_mundus": {1: "The Lady"}, "build_bars": {"primary": {3: 12}},
+        "armoryBuilds": {2: build("Other", other, {"health": 64}), 1: build("Worn", worn, {"health": 64}, barsUpdate=99)},
+    }, "c2": {"name": "B"}}}
+
+    out = process_iasync_builds(raw)["armory"]
+    assert list(out) == ["c1"]  # characters without armoryBuilds (older iasync) are left out
+    worn_b, other_b = out["c1"]
+    assert (worn_b["index"], worn_b["name"], worn_b["active"], worn_b["worn"]) == (1, "Worn", True, 1)
+    assert other_b["active"] is False
+    assert worn_b["icon"] == "/esoui/art/armory/buildicons/buildicon_5.dds"
+    assert worn_b["gear"][1] == {"slot": 1, "state": "missing", "item": None}
+    assert worn_b["gear"][0]["item"]["key"] == worn
+    assert worn_b["skills"] == {"primary": {"3": 12}, "backup": {}}  # effectiveBars win
+    assert worn_b["cp"] == {"1": 66}
+    assert [d["name"] for d in worn_b["cp_spent"]] == ["Warfare", "Fitness"]
+    assert (worn_b["curse_name"], worn_b["outfit_index"], worn_b["outfit_name"]) == ("Vampirism", 2, "")
+    assert (worn_b["bars_update"], other_b["bars_update"]) == (99, None)
