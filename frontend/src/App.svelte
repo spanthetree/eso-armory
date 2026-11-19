@@ -44,7 +44,7 @@
     { id: 'sheet', label: 'Sheet', icon: 'inventory/inventory_tabicon_armor' },
     { id: 'crafting', label: 'Crafting', icon: 'inventory/inventory_tabicon_crafting' },
     { id: 'scribing', label: 'Scribing', icon: 'treeicons/tutorial_indexicon_scribing' },
-    { id: 'armory', label: 'Armory', icon: 'armory/builditem_icon' },
+    { id: 'armory', label: 'Armory', icon: 'armory/builditem_icon', tint: true },
     { id: 'wardrobe', label: 'Wizards Wardrobe', icon: 'inventory/inventory_tabicon_appearance' },
     { id: 'bags', label: 'Bags', icon: 'inventory/inventory_tabicon_items' },
     { id: 'compare', label: 'Compare', icon: 'inventory/inventory_tabicon_quickslot' },

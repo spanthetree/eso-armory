@@ -4,7 +4,9 @@
    * Classic UI with icons: the game's ZO_LabelButtonBar (selected name, then 32px icons growing to 50px when hovered or
    * selected; drawn at 28/40px here to fit the header row, 16px apart). `icon` is a path under /assets/esoui/ without the _up/_down/_over suffix.
    * `showLabel` false drops the selected name in front of the icons (Classic).
-   * @type {{ options: { id: string, label: string, icon?: string }[], value: string, label: string, onchange: (id: string) => void, showLabel?: boolean }}
+   * `tint`: the icon is one white texture with no _up/_down/_over set (e.g. armory/builditem_icon); it is drawn as a mask
+   * filled with the colours of the game's tab icon states.
+   * @type {{ options: { id: string, label: string, icon?: string, tint?: boolean }[], value: string, label: string, onchange: (id: string) => void, showLabel?: boolean }}
    */
   let { options, value, label, onchange, showLabel = true } = $props();
   import { ui } from '../uimode.svelte.js';
@@ -30,8 +32,13 @@
     {#if showLabel}<span class="lbl">{options.find((o) => o.id === value)?.label}</span>{/if}
     {#each options as o (o.id)}
       <button type="button" aria-pressed={value === o.id} aria-label={o.label} title={o.label} onclick={() => value !== o.id && onchange(o.id)}>
-        <img src="/assets/esoui/{o.icon}_{value === o.id ? 'down' : 'up'}.png" alt="" />
-        <img class="over" src="/assets/esoui/{o.icon}_over.png" alt="" />
+        {#if o.tint}
+          <span class="img tint" style="--m: url('/assets/esoui/{o.icon}.png')"></span>
+          <span class="img tint over" style="--m: url('/assets/esoui/{o.icon}.png')"></span>
+        {:else}
+          <img src="/assets/esoui/{o.icon}_{value === o.id ? 'down' : 'up'}.png" alt="" />
+          <img class="over" src="/assets/esoui/{o.icon}_over.png" alt="" />
+        {/if}
       </button>
     {/each}
   </div>
@@ -48,9 +55,13 @@
   .lbb { display: inline-flex; align-items: center; gap: 16px; }
   .lbl { margin-right: 9px; font: 700 18px var(--eso-font); text-transform: uppercase; color: var(--eso-selected); text-shadow: var(--eso-shadow); }
   .lbb button { all: unset; position: relative; width: 40px; height: 40px; display: grid; place-items: center; cursor: pointer; }
-  .lbb img { position: absolute; width: 28px; height: 28px; transition: width 0.15s, height 0.15s; }
+  .lbb .img, .lbb img { position: absolute; width: 28px; height: 28px; transition: width 0.15s, height 0.15s; }
   .lbb .over { opacity: 0; mix-blend-mode: plus-lighter; }
-  .lbb button:hover img, .lbb button[aria-pressed='true'] img { width: 40px; height: 40px; }
+  .lbb button:hover .img, .lbb button[aria-pressed='true'] .img, .lbb button:hover img, .lbb button[aria-pressed='true'] img { width: 40px; height: 40px; }
+  /* Tab icon states measured from the inventory tab icons: _up beige-grey, _over cyan, _down the white texture itself. */
+  .tint { -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat; background: #c5c59d; }
+  .tint.over { background: #b5ffff; mix-blend-mode: normal; } /* covers the up colour; adding it would blow out to white */
+  .lbb button[aria-pressed='true'] .tint:not(.over) { background: #fff; }
   .lbb button:hover .over { opacity: 1; }
   .lbb button:focus-visible { outline: 1px solid var(--eso-normal); }
   .seg { position: relative; display: inline-flex; gap: 4px; padding: 3px; max-width: 100%; overflow-x: auto; scrollbar-width: none; border: 1px solid var(--line); background: #00000066; }
