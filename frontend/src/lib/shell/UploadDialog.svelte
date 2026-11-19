@@ -64,7 +64,7 @@
 
   {#if canWatchFolder}
     <section>
-      <div class="label">AUTO-WATCH FOLDER {@render helpBtn('folder', "Watches your ESO live folder and reloads automatically when the game saves new data. You'll need to pick it again after restarting your browser.")}<span class="note">Chrome / Edge only</span></div>
+      <div class="label">AUTO-WATCH FOLDER {@render helpBtn('folder', "Watches your ESO live folder (or its SavedVariables folder) and reloads automatically when the game saves new data. You'll need to pick it again after restarting your browser.")}<span class="note">Chrome / Edge only</span></div>
       {#if watch.handle}
         <div class="watching">
           <span>📁 {watch.handle.name}</span><span class="tag">Watching</span>

@@ -47,6 +47,8 @@ export const watch = $state({
   /** when each file was last synced (ms) */
   synced: /** @type {Record<WatchKey, number>} */ ({ iasync: 0, ww: 0, ttcLookup: 0, ttcPrice: 0 }),
   checked: 0,
+  /** why the last check's upload failed ('' if it didn't) */
+  error: '',
   /** @type {any} a remembered folder whose access the browser wants re-granted (needs a click) */
   pending: null,
 });
@@ -66,30 +68,53 @@ function sources() {
 async function getFile(parts, name) {
   try {
     let dir = watch.handle;
-    for (const p of parts) dir = await dir.getDirectoryHandle(p);
+    // Picking SavedVariables itself (instead of "live") works too: its files sit at the top.
+    const inside = parts[0] === 'SavedVariables' && String(dir.name).toLowerCase() === 'savedvariables';
+    for (const p of inside ? parts.slice(1) : parts) dir = await dir.getDirectoryHandle(p);
     return await (await dir.getFileHandle(name)).getFile();
   } catch {
     return null;
   }
 }
 
-let busy = false;
+/** @typedef {'updated' | 'unchanged' | 'missing' | 'failed'} CheckResult */
+/** @type {Promise<CheckResult> | null} */
+let running = null;
 /**
- * Upload any watched file that changed since the last sync (every file with `force`). Returns true if something was uploaded.
+ * Upload any watched file that changed since the last sync (every file with `force`).
+ * 'missing': none of the files is in the folder; 'failed': the upload errored (its message is in watch.error).
+ * A forced check waits for one already running (a background check may be mid-upload) instead of skipping.
  * @param {{ force?: boolean }} [o]
+ * @returns {Promise<CheckResult>}
  */
 export async function checkFolder({ force = false } = {}) {
-  if (!watch.handle || busy) return false;
-  busy = true;
+  if (!watch.handle) return 'missing';
+  if (running) {
+    if (!force) return 'unchanged';
+    await running;
+  }
+  running = scan(force);
+  try {
+    return await running;
+  } finally {
+    running = null;
+  }
+}
+
+/** @param {boolean} force @returns {Promise<CheckResult>} */
+async function scan(force) {
   try {
     watch.checked = Date.now();
+    watch.error = '';
     const changed = [];
+    let found = 0;
     for (const src of sources()) {
       if (src.adminOnly && !app.status.isAdmin) continue;
       const file = await getFile(src.parts, src.name);
+      if (file) found++;
       if (file && (force || file.lastModified > watch.lastMod[src.key])) changed.push({ src, file });
     }
-    if (!changed.length) return false;
+    if (!changed.length) return found ? 'unchanged' : 'missing';
     const d = await uploadFiles(Object.fromEntries(changed.map(({ src, file }) => [src.field, file])));
     const now = Date.now();
     for (const { src, file } of changed) {
@@ -98,17 +123,16 @@ export async function checkFolder({ force = false } = {}) {
         watch.synced[src.key] = now;
       }
     }
-    return changed.some(({ src }) => d?.[src.field]?.ok);
-  } catch {
-    return false;
-  } finally {
-    busy = false;
+    return changed.some(({ src }) => d?.[src.field]?.ok) ? 'updated' : 'failed';
+  } catch (e) {
+    watch.error = /** @type {Error} */ (e).message;
+    return 'failed';
   }
 }
 
 /** @type {ReturnType<typeof setInterval> | undefined} */
 let timer;
-const tick = async () => (await checkFolder()) && toast('Data updated');
+const tick = async () => (await checkFolder()) === 'updated' && toast('Data updated');
 function startTimer() {
   clearInterval(timer);
   // A cheap metadata check (file timestamps only) every 10 s, and at once when the tab comes back to the front;
