@@ -11,7 +11,7 @@ export function classIcon(cls) {
 }
 
 /**
- * Icon key normalisation. Must match server.py:
+ * Icon key normalisation. Must match app/server.py:
  * re.sub(r'[^a-z0-9]+', '_', icon.stem.lower()).strip('_')
  * @param {string} name
  */

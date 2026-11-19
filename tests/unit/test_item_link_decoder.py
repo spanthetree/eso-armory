@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from item_link_decoder import decode
+from app.item_link_decoder import decode
 
 
 @pytest.mark.unit

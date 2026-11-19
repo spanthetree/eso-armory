@@ -31,10 +31,10 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 from loguru import logger
 
-from lua_parser import LuaParser, parse_iasync_core_text, parse_lua_text_variable
-import uesp
-from data_processor import process_iasync, process_iasync_builds, process_iasync_achievements, process_iasync_stickerbook, process_ww_builds
-from db import (
+from app.lua_parser import LuaParser, parse_iasync_core_text, parse_lua_text_variable
+from app import uesp
+from app.data_processor import process_iasync, process_iasync_builds, process_iasync_achievements, process_iasync_stickerbook, process_ww_builds
+from app.db import (
     AccountPayload,
     bind_session as _db_bind_session,
     delete_imported_build as _db_delete_imported_build,
@@ -101,7 +101,7 @@ def _eso_addon_path(*parts: str) -> str:
     return ""
 
 
-_HERE        = Path(__file__).resolve().parent
+_HERE        = Path(__file__).resolve().parent.parent  # the repository root
 CONFIG_PATH  = Path(os.environ.get("ESO_ARMORY_CONFIG", _HERE / "config.json"))  # containers keep it in the data volume
 UPLOADS_DIR  = _HERE / "uploads"
 SHARE_REGISTRY_PATH = UPLOADS_DIR / "share_registry.json"
@@ -2439,8 +2439,9 @@ async def api_skill_info(name: str):
 _GAME_ICON_RE = re.compile(r"^[a-z0-9_][a-z0-9_-]{0,119}$")  # hyphens: patron coins (saint-pelin_coin)
 # esoui/art folders the proxy may fetch from besides icons/ (category tree icons)
 # charactercreate: alliance set categories; tribute(/patrons): Tales of Tribute tree icons and patron coins;
-# currency: currency icons; icons/mapkey: map icons inlined in activity names
-_GAME_ICON_DIRS = {"treeicons", "collections", "achievements", "charactercreate", "tribute", "tribute/patrons", "currency", "icons/mapkey"}
+# currency: currency icons; icons/mapkey: map icons inlined in activity names; armory/buildicons: Armory build icons
+_GAME_ICON_DIRS = {"treeicons", "collections", "achievements", "charactercreate", "tribute", "tribute/patrons", "currency", "icons/mapkey",
+                   "armory/buildicons"}
 _GAME_ICON_DIR = Path("assets") / "esoicons"
 _game_icon_missing: collections.OrderedDict = collections.OrderedDict()  # names UESP doesn't have
 
@@ -2631,7 +2632,7 @@ async def sse(request: Request, session: str | None = Query(None), share: str | 
     )
 
 
-if __name__ == "__main__":
+def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="ESO Armory server")
@@ -2644,7 +2645,7 @@ if __name__ == "__main__":
     port = args.port or _config.get("port", 5000)
     logger.info("ESO Armory → http://localhost:{}", port)
     uvicorn.run(
-        "server:app",
+        app,
         host="0.0.0.0",
         port=port,
         log_level="warning",

@@ -5,7 +5,7 @@ import json
 import pytest
 from sqlalchemy import select
 
-import db
+from app import db
 
 from tests.conftest import TEST_SESSION
 

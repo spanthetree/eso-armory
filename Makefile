@@ -1,4 +1,8 @@
-.PHONY: up down upgrade assets ui-install ui-dev ui-build frontend-test test test-fast test-ui test-ui-chromium test-ui-firefox test-all playwright-install playwright-install-deps
+.PHONY: run up down upgrade assets ui-install ui-dev ui-build frontend-test test test-fast test-ui test-all playwright-install playwright-install-deps
+
+# From source: the server on the configured port (5000 by default). PORT=8080 make run picks another.
+run:
+	uv run python -m app $(if $(PORT),--port $(PORT))
 
 # Docker: start, stop, and upgrade to the latest published image (data in ./uploads and ./assets is kept).
 up:
@@ -33,23 +37,18 @@ frontend-test: frontend/node_modules
 test: test-fast
 
 test-fast:
-	uv run pytest tests/unit tests/api --cov=. --cov-report=term-missing --cov-fail-under=60
+	uv run pytest tests/unit tests/api --cov=app --cov-report=term-missing --cov-fail-under=60
 
+# Chromium only: folder watching needs a Chromium browser, and Firefox doubled the run for little coverage.
 test-ui: ui-build
-	uv run pytest tests/ui --browser chromium --browser firefox --no-cov
-
-test-ui-chromium: ui-build
 	uv run pytest tests/ui --browser chromium --no-cov
 
-test-ui-firefox: ui-build
-	uv run pytest tests/ui --browser firefox --no-cov
-
 test-all: ui-build frontend-test
-	uv run pytest tests/unit tests/api --cov=. --cov-report=term-missing --cov-fail-under=60
-	uv run pytest tests/ui --browser chromium --browser firefox --no-cov
+	uv run pytest tests/unit tests/api --cov=app --cov-report=term-missing --cov-fail-under=60
+	uv run pytest tests/ui --browser chromium --no-cov
 
 playwright-install:
-	uv run playwright install chromium firefox
+	uv run playwright install chromium
 
 playwright-install-deps:
-	uv run playwright install-deps chromium firefox
+	uv run playwright install-deps chromium

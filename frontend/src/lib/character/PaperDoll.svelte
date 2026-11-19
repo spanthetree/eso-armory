@@ -6,10 +6,10 @@
 
   /**
    * The in-game "Equipped" panel: race silhouette ringed by apparel, then accessories and both weapon bars.
-   * Empty slots show the game's faded gear-slot outline.
-   * @type {{ gear: Record<number, any>, race?: string, gender?: string, setCount: (item: any) => number, title?: string }}
+   * Empty slots show the game's faded gear-slot outline. `warn` marks slots (slot -> note, e.g. 'missing') drawn in red, as the Armory does.
+   * @type {{ gear: Record<number, any>, race?: string, gender?: string, setCount: (item: any) => number, title?: string, warn?: Record<number, string> }}
    */
-  let { gear, race = '', gender = '', setCount, title = 'EQUIPPED' } = $props();
+  let { gear, race = '', gender = '', setCount, title = 'EQUIPPED', warn = {} } = $props();
 
   // The game has three body silhouettes; every other race uses the human one.
   const body = $derived(race === 'Argonian' ? 'argonian' : race === 'Khajiit' ? 'khajiit' : 'human');
@@ -34,12 +34,13 @@
 {#snippet slot(/** @type {number} */ s, /** @type {number} */ delay)}
   {@const item = gear[s]}
   <Slot
-    label={item ? `${SLOT_LABELS[s]}: ${item.name}` : `${SLOT_LABELS[s]}: empty`}
+    label={`${SLOT_LABELS[s]}: ${item ? item.name : warn[s] ?? 'empty'}${item && warn[s] ? ` (${warn[s]})` : ''}`}
+    error={!!warn[s]}
     icon={item ? slotIcon(s, item) : ''}
     placeholder="/assets/interface/gearslot_{PH[s]}.png"
     color={item?.quality_color}
     {delay}
-    tip={item ? { component: ItemTip, props: { item, slotLabel: SLOT_LABELS[s], equippedFromSet: setCount(item) } } : null} />
+    tip={item ? { component: ItemTip, props: { item, slotLabel: warn[s] ? `${SLOT_LABELS[s]} (${warn[s]})` : SLOT_LABELS[s], equippedFromSet: setCount(item) } } : null} />
 {/snippet}
 
 <Frame {title} delay={0.05} fixedFade>

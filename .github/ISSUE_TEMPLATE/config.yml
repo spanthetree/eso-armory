@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/spanthetree/eso-armory/security/advisories/new
+    about: Report it privately, not in a public issue.
+  - name: FAQ and troubleshooting
+    url: https://github.com/spanthetree/eso-armory/blob/master/docs/faq.md
+    about: Missing characters, empty banks, Armory skill bars and more.
+  - name: Problems with what the addon captures
+    url: https://github.com/spanthetree/iasync/issues
+    about: If the data in iasync.lua itself is wrong, report it to iasync.

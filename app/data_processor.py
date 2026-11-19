@@ -3,7 +3,7 @@
 import re
 import time
 
-from item_link_decoder import decode as decode_link
+from app.item_link_decoder import decode as decode_link
 
 QUALITY_NAMES = {
     0: "Trash", 1: "Normal", 2: "Fine", 3: "Superior",
@@ -712,13 +712,90 @@ def process_iasync_achievements(raw: dict) -> dict:
     }
 
 
+_CURSES = {"vampire": "Vampirism", "werewolf": "Lycanthropy"}  # SI_CURSETYPE1/2
+
+
+def _bars(table) -> dict:
+    """{primary: {"3".."8": abilityId}, backup: {...}} without empty slots."""
+    table = table if isinstance(table, dict) else {}
+    return {bar: {str(k): v for k, v in (table.get(bar) or {}).items() if v}
+            for bar in ("primary", "backup")}
+
+
+def _armory_builds(c: dict) -> list[dict]:
+    """iasync 1.16.0 ``armoryBuilds``: the character's saved Armory builds, in Armory order.
+    The game has no "active build" call, so a build counts as active when all of its gear is worn
+    and its attributes and mundus match the character's; bars break a tie."""
+    worn = {_int(s): d.get("link") for s, d in ((c.get("bags") or {}).get(0) or {}).items() if isinstance(d, dict)}
+    now_mundus = _values_any(c.get("build_mundus"))
+    now_bars = _bars(c.get("build_bars"))
+    out = []
+    for index, b in _indexed(c.get("armoryBuilds")):
+        gear = []
+        for slot, g in (b.get("gear") or {}).items():
+            if not isinstance(g, dict):
+                continue
+            # A missing piece comes with the game's placeholder location (backpack slot 0), so its own item fields are
+            # whatever sits there (early iasync 1.16.0 builds saved them); show what iasync last saw there instead (1.17.0).
+            missing = g.get("state") == "missing"
+            src = (g.get("lastKnown") if isinstance(g.get("lastKnown"), dict) else {}) if missing else g
+            link = src.get("link") or ""
+            m = _ITEM_LINK_RE.search(link)
+            gear.append({
+                "slot":  _int(slot),
+                "state": g.get("state") or "valid",  # valid / inaccessible (house chest) / missing
+                "item":  _new_item_entry(link, int(m.group(1)) if m else None, src) if link else None,
+            })
+        gear.sort(key=lambda g: g["slot"])
+        # effectiveBars has the morph/scribed id the game shows; fall back to the raw saved id per bar.
+        raw_bars, eff = _bars(b.get("bars")), _bars(b.get("effectiveBars"))
+        skills = {bar: eff[bar] or raw_bars[bar] for bar in raw_bars}
+        cp = b.get("cp") if isinstance(b.get("cp"), dict) else {}
+        attributes = {k: _int(v) for k, v in (b.get("attributes") or {}).items()}
+        mundus = _values_any(b.get("mundus"))
+        curse = b.get("curse") or "none"
+        present = [g for g in gear if g["item"] and g["state"] != "missing"]
+        on = sum(1 for g in present if worn.get(g["slot"]) == g["item"]["key"])
+        out.append({
+            "index":         index,
+            "name":          _text(b.get("name")) or f"Build {index}",
+            "icon":          "/" + str(b["icon"]).lower().lstrip("/") if b.get("icon") else "",
+            "gear":          gear,
+            "skills":        skills,
+            "cp":            {str(k): v for k, v in (cp.get("slots") or {}).items() if v},
+            "cp_spent":      [{"name": _text(d.get("name")), "spent": _int(d.get("spent"))} for _, d in _indexed(cp.get("disciplines"))],
+            "attributes":    attributes,
+            "mundus":        mundus,
+            "curse":         curse,
+            "curse_name":    _CURSES.get(curse, "None"),
+            "outfit_index":  _int(b.get("outfitIndex")) or None,
+            "outfit_name":   _text(b.get("outfitName")),  # iasync >= 1.16.0 (later builds); '' -> "Outfit N"
+            "skill_points":  _int(b.get("skillPoints")),
+            "bars_update":   _int(b.get("barsUpdate")) or None,  # None: bars/CP never loaded (needs an Armory station visit)
+            "worn":          on,
+            "active":        False,
+            # Missing gear (sold, deconstructed) can't be worn, so only pieces that still exist count.
+            "_rank": (on > 0 and on == len(present), attributes == {k: _int(v) for k, v in (c.get("build_attributes") or {}).items()},
+                      mundus == now_mundus, skills == now_bars),
+        })
+    best = max(out, key=lambda b: b["_rank"], default=None)
+    if best and all(best["_rank"][:3]):
+        best["active"] = True
+    for b in out:
+        del b["_rank"]
+    return out
+
+
 def process_iasync_builds(raw: dict) -> dict:
     """Build the /api/builds response from iasync_data."""
     chars_raw = raw.get("chars", {})
     builds = []
+    armory = {}  # char_id -> Armory builds; top level so build exports/shares stay as they were
 
     for char_id, c in chars_raw.items():
         char_name = c.get("name", "")
+        if c.get("armoryBuilds"):
+            armory[str(char_id)] = _armory_builds(c)
 
         # Gear from equipped bag (bag 0 = BAG_WORN)
         gear = []
@@ -818,6 +895,7 @@ def process_iasync_builds(raw: dict) -> dict:
 
     return {
         "builds":       builds,
+        "armory":       armory,
         "abilityNames": ability_names,
         "abilityIcons": ability_icons,
         "cpNames":      cp_names,

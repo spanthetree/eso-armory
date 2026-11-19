@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import uvicorn
 
-import server
+from app import server
 from tests.conftest import fresh_cache, fresh_ww_cache
 
 
@@ -46,7 +46,7 @@ def app_url(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     server._sessions.clear()
     server._share_registry.clear()
     server._share_registry.update({"codes": {}})
-    import db
+    from app import db
     db._ENGINE = None
     db._SESSION_MAKER = None
     uploads.mkdir(parents=True, exist_ok=True)
@@ -71,4 +71,5 @@ def app_url(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     yield url
 
     srv.should_exit = True
+    srv.force_exit = True  # the page's /events stream stays open; without this every test waits out the join
     thread.join(timeout=5)

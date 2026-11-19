@@ -1,0 +1,71 @@
+name: Bug report
+description: Something in ESO Armory doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. A security problem goes to a
+        [private report](https://github.com/spanthetree/eso-armory/security/advisories/new)
+        instead.
+
+        **Never attach your SavedVariables files**: they hold your whole
+        account. Screenshots can show account and character names; blank out
+        anything you'd rather not post.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Upload iasync.lua
+        2. Open a character's Armory view
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: ESO Armory version
+      description: The image tag or release, e.g. 0.2.0-beta.11. For a checkout, the commit.
+    validations:
+      required: true
+  - type: input
+    id: iasync
+    attributes:
+      label: iasync version
+      description: Shown in the game's addon list.
+  - type: dropdown
+    id: install
+    attributes:
+      label: How it is installed
+      options:
+        - Docker Compose
+        - From source (uv)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: look
+    attributes:
+      label: UI look
+      options:
+        - Classic
+        - Simple
+        - Both
+        - Not a display problem
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      description: For anything in the web app, e.g. Chrome on Windows, Firefox on Linux.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server log
+      description: The lines around the error, from `docker compose logs` or `logs/` in a checkout.
+      render: text

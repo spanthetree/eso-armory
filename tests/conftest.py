@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-import server
+from app import server
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -57,7 +57,7 @@ def isolated_server(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         "price_time": None,
         "price_cache": {},
     })
-    import db
+    from app import db
     db._ENGINE = None
     db._SESSION_MAKER = None
     db.init_db(database_url)
@@ -86,7 +86,7 @@ def uploaded_workspace(client: TestClient, fixtures_dir: Path):
 def admin_uploaded_workspace(client: TestClient, isolated_server, fixtures_dir: Path):
     """Upload iasync + WW, make the account an admin, then upload TTC files."""
     import bcrypt
-    import db as db_module
+    from app import db as db_module
 
     # Upload iasync + WW first to create the account
     files = {

@@ -3,7 +3,7 @@
 ## Supported versions
 
 Security fixes go into the latest release only. ESO Armory is in beta, and the
-[changelog](CHANGELOG.md) says when an upgrade needs care.
+[changelog](../CHANGELOG.md) says when an upgrade needs care.
 
 ## Reporting a vulnerability
 
@@ -21,7 +21,7 @@ published with credit to you, unless you'd rather not be named.
 
 ## What counts
 
-[docs/architecture.md](docs/architecture.md#security-model) describes the
+[docs/architecture.md](../docs/architecture.md#security-model) describes the
 boundaries the server is meant to keep. A way across one of them is a
 vulnerability, for example:
 

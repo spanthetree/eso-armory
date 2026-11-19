@@ -12,6 +12,7 @@
   import Roster from './lib/shell/Roster.svelte';
   import CharacterSheet from './lib/character/CharacterSheet.svelte';
   import Wardrobe from './lib/character/Wardrobe.svelte';
+  import Armory from './lib/character/Armory.svelte';
   import Bags from './lib/character/Bags.svelte';
   import Compare from './lib/character/Compare.svelte';
   import Superstar from './lib/character/Superstar.svelte';
@@ -43,7 +44,8 @@
     { id: 'sheet', label: 'Sheet', icon: 'inventory/inventory_tabicon_armor' },
     { id: 'crafting', label: 'Crafting', icon: 'inventory/inventory_tabicon_crafting' },
     { id: 'scribing', label: 'Scribing', icon: 'treeicons/tutorial_indexicon_scribing' },
-    { id: 'wardrobe', label: 'Wardrobe', icon: 'inventory/inventory_tabicon_appearance' },
+    { id: 'armory', label: 'Armory', icon: 'armory/builditem_icon' },
+    { id: 'wardrobe', label: 'Wizards Wardrobe', icon: 'inventory/inventory_tabicon_appearance' },
     { id: 'bags', label: 'Bags', icon: 'inventory/inventory_tabicon_items' },
     { id: 'compare', label: 'Compare', icon: 'inventory/inventory_tabicon_quickslot' },
     { id: 'superstar', label: 'SuperStar', icon: 'mainmenu/menubar_skills' },
@@ -138,6 +140,8 @@
             <Crafting {char} />
           {:else if nav.tab === 'characters' && nav.charView === 'scribing'}
             <Scribing {char} />
+          {:else if nav.tab === 'characters' && nav.charView === 'armory'}
+            <Armory {char} />
           {:else if nav.tab === 'characters' && nav.charView === 'wardrobe'}
             <Wardrobe {char} />
           {:else if nav.tab === 'characters' && nav.charView === 'bags'}

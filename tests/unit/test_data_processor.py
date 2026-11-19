@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from data_processor import (
+from app.data_processor import (
     process_iasync,
     process_iasync_achievements,
     process_iasync_builds,
     process_iasync_stickerbook,
     process_ww_builds,
 )
-from lua_parser import parse_lua_variable
+from app.lua_parser import parse_lua_variable
 
 
 @pytest.fixture
@@ -56,7 +56,7 @@ def test_process_iasync_labels_storage_locations(raw_iasync):
 
 
 def test_house_chests_are_counted_once_across_houses():
-    from data_processor import _collect_house_chests
+    from app.data_processor import _collect_house_chests
 
     item = {"link": "|H1:item:5001:0:1:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h", "name": "Box", "qty": 3}
     houses = {  # the same account-wide chest saved under three houses; one copy is stale, one empty
@@ -123,7 +123,7 @@ def test_process_ww_builds_skips_empty_and_non_integer_gear(raw_ww):
 
 
 def test_collectibles_sorted_by_index_with_subcategories():
-    from data_processor import process_iasync_collectibles
+    from app.data_processor import process_iasync_collectibles
 
     raw = {"collectibles": {
         "lastUpdate": 5,
@@ -146,7 +146,7 @@ def test_collectibles_sorted_by_index_with_subcategories():
 
 
 def test_tribute_patrons_in_tree_order_with_unlock_state():
-    from data_processor import process_iasync_collectibles
+    from app.data_processor import process_iasync_collectibles
 
     raw = {"collectibles": {
         "items": {"500": {"name": "Saint Pelin", "unlocked": True, "cat": 2, "sub": 0}},
@@ -163,8 +163,8 @@ def test_tribute_patrons_in_tree_order_with_unlock_state():
 
 
 def test_iasync_1_11_details_currencies_activities_antiquities():
-    from data_processor import process_iasync, process_iasync_builds
-    from lua_parser import parse_iasync_core_text
+    from app.data_processor import process_iasync, process_iasync_builds
+    from app.lua_parser import parse_iasync_core_text
 
     lua = """iasync_data = {
       ["accountName"] = "@acct",
@@ -178,6 +178,7 @@ def test_iasync_1_11_details_currencies_activities_antiquities():
       ["activities"] = { ["timed"] = { [1] = { ["name"] = "Complete 1 Arena |t32:32:EsoUI/Art/Icons/mapKey/mapKey_soloTrial.dds|t", ["type"] = "weekly",
                                               ["progress"] = 0, ["maxProgress"] = 1, ["currencyQty"] = 250 } },
                          ["limits"] = { ["weekly"] = { ["resetTime"] = 7 } } },
+      ["cpDescriptions"] = { [66] = "Increases your Mount Speed" },
       ["antiquities"] = { ["items"] = { [3] = { ["name"] = "Totem", ["setId"] = 1, ["zoneId"] = 2, ["hasLead"] = true } },
                           ["sets"] = { [1] = "Set A" }, ["zones"] = { [2] = "Zone B" } },
     }"""
@@ -196,10 +197,11 @@ def test_iasync_1_11_details_currencies_activities_antiquities():
     assert data["activities"]["resets"] == {"weekly": 7}
     assert data["antiquities"][0] | {} == {**data["antiquities"][0], "name": "Totem", "set": "Set A", "zone": "Zone B", "lead": True}
     assert process_iasync_builds(raw)["builds"][0]["mundusDescriptions"] == {"The Lady": "Increases 2744 Resistance"}
+    assert process_iasync_builds(raw)["cpDescriptions"] == {"66": "Increases your Mount Speed"}
 
 
 def test_merged_item_takes_its_icon_from_any_copy():
-    from data_processor import _add_slot
+    from app.data_processor import _add_slot
 
     link = "|H1:item:5001:0:1:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"
     item_map: dict = {}
@@ -209,7 +211,7 @@ def test_merged_item_takes_its_icon_from_any_copy():
 
 
 def test_items_lend_their_icon_across_links_of_the_same_item():
-    from data_processor import process_iasync
+    from app.data_processor import process_iasync
 
     old = "|H1:item:5001:363:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"
     new = "|H1:item:5001:364:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:1:0|h|h"
@@ -232,3 +234,42 @@ def test_build_ability_metadata_merges_characters_and_legacy(raw_iasync):
         char.pop("abilityIcons", None)
     raw_iasync.pop("abilityIcons")
     assert process_iasync_builds(raw_iasync)["abilityIcons"] == {}
+
+
+@pytest.mark.unit
+def test_armory_builds_flag_the_worn_build_and_keep_missing_gear():
+    worn = "|H1:item:100:0:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0|h|h"
+    other = "|H1:item:200:0:50:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0:0|h|h"
+    bars = {"primary": {3: 11, 4: 0}, "backup": {}}
+
+    def build(name, link, attrs, **extra):
+        return {"name": name, "icon": "EsoUI/Art/Armory/BuildIcons/buildIcon_5.dds", "attributes": attrs,
+                "mundus": {1: "The Lady"}, "curse": "vampire", "outfitIndex": 2, "skillPoints": 400,
+                "gear": {0: {"state": "valid", "link": link, "name": name},
+                         1: {"state": "missing", "bagId": 1, "slotIndex": 0, "link": other, "name": "Skill Respecification Scroll"}},
+                "bars": bars, "effectiveBars": {"primary": {3: 12}, "backup": {}},
+                "cp": {"slots": {1: 66, 2: 0}, "disciplines": {2: {"name": "Fitness", "spent": 5}, 1: {"name": "Warfare", "spent": 7}}},
+                **extra}
+
+    raw = {"chars": {"c1": {
+        "name": "A", "bags": {0: {0: {"link": worn}}}, "build_attributes": {"health": 64},
+        "build_mundus": {1: "The Lady"}, "build_bars": {"primary": {3: 12}},
+        "armoryBuilds": {2: build("Other", other, {"health": 64}), 1: build("Worn", worn, {"health": 64}, barsUpdate=99)},
+    }, "c2": {"name": "B"}}}
+
+    out = process_iasync_builds(raw)["armory"]
+    assert list(out) == ["c1"]  # characters without armoryBuilds (older iasync) are left out
+    worn_b, other_b = out["c1"]
+    assert (worn_b["index"], worn_b["name"], worn_b["active"], worn_b["worn"]) == (1, "Worn", True, 1)
+    assert other_b["active"] is False
+    assert worn_b["icon"] == "/esoui/art/armory/buildicons/buildicon_5.dds"
+    assert worn_b["gear"][1] == {"slot": 1, "state": "missing", "item": None}  # placeholder scroll ignored
+    raw["chars"]["c1"]["armoryBuilds"][1]["gear"][1] = {"state": "missing", "lastKnown": {"link": other, "name": "Old Ring"}}
+    again = process_iasync_builds(raw)["armory"]["c1"][0]
+    assert (again["gear"][1]["item"]["name"], again["active"]) == ("Old Ring", True)  # shown, but doesn't block "equipped"
+    assert worn_b["gear"][0]["item"]["key"] == worn
+    assert worn_b["skills"] == {"primary": {"3": 12}, "backup": {}}  # effectiveBars win
+    assert worn_b["cp"] == {"1": 66}
+    assert [d["name"] for d in worn_b["cp_spent"]] == ["Warfare", "Fitness"]
+    assert (worn_b["curse_name"], worn_b["outfit_index"], worn_b["outfit_name"]) == ("Vampirism", 2, "")
+    assert (worn_b["bars_update"], other_b["bars_update"]) == (99, None)

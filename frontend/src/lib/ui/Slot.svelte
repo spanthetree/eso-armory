@@ -5,12 +5,12 @@
    * Gear slot: square with a quality-coloured inner border. When empty it shows `placeholder`
    * (the game's faded gear-slot outline) with no frame, like the in-game equipped panel.
    * `color` is the item's quality colour from the game data (e.g. item.quality_color).
-   * @type {{ icon?: string, placeholder?: string, color?: string, label: string, delay?: number, tip?: import('./tooltip.svelte.js').TipContent | null, onclick?: () => void }}
+   * @type {{ icon?: string, placeholder?: string, color?: string, label: string, delay?: number, tip?: import('./tooltip.svelte.js').TipContent | null, onclick?: () => void, error?: boolean }}
    */
-  let { icon = '', placeholder = '', color = 'var(--line)', label, delay = 0, tip = null, onclick } = $props();
+  let { icon = '', placeholder = '', color = 'var(--line)', label, delay = 0, tip = null, onclick, error = false } = $props();
 </script>
 
-<button type="button" class="slot" class:empty={!icon} style="--qc: {color}; --d: {delay}s" aria-label={label} use:tooltip={tip} {onclick}>
+<button type="button" class="slot" class:empty={!icon} class:error style="--qc: {color}; --d: {delay}s" aria-label={label} use:tooltip={tip} {onclick}>
   {#if icon}<img src={icon} alt="" loading="lazy" />{:else if placeholder}<img class="ph" src={placeholder} alt="" />{/if}
 </button>
 
@@ -35,6 +35,9 @@
   .slot.empty::after { display: none; }
   .slot.empty:hover { transform: none; box-shadow: none; border-color: transparent; }
   .ph { opacity: 0.28; }
+  /* Armory gear that is missing or out of reach: the game tints the icon with ZO_ERROR_COLOR. */
+  .error img { filter: grayscale(1) sepia(1) saturate(8) hue-rotate(-50deg) brightness(0.8); }
+  .error .ph { opacity: 0.7; }
   .slot:hover, .slot:focus-visible {
     transform: translateY(-2px);
     border-color: var(--accent);

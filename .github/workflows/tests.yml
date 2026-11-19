@@ -29,7 +29,10 @@ jobs:
       - run: make ui-build
 
   ui:
-    runs-on: ubuntu-24.04  # Playwright 1.60 can't install browsers on ubuntu-latest (26.04)
+    runs-on: ubuntu-latest
+    # Chromium and its system packages come with the image (installing them took 6 minutes a run).
+    # Keep the tag in step with the playwright version in uv.lock.
+    container: mcr.microsoft.com/playwright/python:v1.60.0-noble
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -38,8 +41,8 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - run: apt-get update && apt-get install -y --no-install-recommends make  # not in the image
       - run: uv sync --dev
-      - run: uv run playwright install --with-deps chromium firefox
       - run: make test-ui
       - uses: actions/upload-artifact@v4
         if: failure()

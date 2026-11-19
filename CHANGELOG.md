@@ -1,6 +1,28 @@
 # Changelog
 
+All notable changes to ESO Armory are listed here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [Unreleased]
+
+## [0.2.0-beta.11] - 2026-11-19
+
+### Added
+- **Armory view** - each character's saved in-game Armory builds (iasync 1.16.0), laid out like the game's Armory: build icons and names, gear with missing or out-of-reach pieces tinted red (a missing piece shows the item last seen there, iasync 1.17.0), skill bars, champion stars, attributes, mundus, curse and outfit. The game can't say which build is loaded, so the one whose gear is all worn and whose attributes and mundus match is marked **Equipped**
+- Skill bars and champion stars appear once iasync has recorded them at an Armory station, since the game only provides them there
+- The demo account has Armory builds too, under generic role names
+
+### Changed
+- **Documentation** - a shorter README, and a `docs/` set: installing, configuration, using every view, an FAQ (privacy, which iasync version adds what, troubleshooting) and development. Every external service the server calls is listed and linked. Fixed the Wizard's Wardrobe link, which pointed at another addon
+- **Repository layout** - the Python modules are now the `app/` package: start the server with `make run` or `uv run python -m app` (no longer `uv run server.py`). The Dockerfile and entrypoint moved to `docker/`, `CONTRIBUTING.md` and `SECURITY.md` to `.github/`, the header artwork and `config.example.json` to `docs/`. The Docker image and `compose.yaml` work as before
+- Issue and pull request templates
+- **Faster browser tests** - the UI suite runs in Chromium only (Firefox doubled it for little coverage), no longer waits 5 seconds after every test for the server to stop, and drops three tests that repeated others. CI runs it in the Playwright image instead of installing browsers each time. Locally `make test-ui` takes under a minute instead of about 5
+- The **Wardrobe** character view is now labelled **Wizards Wardrobe**, after the addon it reads
+
+### Fixed
+- **Refresh syncs a watched folder again** - watching the SavedVariables folder itself (instead of the ESO live folder) now finds its files, and Refresh waits for a background check that is mid-upload instead of reporting "Folder files not found". The message now says what went wrong: no files in the folder, or why the upload failed
+- **Champion star tooltips** show the description for every star again, not "needs a newer iasync": uploads now keep iasync's account-wide star descriptions (1.14.0), which the upload parser dropped
 
 ## [0.2.0-beta.10] - 2026-11-18
 

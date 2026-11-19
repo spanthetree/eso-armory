@@ -1,17 +1,19 @@
 # Architecture
 
+[Documentation](README.md) · [Back to the README](../README.md)
+
 ESO Armory is a FastAPI server and a single-page frontend. Players upload the `SavedVariables` files written by the iasync and WizardsWardrobe addons; the server parses them once, stores the processed JSON per ESO account in SQLite, and serves it to the browser.
 
 ```text
 ESO addons ─▶ SavedVariables/*.lua ─▶ browser upload or folder watcher
-   ─▶ POST /api/upload ─▶ lua_parser ─▶ data_processor ─▶ SQLite (per account)
+   ─▶ POST /api/upload ─▶ app/lua_parser ─▶ app/data_processor ─▶ SQLite (per account)
    ─▶ GET /api/* ─▶ Svelte app (frontend/ built into static/dist, served at /)
 ```
 
 ## Data Sources
 | File | Variable | Purpose |
 |------|----------|---------|
-| `iasync.lua` | `iasync_data` | Inventory, equipped gear, build bars, currency, ability/CP names |
+| `iasync.lua` | `iasync_data` | Inventory, equipped gear, build bars, Armory builds, currency, ability/CP names |
 | `WizardsWardrobe.lua` | `WizardsWardrobeSV` | Saved build setups (gear, skills, CP, food) |
 
 Data reaches the server via browser upload or the folder watcher - the server does not poll SavedVariables from disk directly.
@@ -32,6 +34,13 @@ iasync_data
     .build_pools.health/magicka/stamina  -- max pools as on the character sheet (iasync >= 1.5.0)
     .build_mundus        -- list of stone names (stripped "Boon: " prefix)
     .build_cp.earned + .slots[1..12]  -- abilityId per HOTBAR_CATEGORY_CHAMPION slot
+    .armoryBuilds[buildIndex]  -- in-game Armory builds (iasync 1.16.0): name, icon, skillPoints, curse
+                               --   ("none"/"vampire"/"werewolf"), outfitIndex, outfitName, attributes, mundus,
+                               --   gear[equipSlot].{state valid/inaccessible/missing, bagId, slotIndex, + bag item fields;
+                               --   missing: only lastKnown = the item fields from the last scan that saw it (1.17.0)},
+                               --   bars/effectiveBars.primary/backup[3..8], cp.slots[1..12], cp.disciplines[id].{name, spent},
+                               --   barsUpdate (bars and CP load only at an Armory station; kept from the last station visit)
+    .armoryBuildsUpdate
   .bank
     .gold/ap/tv/wv       -- only valid after bank is opened
     .bags[bagId][slot]   -- bagId: 2=Bank, 5=CraftBag, 6=ESO+ Bank
@@ -74,7 +83,7 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | Endpoint | Returns |
 |----------|---------|
 | `GET /api/data` | `{meta, characters, bank, house_chests, items}` |
-| `GET /api/builds` | `{builds, abilityNames, abilityIcons, cpNames}` |
+| `GET /api/builds` | `{builds, armory, abilityNames, abilityIcons, cpNames}`. `armory` is `{charId: [{index, name, icon, gear: [{slot, state, item}], skills, cp, cp_spent, attributes, mundus, curse, curse_name, outfit_index, outfit_name, skill_points, bars_update, worn, active}]}` (iasync 1.16.0). The game can't report the active build, so `active` marks the one whose existing gear is all worn and whose attributes and mundus match; bars break ties |
 | `uiColors` | Present on `/api/data`, `/api/achievements` and `/api/stickerbook`: the client's interface colours from iasync 1.7.0 (`{textNormal, textSelected, …, xpStart, xpEnd}` as `rrggbb`, only well-formed values), used by the Classic UI |
 | `GET /api/achievements` | `{totalPts, earnedPts, categories, account_items, items_by_char, chars, recent, uiColors}`; `categories[].icon` is the tree icon (iasync 1.6.0); `recent` is the 50 newest completions, one per achievement; items carry `rewards` (`[{type: title\|dye\|collectible\|item, name, id?, icon?}]`) and `lineBaseId`/`linePreviousId`/`lineNextId` (tiered lines) |
 | Demo account | On startup `demo/demo.json.gz` (`{data, builds, achievements, stickerbook, ww}` payloads, `scripts/make_demo.py`) is stored as `@armory-demo` when its hash changed, bound to a session derived from `db_secret`, and given the share code `DEMA-RMRY`; `/api/status` reports `demo_code`. Uploads for `@armory-demo` are rejected |
@@ -84,8 +93,8 @@ WizardsWardrobeSV["Default"]["@account"][charId]
 | `GET /api/set_bonus?set_id=&set_name=` | Set bonuses from eso-sets.com (memory cached) |
 | `GET /api/skill_info?name=` | Skill details from eso-skillbook.com (memory cached) |
 | `GET /api/ability_names?ids=` | Names for up to 40 ability ids iasync could not resolve (e.g. skills only in Wizards Wardrobe setups), from UESP's mined skill data (memory cached) |
-| `GET /esoicons/<name>.png` | Game icon from `/esoui/art/icons/` (e.g. achievement icons). Downloaded from esoicons.uesp.net on first request into `assets/esoicons/` (never committed), then served locally; names must match `[a-z0-9_]+`. Fetched through `uesp.py`: UESP, or WordPress.com's Photon proxy (`i0.wp.com`) for 10 minutes after UESP answers 403. If both fail, `307` to the UESP URL (`Cache-Control: no-store`). Missing manifest icons under `/assets/` are fetched and saved the same way |
-| `GET /esoicons/<folder>/<name>.png` | Same, from `/esoui/art/<folder>/` for `treeicons`, `collections`, `achievements` (category tree icons) |
+| `GET /esoicons/<name>.png` | Game icon from `/esoui/art/icons/` (e.g. achievement icons). Downloaded from esoicons.uesp.net on first request into `assets/esoicons/` (never committed), then served locally; names must match `[a-z0-9_]+`. Fetched through `app/uesp.py`: UESP, or WordPress.com's Photon proxy (`i0.wp.com`) for 10 minutes after UESP answers 403. If both fail, `307` to the UESP URL (`Cache-Control: no-store`). Missing manifest icons under `/assets/` are fetched and saved the same way |
+| `GET /esoicons/<folder>/<name>.png` | Same, from `/esoui/art/<folder>/` for `treeicons`, `collections`, `achievements` (category tree icons); `/esoicons/armory/buildicons/<name>.png` for Armory build icons |
 | `GET /api/ttc_price?name=&session=&share=` | TTC price from uploaded or local price tables |
 | `POST /api/ttc_prices?session=&share=` | Body `{names: [...]}` (≤ 10,000) → `{prices: {lowercased name: avg}, priceTableTime}`; names without a price are left out. Without TTC tables: `{prices: {}, error}` |
 | `GET/POST /api/share?session=&share=` | Get/create pairing code for workspace sharing |
@@ -194,4 +203,4 @@ Ability names, CP names and build payloads come from uploaded Lua files and shar
 Session-scoped SSE queue sets are capped at `_MAX_SSE_PER_SESSION = 10`; excess connections return HTTP 429.
 
 ### Encryption
-Per-session Anthropic API keys are Fernet-encrypted in SQLite using a key stored under `db_secret` in `config.json`. `config.json` is gitignored and must not be exposed via the web server document root. HTTPS should be terminated by a reverse proxy (nginx/Caddy) - the app speaks plain HTTP.
+Per-session SuperStar API keys (OpenAI or Anthropic) are Fernet-encrypted in SQLite using a key stored under `db_secret` in `config.json`. `config.json` is gitignored and must not be exposed via the web server document root. HTTPS should be terminated by a reverse proxy (nginx/Caddy) - the app speaks plain HTTP.
