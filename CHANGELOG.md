@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.2.0-beta.12] - 2026-11-19
+
+### Fixed
+- **Refresh syncs a watched folder again** - watching the SavedVariables folder itself (instead of the ESO live folder) now finds its files, and Refresh waits for a background check that is mid-upload instead of reporting "Folder files not found". The message now says what went wrong: no files in the folder, or why the upload failed
+
 ## [0.2.0-beta.10] - 2026-11-18
 
 ### Changed
