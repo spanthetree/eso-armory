@@ -13,7 +13,7 @@ git clone https://github.com/spanthetree/eso-armory.git && cd eso-armory
 uv sync --dev
 make ui-build            # the frontend, into static/dist/
 make assets              # game icons from UESP, into assets/
-make playwright-install  # Chromium and Firefox for the browser tests
+make playwright-install  # Chromium for the browser tests
 make run                 # http://localhost:5000
 ```
 
@@ -72,7 +72,7 @@ from a CDN.
 |---|---|
 | `make test-fast` | Python unit and API tests, with coverage (at least 60%) |
 | `make frontend-test` | JavaScript unit tests (`node --test`) |
-| `make test-ui` | Builds the frontend, then the Playwright tests in Chromium and Firefox |
+| `make test-ui` | Builds the frontend, then the Playwright tests in Chromium |
 | `make test-all` | All of the above; run it before opening a pull request |
 
 The browser suite includes a first-load check that fails if the page ever

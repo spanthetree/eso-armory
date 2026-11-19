@@ -17,6 +17,7 @@ All notable changes to ESO Armory are listed here. The format follows
 - **Documentation** - a shorter README, and a `docs/` set: installing, configuration, using every view, an FAQ (privacy, which iasync version adds what, troubleshooting) and development. Every external service the server calls is listed and linked. Fixed the Wizard's Wardrobe link, which pointed at another addon
 - **Repository layout** - the Python modules are now the `app/` package: start the server with `make run` or `uv run python -m app` (no longer `uv run server.py`). The Dockerfile and entrypoint moved to `docker/`, `CONTRIBUTING.md` and `SECURITY.md` to `.github/`, the header artwork and `config.example.json` to `docs/`. The Docker image and `compose.yaml` work as before
 - Issue and pull request templates
+- **Faster browser tests** - the UI suite runs in Chromium only (Firefox doubled it for little coverage), no longer waits 5 seconds after every test for the server to stop, and drops three tests that repeated others. CI runs it in the Playwright image instead of installing browsers each time. Locally `make test-ui` takes under a minute instead of about 5
 - The **Wardrobe** character view is now labelled **Wizards Wardrobe**, after the addon it reads
 
 ### Fixed

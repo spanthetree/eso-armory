@@ -72,41 +72,20 @@ def test_upload_non_json_error_is_actionable(page: Page, app_url: str, fixtures_
 
 
 @pytest.mark.ui
-def test_upload_invalid_json_error_hides_parser_jargon(page: Page, app_url: str, fixtures_dir):
-    page.route(
-        "**/api/upload?**",
-        lambda route: route.fulfill(
-            status=200,
-            content_type="application/json",
-            body="<html><body>Not JSON</body></html>",
-        ),
-    )
-    page.goto(app_url)
-    page.get_by_role("button", name=re.compile(r"Select files")).click()
-    page.locator("#up-iasync").set_input_files(str(fixtures_dir / "iasync.lua"))
-    page.get_by_role("button", name="Load Files").click()
+def test_achievements_and_collections_show_endpoint_errors(page: Page, app_url: str, fixtures_dir):
+    def fail(msg):  # a one-argument handler: Playwright passes the request too when a handler takes two
+        return lambda route: route.fulfill(status=503, content_type="application/json", body=json.dumps({"error": msg}))
 
-    expect(page.get_by_text(re.compile(r"Upload returned invalid JSON response")).first).to_be_visible(timeout=15000)
-    expect(page.locator("body")).not_to_contain_text("unexpected character")
-    expect(page.locator("body")).not_to_contain_text("JSON.parse")
-
-
-@pytest.mark.ui
-def test_achievements_tab_shows_error_when_endpoint_fails(page: Page, app_url: str, fixtures_dir):
-    page.route(
-        "**/api/achievements?**",
-        lambda route: route.fulfill(
-            status=503,
-            content_type="application/json",
-            body='{"error":"Achievements backend unavailable"}',
-        ),
-    )
+    page.route("**/api/achievements?**", fail("Achievements backend unavailable"))
+    page.route("**/api/stickerbook?**", fail("Collections backend unavailable"))
     page.goto(app_url)
     upload_all_fixtures(page, fixtures_dir)
-    open_tab(page, "Achievements")
 
+    open_tab(page, "Achievements")
     expect(page.get_by_text("User data not loaded")).to_be_visible(timeout=15000)
     expect(page.get_by_text("Achievements backend unavailable")).to_be_visible(timeout=15000)
+    open_tab(page, "Collections")
+    expect(page.get_by_text("Collections backend unavailable")).to_be_visible(timeout=15000)
 
 
 @pytest.mark.ui
@@ -120,24 +99,6 @@ def test_achievements_tab_renders_summary_and_category(page: Page, app_url: str,
     nav.get_by_role("button", name="General").click()
     expect(page.get_by_role("listitem").filter(has_text="Mock Account Achievement")).to_be_visible()
     expect(page.get_by_label("Filter achievements")).to_be_visible()
-
-
-@pytest.mark.ui
-def test_collections_tab_shows_error_when_endpoint_fails(page: Page, app_url: str, fixtures_dir):
-    page.route(
-        "**/api/stickerbook?**",
-        lambda route: route.fulfill(
-            status=503,
-            content_type="application/json",
-            body='{"error":"Collections backend unavailable"}',
-        ),
-    )
-    page.goto(app_url)
-    upload_all_fixtures(page, fixtures_dir)
-    open_tab(page, "Collections")
-
-    expect(page.get_by_text("User data not loaded")).to_be_visible(timeout=15000)
-    expect(page.get_by_text("Collections backend unavailable")).to_be_visible(timeout=15000)
 
 
 @pytest.mark.ui
@@ -190,7 +151,7 @@ def test_inventory_filters_and_character_views(page: Page, app_url: str, fixture
 
 
 @pytest.mark.ui
-def test_compare_exports_and_imports_build(page: Page, app_url: str, fixtures_dir):
+def test_compare_and_superstar_views(page: Page, app_url: str, fixtures_dir):
     page.goto(app_url)
     upload_all_fixtures(page, fixtures_dir)
     open_character(page)
@@ -212,12 +173,6 @@ def test_compare_exports_and_imports_build(page: Page, app_url: str, fixtures_di
     page.get_by_role("button", name="Delete imported build").click()
     expect(page.get_by_role("heading", name="IMPORTED BUILD")).to_be_visible(timeout=15000)
 
-
-@pytest.mark.ui
-def test_superstar_view_asks_for_screenshot(page: Page, app_url: str, fixtures_dir):
-    page.goto(app_url)
-    upload_all_fixtures(page, fixtures_dir)
-    open_character(page)
     open_view(page, "SuperStar")
     expect(page.get_by_text("to paste a screenshot", exact=False)).to_be_visible()
 
@@ -318,6 +273,7 @@ def test_ui_style_switch_is_remembered(page: Page, app_url: str, fixtures_dir):
     expect(page.locator("html")).to_have_attribute("data-ui", "simple")
 
 
+@pytest.mark.ui
 def test_collections_book_switcher(page: Page, app_url: str, fixtures_dir):
     page.goto(app_url)
     upload_all_fixtures(page, fixtures_dir)

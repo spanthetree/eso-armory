@@ -71,4 +71,5 @@ def app_url(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     yield url
 
     srv.should_exit = True
+    srv.force_exit = True  # the page's /events stream stays open; without this every test waits out the join
     thread.join(timeout=5)
