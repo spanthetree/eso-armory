@@ -178,6 +178,7 @@ def test_iasync_1_11_details_currencies_activities_antiquities():
       ["activities"] = { ["timed"] = { [1] = { ["name"] = "Complete 1 Arena |t32:32:EsoUI/Art/Icons/mapKey/mapKey_soloTrial.dds|t", ["type"] = "weekly",
                                               ["progress"] = 0, ["maxProgress"] = 1, ["currencyQty"] = 250 } },
                          ["limits"] = { ["weekly"] = { ["resetTime"] = 7 } } },
+      ["cpDescriptions"] = { [66] = "Increases your Mount Speed" },
       ["antiquities"] = { ["items"] = { [3] = { ["name"] = "Totem", ["setId"] = 1, ["zoneId"] = 2, ["hasLead"] = true } },
                           ["sets"] = { [1] = "Set A" }, ["zones"] = { [2] = "Zone B" } },
     }"""
@@ -196,6 +197,7 @@ def test_iasync_1_11_details_currencies_activities_antiquities():
     assert data["activities"]["resets"] == {"weekly": 7}
     assert data["antiquities"][0] | {} == {**data["antiquities"][0], "name": "Totem", "set": "Set A", "zone": "Zone B", "lead": True}
     assert process_iasync_builds(raw)["builds"][0]["mundusDescriptions"] == {"The Lady": "Increases 2744 Resistance"}
+    assert process_iasync_builds(raw)["cpDescriptions"] == {"66": "Increases your Mount Speed"}
 
 
 def test_merged_item_takes_its_icon_from_any_copy():

@@ -38,8 +38,10 @@
   const setCount = (/** @type {any} */ item) => sets.find(([s]) => s === item?.set_name)?.[1] ?? 0;
   const attrTotal = $derived(Object.values(build?.attributes ?? {}).reduce((s, v) => s + (Number(v) || 0), 0));
   const cpTotal = $derived((build?.cp_spent ?? []).reduce((/** @type {number} */ s, /** @type {any} */ d) => s + d.spent, 0));
-  const cpDescriptions = $derived(app.builds.value?.cpDescriptions ?? {});
-  const mundusDescriptions = $derived(app.builds.value?.builds?.find((/** @type {any} */ b) => b.char_id === char.id)?.mundusDescriptions ?? {});
+  // As on the Sheet: every star's text (iasync 1.14.0), then this character's own at its points.
+  const charBuild = $derived(app.builds.value?.builds?.find((/** @type {any} */ b) => b.char_id === char.id));
+  const cpDescriptions = $derived({ ...app.builds.value?.cpDescriptions, ...charBuild?.cpDescriptions });
+  const mundusDescriptions = $derived(charBuild?.mundusDescriptions ?? {});
 </script>
 
 {#if app.builds.loading}

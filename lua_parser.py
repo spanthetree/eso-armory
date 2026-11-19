@@ -221,8 +221,9 @@ def parse_iasync_core_text(content: str) -> dict:
     parser._expect('{')
 
     result = {}
-    wanted_top_level = {"lastUpdate", "accountName", "abilityNames", "$abilityNames", "abilityIcons", "$abilityIcons", "cpNames", "chars", "bank", "houses", "guildBanks",
-                        "uiColors", "currencies", "activities", "antiquities"}  # iasync 1.7.0 / 1.11.0
+    wanted_top_level = {"lastUpdate", "accountName", "abilityNames", "$abilityNames", "abilityIcons", "$abilityIcons", "cpNames", "$cpNames", "chars", "bank", "houses", "guildBanks",
+                        "uiColors", "currencies", "activities", "antiquities",  # iasync 1.7.0 / 1.11.0
+                        "cpDescriptions"}  # iasync 1.14.0: every star's description, for stars no character has slotted
     while True:
         c = parser._peek()
         if c == '}':
