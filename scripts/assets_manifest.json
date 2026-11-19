@@ -1285,6 +1285,8 @@
  "esoui/lfg/lfg_indexicon_promotionalevents_down.png": "https://esoicons.uesp.net/esoui/art/lfg/lfg_indexicon_promotionalevents_down.png",
  "esoui/lfg/lfg_indexicon_promotionalevents_over.png": "https://esoicons.uesp.net/esoui/art/lfg/lfg_indexicon_promotionalevents_over.png",
  "esoui/icons/icon_missing.png": "https://esoicons.uesp.net/esoui/art/icons/icon_missing.png",
- "esoui/armory/builditem_icon.png": "https://esoicons.uesp.net/esoui/art/armory/builditem_icon.png",
+ "esoui/armory/builditem_icon_up.png": "https://esoicons.uesp.net/esoui/art/armory/builditem_icon.png",
+ "esoui/armory/builditem_icon_down.png": "https://esoicons.uesp.net/esoui/art/armory/builditem_icon.png",
+ "esoui/armory/builditem_icon_over.png": "https://esoicons.uesp.net/esoui/art/armory/builditem_icon.png",
  "esoui/loadingscreens/charload_01_small.png": "https://i0.wp.com/esoicons.uesp.net/esoui/art/loadingscreens/charload_01.png?w=480"
 }
