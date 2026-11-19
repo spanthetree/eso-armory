@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 
 import pytest
@@ -380,3 +381,26 @@ def test_exported_skill_icon_renders_without_name_lookup(page: Page, app_url: st
     open_view(page, "Wardrobe")
     icon = page.get_by_role("link", name="Mock Whip", exact=True).first.locator("img")
     expect(icon).to_have_attribute("src", "/esoicons/mock_exported.png")
+
+
+@pytest.mark.ui
+def test_watched_savedvariables_folder_syncs_and_refresh_forces_upload(page: Page, app_url: str, fixtures_dir):
+    # A fake File System Access handle for the SavedVariables folder itself (not "live") holding iasync.lua.
+    lua = json.dumps((fixtures_dir / "iasync.lua").read_text(encoding="utf-8"))
+    page.add_init_script(f"""
+      const notFound = () => Promise.reject(new DOMException('not found', 'NotFoundError'));
+      const dir = {{
+        name: 'SavedVariables', kind: 'directory',
+        getDirectoryHandle: notFound,
+        getFileHandle: (n) => n === 'iasync.lua'
+          ? Promise.resolve({{ getFile: async () => new File([{lua}], n, {{ lastModified: 1 }}) }}) : notFound(),
+      }};
+      window.showDirectoryPicker = async () => dir;
+    """)
+    page.goto(app_url)
+    page.get_by_role("button", name=re.compile(r"Select files")).click()
+    page.get_by_role("button", name=re.compile(r"Select your ESO")).click()
+    expect(page.get_by_role("button", name=re.compile("Test Character One"))).to_be_visible(timeout=15000)
+
+    page.get_by_role("button", name=re.compile(r"Refresh")).click()
+    expect(page.get_by_text("Data updated")).to_be_visible(timeout=15000)

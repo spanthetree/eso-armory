@@ -17,7 +17,12 @@
     // With a watched folder, refresh reconnects it if the browser wants access re-granted (this click allows that)
     // and uploads its files again, changed or not; otherwise it asks the server.
     if (watch.pending && !watch.handle) (await resumeWatching({ force: true })) || (await refresh());
-    else if (watch.handle) toast((await checkFolder({ force: true })) ? 'Data updated' : 'Folder files not found');
+    else if (watch.handle) {
+      const r = await checkFolder({ force: true });
+      toast(r === 'updated' ? 'Data updated'
+        : r === 'missing' ? `No iasync.lua or WizardsWardrobe.lua in ${watch.handle.name}: pick your ESO live or SavedVariables folder`
+        : `Sync failed: ${watch.error || 'the server rejected the files'}`);
+    }
     else await refresh();
     refreshing = false;
   }
